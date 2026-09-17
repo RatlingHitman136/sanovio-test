@@ -1,0 +1,57 @@
+@startuml 09_question_states
+!pragma layout smetana
+!include _style.iuml
+title Question lifecycle at the hub (questions.status)
+hide empty description
+
+state DRAFT {
+  state "attribute key set" as KEY_SET
+  state "attribute key pending" as KEY_PENDING : attribute_key = NULL;\njob PROPOSE_ATTRIBUTE runs
+  [*] --> KEY_SET : template attribute\n(judge origin LLM / TEMPLATE)
+  [*] --> KEY_PENDING : free question (origin PURCHASER)\nor judge extra concern
+  KEY_PENDING --> KEY_SET : proposal done:\nexisting key (MATCHED)\nor new definition (PENDING until send)
+}
+
+[*] --> DRAFT : created
+
+DRAFT --> WITHDRAWN : withdraw (review step)\n(no attribute is created)
+KEY_SET --> SENT : send-questions\n[addressee SUPPLIER]\n/ new definition -> PROVISIONAL attribute
+
+state "Purchaser branch (addressee PURCHASER)" as PB {
+  state "answered at the node" as AT_NODE : PUT /articles/{id}/facts/{attribute}\n(hub_question_id; value or cannot_provide)\nthen node issues a new requirement
+}
+
+KEY_SET --> AT_NODE : purchaser answers\n(client, at the node)
+AT_NODE --> ANSWERED : POST /assessments/{id}/requirements\n[question id in answered_question_ids]
+AT_NODE --> UNAVAILABLE : POST /assessments/{id}/requirements\n[attribute in unavailable_attributes]
+
+SENT --> ANSWERED : supplier submit\n(typed value or comment)
+SENT --> UNAVAILABLE : supplier submit\n(cannot provide)
+
+ANSWERED --> [*]
+UNAVAILABLE --> [*]
+WITHDRAWN --> [*]
+
+note right of UNAVAILABLE
+  Supplier: writes an UNAVAILABLE fact at the hub.
+  Purchaser: UNAVAILABLE fact at the node; the hub
+  only sees the attribute in the requirement's list.
+  The attribute is never asked again.
+end note
+
+note right of ANSWERED
+  Supplier typed value -> fact directly;
+  comment only -> extract_answer; if unclear,
+  the attribute stays UNKNOWN (follow-up next round).
+  A fact on a PROVISIONAL attribute is shown to all
+  hospitals as additional information (not judged).
+  Purchaser answer: questions.answered_in_requirement_id.
+end note
+
+note left of AT_NODE
+  Not a stored hub status: the question stays
+  DRAFT at the hub until the requirement arrives.
+  PURCHASER questions always use template attributes.
+end note
+
+@enduml

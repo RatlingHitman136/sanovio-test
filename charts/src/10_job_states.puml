@@ -1,0 +1,31 @@
+@startuml 10_job_states
+!pragma layout smetana
+!include _style.iuml
+title Background job lifecycle at the hub (jobs.status); the node has no queue (D53)
+hide empty description
+
+[*] --> QUEUED : enqueue\n(same transaction as the state change;\nunique dedupe_key blocks duplicates)
+
+QUEUED --> RUNNING : worker claims\n(conditional UPDATE, run_after <= now)
+RUNNING --> SUCCEEDED : handler finished
+RUNNING --> QUEUED : error [attempts < max_attempts]\nrun_after = now + growing delay
+RUNNING --> FAILED : error [attempts = max_attempts (3)]
+RUNNING --> QUEUED : service startup:\nstuck job requeued
+
+SUCCEEDED --> [*]
+FAILED --> [*]
+
+note right of FAILED
+  Hub ASSESS jobs: the assessment
+  moves to FAILED; POST /retry
+  enqueues a new job.
+end note
+
+note bottom of QUEUED
+The queue exists only at the hub (no node <-> hub link).
+  Hub kinds: NORMALIZE_ITEM | ASSESS | EXTRACT_ANSWERS |
+  PROPOSE_ATTRIBUTE | SIMULATE_SUPPLIER | REBUILD_PROJECTION
+  The node normalizes and rebuilds synchronously (D53).
+end note
+
+@enduml

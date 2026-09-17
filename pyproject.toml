@@ -1,0 +1,74 @@
+[project]
+name = "sanovio-workspace"
+version = "0.1.0"
+description = "Article Equivalence Loop prototype (uv workspace root)"
+requires-python = ">=3.14"
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["packages/*", "apps/*", "tools/*"]
+
+[dependency-groups]
+dev = [
+    "httpx2>=2.13.0",
+    "import-linter>=2.15",
+    "mypy>=2.3.1",
+    "pytest>=9.1.1",
+    "ruff>=0.16.8",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["equivalence_core", "hospital_node", "supplier_hub", "demo_client"]
+
+[tool.mypy]
+strict = true
+plugins = ["pydantic.mypy"]
+files = [
+    "packages/equivalence-core/src",
+    "apps/hospital-node/src",
+    "apps/supplier-hub/src",
+    "tools/demo-client/src",
+]
+
+[tool.pytest.ini_options]
+addopts = "--import-mode=importlib"
+filterwarnings = [
+    # Raised inside starlette's own test client (starlette 1.6 / anyio 4.15); nothing to fix on our side.
+    "ignore:The anyio.abc.BlockingPortal alias is deprecated:DeprecationWarning:starlette.testclient",
+]
+testpaths = [
+    "packages/equivalence-core/tests",
+    "apps/hospital-node/tests",
+    "apps/supplier-hub/tests",
+    "tools/demo-client/tests",
+]
+
+[tool.importlinter]
+root_packages = ["equivalence_core", "hospital_node", "supplier_hub", "demo_client"]
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "Node, hub and demo client never import each other"
+type = "independence"
+modules = ["hospital_node", "supplier_hub", "demo_client"]
+
+[[tool.importlinter.contracts]]
+name = "Core imports no app and no web, database or LLM library"
+type = "forbidden"
+source_modules = ["equivalence_core"]
+forbidden_modules = ["hospital_node", "supplier_hub", "demo_client", "fastapi", "sqlalchemy", "anthropic"]
+
+[[tool.importlinter.contracts]]
+name = "Node imports no HTTP client (it never calls the hub)"
+type = "forbidden"
+source_modules = ["hospital_node"]
+forbidden_modules = ["httpx", "requests"]

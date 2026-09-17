@@ -1,0 +1,63 @@
+@startuml 17_act_requirement_flow
+!include _style.iuml
+title Requirement: built by allowlist at the node, validated by strict schema at the hub (not signed)
+
+' declare swimlanes in reading order
+|Purchaser client|
+|Hospital node|
+|Supplier hub|
+|Purchaser client|
+start
+:POST /articles/{id}/requirement\n{answered_question_ids?};
+|Hospital node|
+:Authorize node user (PURCHASER);
+if (Per-user count above\nREQUIREMENT_RATE_LIMIT_PER_HOUR?) then (yes)
+  :429; write alert RATE_EXCEEDED;
+  stop
+else (no)
+endif
+:Read article_projection ONLY\n(never the article row: name, internal id,\nprice, quantities, raw are unreachable);
+:Keep template attributes with shareable = true;
+:Move EGRESS_DENY_ATTRIBUTES\nto withheld_attributes;
+:Free text only as synonym code\nor short text (<= 60 chars), else unknown;
+:Map sources to coarse origins\n(MASTER, EXTRACTED, REFERENCE, PURCHASER);
+if (SHARE_PRODUCT_HINTS?) then (yes)
+  :Add product_hints: brand,\nmanufacturer article no.,\nGTIN only if check digit valid;
+else (no, default)
+  :product_hints = null;
+endif
+:Validate RequirementPayload\n(extra keys fail);
+:Insert egress_log (kind REQUIREMENT,\ncontent, sha256, user) BEFORE returning;\nalert at 80% of the limit;
+|Purchaser client|
+:Show the requirement JSON\n("what leaves the hospital");
+:POST to hub: /search, /assessments\nor /assessments/{id}/requirements\n(hub token);
+|Supplier hub|
+:Hub token -> principal + tenant\n(tenant never taken from the body);
+if (RequirementPayload valid\n(no unknown fields)?) then (no)
+  :422;
+  stop
+else (yes)
+endif
+if (requirement_version supported and\ntemplate_code known?) then (no)
+  :422;
+  stop
+else (yes)
+endif
+:requirement_hash = core record_hash\n(attributes + unknown / unavailable / withheld);
+if (Endpoint?) then (search)
+  :Use for candidate search; discard\n(only tenant, time, counts\nin short-retention access log);
+else (assessment)
+  :Store in requirements\n(payload + requirement_hash);
+  :Attach to assessment\n(current_requirement_id; mark answered\nPURCHASER questions);
+endif
+stop
+
+note right
+  Why not signed (D34): the client already
+  receives all article data from the node, and
+  the hub schema enforces minimization. A node
+  signature could be added later around the same
+  payload (typ requirement+jwt, about 1/2 day).
+end note
+
+@enduml

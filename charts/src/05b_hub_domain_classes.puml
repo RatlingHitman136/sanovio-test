@@ -1,0 +1,330 @@
+@startuml 05b_hub_domain_classes
+!pragma layout smetana
+!include _style.iuml
+title Supplier hub domain model (UML class diagram, Appendix H.1-H.22)
+hide empty methods
+hide circle
+
+package "Tenants & identity" {
+  class Organization {
+    id : UUID
+    name : Text
+    type : OrganizationType
+    supplier_facing_alias : Text [0..1] {unique}
+    disclose_name_to_suppliers : Boolean
+    language : Code2
+    country : Code2 [0..1]
+    cors_origin : Text [0..1]
+    is_active : Boolean
+  }
+  class TenantSigningKey {
+    id : UUID
+    kid : Text {unique}
+    public_jwk : JSON
+    fingerprint : Hash
+    not_before : Timestamp
+    not_after : Timestamp [0..1]
+    revoked_at : Timestamp [0..1]
+    registered_by : User
+  }
+  class HospitalPrincipal {
+    id : UUID
+    subject_id : Text
+    first_seen_at : Timestamp
+    last_seen_at : Timestamp
+    is_blocked : Boolean
+  }
+  class User {
+    id : UUID
+    email : Text {unique}
+    password_hash : Text
+    role : HubRole
+    display_name : Text
+    is_active : Boolean
+  }
+  class ApiToken {
+    id : UUID
+    kid : Text [0..1]
+    assertion_jti : Text [0..1]
+    token_hash : Hash {unique}
+    expires_at : Timestamp
+    revoked_at : Timestamp [0..1]
+    last_used_at : Timestamp [0..1]
+  }
+  class UsedAssertionJti {
+    jti : Text {PK}
+    expires_at : Timestamp
+  }
+}
+
+package "Catalog" {
+  class ProductFamily {
+    id : UUID
+    manufacturer : Text
+    brand_name : Text [0..1]
+    name : Text
+    product_type : Text [0..1]
+    category_code : Text [0..1]
+    category_source : CategorySource [0..1]
+    description : Text [0..1]
+    properties_text : Text [0..1]
+    source_document : Text [0..1]
+    source_page : Integer [0..1]
+    content_hash : Hash
+    normalized_hash : Hash [0..1]
+  }
+  class ProductVariant {
+    id : UUID
+    article_no : Text
+    label : Text
+    order_unit : Text [0..1]
+    units_per_order_unit : Integer [0..1]
+    order_units_per_shipping_unit : Integer [0..1]
+    source_row : JSON
+    is_active : Boolean
+    content_hash : Hash
+  }
+}
+
+package "Facts & read model" {
+  class ItemFact {
+    id : UUID
+    scope : FAMILY | VARIANT
+    attribute_key : Text
+    value : TypedValue [0..1]
+    raw_value : Text [0..1]
+    source : SupplierFactSource
+    evidence_quote : Text [0..1]
+    {field} confidence : Decimal(3,2) [0..1]
+    answer : Answer [0..1]
+    created_by : User [0..1]
+    llm_call : LlmCall [0..1]
+    superseded_by : ItemFact [0..1]
+  }
+  class ItemSearchProjection <<derived>> {
+    id : UUID
+    category_code : Text [0..1]
+    display_name : Text
+    attributes : JSON
+    attribute_fact_ids : JSON
+    unknown_attributes : Text [*]
+    additional_attributes : JSON
+    identifiers : JSON
+    search_text : Text
+    record_hash : Hash
+  }
+}
+
+package "Attribute registry" {
+  class AttributeDefinition {
+    id : UUID
+    key : Text {unique}
+    kind : ATTRIBUTE | IDENTIFIER
+    value_type : ValueType
+    unit : Text [0..1]
+    options : Code [*]
+    labels : JSON
+    synonyms : JSON
+    status : PROVISIONAL | APPROVED | DEPRECATED
+    origin : SEED | PROPOSAL
+    merged_into : AttributeDefinition [0..1]
+    approved_by : User [0..1]
+  }
+  class CategoryTemplate {
+    id : UUID
+    code : Text {unique}
+    parent_code : Text [0..1]
+    attributes : TemplateAttribute [*]
+    definition_hash : Hash
+    change_note : Text [0..1]
+    updated_by : User
+    updated_at : Timestamp
+  }
+  class TemplateAttribute <<datatype>> {
+    key : Text
+    criticality : CRITICAL | MAJOR | MINOR
+    comparison_rule : Text
+    shareable : Boolean
+  }
+  class AttributeProposal {
+    id : UUID
+    category_code : Text
+    result : EXISTING | NEW |\nIDENTIFIER [0..1]
+    proposal : JSON [0..1]
+    identifier_key : Text [0..1]
+    status : PENDING | MATCHED | PROVISIONAL |\nAPPROVED | MERGED | REJECTED | ROUTED
+    reviewed_by : User [0..1]
+    review_note : Text [0..1]
+    llm_call : LlmCall [0..1]
+  }
+}
+
+package "Assessment loop" {
+  class Requirement <<append-only>> {
+    id : UUID
+    requirement_version : Integer
+    article_ref : Text
+    template_code : Text
+    payload : JSON
+    requirement_hash : Hash
+    answered_question_ids : Text [*]
+  }
+  class Assessment {
+    id : UUID
+    article_ref : Text
+    template_code : Text
+    status : AssessmentStatus
+    current_round : Integer
+    max_rounds : Integer = 3
+    proposed_verdict : FinalVerdict [0..1]
+    final_verdict : FinalVerdict [0..1]
+    resolution_kind : ResolutionKind [0..1]
+    resolution_note : Text [0..1]
+    manual_reason : ManualReason [0..1]
+    version : Integer
+    created_by : HospitalPrincipal
+    resolved_by : HospitalPrincipal [0..1]
+    assigned_to : HospitalPrincipal [0..1]
+    resolved_at : Timestamp [0..1]
+  }
+  class AssessmentRound <<append-only>> {
+    id : UUID
+    round_no : Integer
+    supplier_record_hash : Hash
+    input_hash : Hash
+    input_snapshot : JSON
+    identifier_evidence : SAME_TRADE_ITEM |\nNO_INFORMATION
+    comparator_results : JSON
+    attribute_judgments : JSON
+    rule_verdict : RoundVerdict
+    llm_verdict : RoundVerdict [0..1]
+    disagreement : Boolean
+    outcome_status : AssessmentStatus
+    model_id : Text
+    prompt_version : Text
+  }
+  class Question {
+    id : UUID
+    addressee : Addressee
+    attribute_key : Text [0..1]
+    text : Text
+    language : Code2
+    expected_answer : JSON
+    origin : QuestionOrigin
+    status : QuestionStatus
+    edited_by_purchaser : Boolean
+    answered_in_requirement : Requirement [0..1]
+    sent_at : Timestamp [0..1]
+  }
+  class Answer {
+    id : UUID
+    value : TypedValue [0..1]
+    comment : Text [0..1]
+    cannot_provide : Boolean
+    applies_to_family : Boolean
+    is_draft : Boolean
+    answered_by : User
+    submitted_at : Timestamp [0..1]
+    extraction_status : ExtractionStatus
+  }
+  class Event <<append-only>> {
+    id : UUID
+    type : EventType
+    actor_user : User [0..1]
+    actor_principal : HospitalPrincipal [0..1]
+    from_status : AssessmentStatus [0..1]
+    to_status : AssessmentStatus [0..1]
+    data : JSON
+  }
+}
+
+package "Infrastructure" {
+  class Job {
+    id : UUID
+    kind : HubJobKind
+    payload : JSON
+    dedupe_key : Text [0..1] {unique}
+    status : JobStatus
+    attempts : Integer
+    run_after : Timestamp
+  }
+  class LlmCall <<append-only>> {
+    id : UUID
+    purpose : LlmPurpose
+    model : Text
+    effort : Text [0..1]
+    prompt_version : Text
+    request : JSON
+    response : JSON [0..1]
+    stop_reason : Text [0..1]
+    input_tokens : Integer
+    output_tokens : Integer
+    latency_ms : Integer
+    {field} cost_usd : Decimal(10,6) [0..1]
+  }
+}
+
+Organization "1" *-- "0..*" TenantSigningKey : hospital tenant
+Organization "1" *-- "0..*" HospitalPrincipal : hospital tenant
+Organization "1" *-- "0..*" User : supplier / operator
+User "0..1" -- "0..*" ApiToken : login token
+HospitalPrincipal "0..1" -- "0..*" ApiToken : exchanged token
+Organization "1" -- "0..*" UsedAssertionJti
+
+Organization "1" *-- "0..*" ProductFamily : supplier
+ProductFamily "1" *-- "1..*" ProductVariant
+ProductFamily "1" *-- "0..*" ItemFact : FAMILY scope
+ProductVariant "1" *-- "0..*" ItemFact : VARIANT scope
+ProductVariant "1" -- "0..1" ItemSearchProjection
+ItemSearchProjection ..> ItemFact : <<derive>>
+
+Organization "1" -- "0..*" Assessment : hospital tenant (owner)
+Organization "1" -- "0..*" Assessment : supplier
+ProductVariant "1" -- "0..*" Assessment
+Assessment "1" *-- "1..*" Requirement
+Assessment "1" --> "1" Requirement : current_requirement
+Assessment "1" *-- "1..*" AssessmentRound
+AssessmentRound "0..*" --> "1" Requirement : judged requirement
+AssessmentRound "1" *-- "0..*" Question
+Question "1" *-- "0..1" Answer
+Assessment "1" *-- "0..*" Event
+HospitalPrincipal "0..1" -- "0..*" Assessment : created_by /\nresolved_by / assigned_to
+
+CategoryTemplate "1" *-- "1..*" TemplateAttribute
+TemplateAttribute "0..*" --> "1" AttributeDefinition : key (APPROVED)
+Question "1" -- "0..1" AttributeProposal : free question
+AttributeProposal "0..*" --> "0..1" AttributeDefinition : matched / created
+ItemFact "0..*" ..> "1" AttributeDefinition : attribute_key
+Assessment "0..*" ..> "1" CategoryTemplate : current definition\n(hash stored per round)
+
+note bottom of AttributeProposal
+  Criticality is never proposed:
+  only the curator sets it on the
+  template (TemplateAttribute).
+  PROVISIONAL values are shared with all
+  hospitals as additional information.
+end note
+
+note top of Assessment
+  Keyed by (hospital tenant, article_ref, variant):
+  at most one open assessment per key.
+  article_ref is opaque; the hub has no
+  article names, identifiers or prices.
+  Creator, resolver and assignee are
+  pseudonymous principals; the client
+  resolves their names at the node.
+end note
+
+note bottom of TenantSigningKey
+  Public keys only (CHECK: no private
+  member "d"). Revoking a kid also
+  revokes hub tokens issued from it.
+end note
+
+note bottom of Answer
+  Supplier answers only. Purchaser
+  answers arrive as a new requirement
+  (Question.answered_in_requirement).
+end note
+
+@enduml

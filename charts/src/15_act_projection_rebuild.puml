@@ -1,0 +1,56 @@
+@startuml 15_act_projection_rebuild
+!include _style.iuml
+title REBUILD_PROJECTION on both sides: one core resolver, two read models
+
+' declare swimlanes in reading order
+|Hospital node|
+|equivalence-core FactResolver|
+|Supplier hub|
+|Hospital node|
+start
+split
+  |Hospital node|
+  :REBUILD_PROJECTION job (article);
+  :Load article_facts;
+  :Split identifier facts from attribute facts;
+  |equivalence-core FactResolver|
+  :Drop superseded facts;
+  :Highest-precedence source per attribute:\nPURCHASER_ANSWER > REFERENCE_ITEM\n> HOSPITAL_MASTER > EXTRACTION;
+  :unknown_attributes: template attributes without a value;\nunavailable_attributes: attributes marked UNAVAILABLE;
+  :record_hash over all resolved attributes;
+  :requirement_hash over the shareable subset\n(shareable=true + unknown / unavailable /\nwithheld lists);
+  |Hospital node|
+  :attribute_origin (coarse: MASTER, EXTRACTED,\nREFERENCE, PURCHASER), attribute_fact_ids;
+  :identifiers section: every live row per scheme\n(no single winner), part of record_hash;
+  :Upsert article_projection;
+  note right
+    Read by GET /articles/{id} and by the
+    RequirementBuilder (which never reads the
+    article row itself).
+  end note
+split again
+  |Supplier hub|
+  :REBUILD_PROJECTION job\n(variant or family);
+  if (Target is a family?) then (yes)
+    :Rebuild every variant of the family;
+  else (no)
+  endif
+  :Load variant facts + family facts;
+  |equivalence-core FactResolver|
+  :Drop superseded facts;
+  :Highest-precedence source per attribute:\nSUPPLIER_ANSWER > variant CATALOG\n> family CATALOG > EXTRACTION;
+  :Variant values override family values;
+  :unknown_attributes;
+  :record_hash over all resolved attributes;
+  |Supplier hub|
+  :attribute_fact_ids; identifiers section\n(all schemes, GIN-indexed); render search_text;
+  :Upsert item_search_projection;
+  note right
+    Read by POST /search, round snapshots and
+    catalog browsing. supplier record_hash feeds
+    input_hash (no-progress check).
+  end note
+end split
+stop
+
+@enduml

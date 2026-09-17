@@ -1,0 +1,72 @@
+@startuml 12_seq_candidate_search
+!include _style.iuml
+title Candidate search: node requirement -> hub POST /search (deterministic, no LLM, nothing stored)
+autonumber
+skinparam sequenceMessageAlign left
+
+participant "Purchaser client" as C
+box "Hospital node" #E3F2FD
+  participant "api/v1 requirements" as NAPI
+  participant "RequirementBuilder" as RB
+  participant "EgressLog" as EGR
+  database "node.db" as NDB
+end box
+box "Supplier hub" #E8F5E9
+  participant "api/v1 search" as HAPI
+  participant "RequirementIntake" as INT
+  participant "CandidateSearchService" as CS
+  participant "Comparators (core)" as CMP
+  database "hub.db" as HDB
+end box
+
+C -> NAPI : POST /articles/art_03/requirement\n(node token)
+NAPI -> NDB : per-user count in egress_log
+alt above REQUIREMENT_RATE_LIMIT_PER_HOUR
+  NAPI --> C : 429 (alert written)
+else ready
+  NAPI -> RB : build(art_03)
+  RB -> NDB : article_projection only (never the article row)
+  RB -> RB : allowlist: shareable attributes, coarse origins,\nunknown / unavailable / withheld lists;\nproduct_hints only if SHARE_PRODUCT_HINTS
+  RB -> RB : RequirementPayload (extra keys fail)
+  RB -> EGR : record(REQUIREMENT, content, sha256)
+  EGR -> NDB : insert egress_log
+  NAPI --> C : 200 {requirement, egress_id}\n(+ category_unconfirmed warning)
+end
+
+C -> HAPI : POST /search {requirement, supplier_id?, limit} (hub token)
+HAPI -> HDB : token hash -> principal, tenant ten_ksp
+HAPI -> INT : validate(requirement, tenant)
+alt unknown fields or unknown template_code
+  INT --> HAPI : reject
+  HAPI --> C : 422
+else valid
+  INT --> HAPI : validated requirement
+  HAPI -> CS : search(requirement, options)
+  CS -> CS : search spec from template + requirement:\nhard filters (critical, known, exact/tolerance)\nsoft criteria; hospital_gaps = unknown + withheld
+  CS -> HDB : query item_search_projection (active variants,\ncategory, hard filters: unknown passes,\ncontradiction excludes); count excluded_by
+  HDB --> CS : matching variants
+  opt product_hints present
+    CS -> HDB : match valid GTIN / manufacturer article no.\nin item_search_projection.identifiers (scheme, value)
+    CS -> CS : identifier_match, rank first (never linked,\nnever a filter: a difference excludes nothing)
+  end
+  loop each candidate
+    CS -> CMP : pre-check requirement values vs variant values
+    CMP --> CS : MATCH / ACCEPTABLE_DEVIATION / UNKNOWN / MISMATCH
+    CS -> CS : score (weights 3/2/1), coverage
+  end
+  CS -> HDB : open assessments / last verdicts\nfor (ten_ksp, article_ref)
+  CS -> CS : sort: identifier match, fewest critical unknowns,\nscore, coverage; additional_information
+  CS --> HAPI : result
+  HAPI --> C : 200 {search_spec, hospital_gaps, excluded_by, candidates}\n(no paging or relaxation in the prototype, D54)
+end
+
+C -> C : mark is_current_product locally (reference variant id\nis known only to the node); show article name from the node
+
+note over C, HDB
+  Two row actions: "this is our current product" (variant attributes -> node preview -> set -> new requirement ->
+  automatic second search on the extended parameter set) and "start assessment" (POST /assessments).
+  Every search is built from the hospital requirement alone: there is no pivot mode (D46).
+  The hub stores nothing from a search (only tenant, time and counts in short-retention access logs).
+end note
+
+@enduml

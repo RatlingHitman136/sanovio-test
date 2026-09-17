@@ -1,0 +1,129 @@
+@startuml 01_use_cases
+!pragma layout smetana
+!include _style.iuml
+title Use cases: hospital node and central supplier hub (backend, REST APIs)
+left to right direction
+
+actor "Purchaser\n(hospital, via client)" as P
+actor "Node admin\n(hospital IT)" as NA
+actor "Node seed / startup\n(system)" as NW
+
+rectangle "Hospital node (per hospital)" #E3F2FD {
+  usecase "Log in to node" as N_login
+  usecase "Browse articles" as N_browse
+  usecase "Confirm or change category" as N_cat
+  usecase "Correct article facts, set identifiers /\nanswer purchaser questions" as N_fact
+  usecase "Mark current product\n(preview conflicts, store values)" as N_ref
+  usecase "Build requirement\n(allowlist, rate limit, log egress)" as N_env
+  usecase "Sign hub assertion" as N_asr
+  usecase "Look up articles and user names\n(by article_ref, hub_subject_id)" as N_lookup
+  usecase "View egress log" as N_egress
+  usecase "Generate signing key\n(show public JWK)" as N_key
+  usecase "Normalize articles at ingestion\n(parsers + LLM, hospital key)" as N_norm
+  usecase "Rebuild article projection" as N_proj
+  usecase "Install template definition\n(validate, rebuild)" as N_tpl
+}
+
+rectangle "Supplier hub (central)" #E8F5E9 {
+  usecase "Exchange assertion\nfor hub token" as H_exch
+  usecase "Search candidates\n(on requirement)" as H_search
+  usecase "Get variant attributes" as H_snap
+  usecase "Start assessment\n(with requirement)" as H_start
+  usecase "Review / edit / add /\nsend questions" as H_review
+  usecase "Submit purchaser answers\n(new requirement)" as H_penv
+  usecase "Resolve / override / extra round /\ncancel / retry" as H_resolve
+  usecase "Assign purchaser /\nlist hospital assessments" as H_assign
+  usecase "Log in to hub" as H_login
+  usecase "View requests (inbox,\nhospital alias only)" as H_inbox
+  usecase "Answer supplier questions\n(drafts, submit)" as H_sans
+  usecase "View enriched catalog" as H_catalog
+  usecase "Register tenant and\npublic signing key" as H_tenant
+  usecase "Rotate / revoke key" as H_revoke
+  usecase "Normalize family" as H_norm
+  usecase "Judge round" as H_judge
+  usecase "Recognize same trade item\n(identifier evidence, no LLM)" as H_ident
+  usecase "Extract answer" as H_extract
+  usecase "Simulate supplier (dev)" as H_sim
+  usecase "Propose attribute\n(free question, duplicate check)" as H_prop
+  usecase "Curate proposals, set criticality,\nupdate category definition" as H_curate
+  usecase "Get template definition" as H_tpl
+  usecase "View additional information\n(provisional attributes)" as H_addinfo
+}
+
+actor "Supplier user" as S
+actor "Hub operator" as OP
+actor "Hub worker\n(system)" as HW
+actor "LLM provider\n(Anthropic)" as L
+
+P --> N_login
+P --> N_browse
+P --> N_cat
+P --> N_fact
+P --> N_ref
+P --> N_env
+P --> N_asr
+P --> N_lookup
+NA --> N_login
+NA --> N_egress
+NA --> N_key
+N_norm <-- NW
+N_proj <-- NW
+
+P --> H_exch
+P --> H_search
+P --> H_snap
+P --> H_start
+P --> H_review
+P --> H_penv
+P --> H_resolve
+P --> H_assign
+P --> H_sim
+
+H_login <-- S
+H_inbox <-- S
+H_sans <-- S
+H_catalog <-- S
+H_login <-- OP
+H_tenant <-- OP
+H_revoke <-- OP
+H_norm <-- HW
+H_judge <-- HW
+H_ident <-- HW
+H_extract <-- HW
+
+H_norm --> L
+H_judge --> L
+H_extract --> L
+H_sim --> L
+N_norm ..> L : at ingestion only,\nhospital's key
+
+N_fact ..> N_proj : <<include>>
+N_ref ..> N_proj : <<include>>
+H_search ..> N_env : <<include>>
+H_start ..> N_env : <<include>>
+H_penv ..> N_fact : <<include>>
+H_exch ..> N_asr : <<include>>
+N_ref ..> H_snap : <<include>>
+H_assign ..> N_lookup : <<include>>\n(client joins names)
+H_start ..> H_ident : <<include>>
+H_ident ..> H_judge : <<extend>>\n(NO_INFORMATION only)
+H_start ..> H_judge : <<include>>
+H_sans ..> H_extract : <<include>>
+
+P --> N_tpl
+P --> H_addinfo
+H_addinfo <-- S
+H_prop <-- HW
+H_curate <-- OP
+H_prop --> L
+H_review ..> H_prop : <<extend>>\nfree question
+N_tpl ..> H_tpl : <<include>>
+N_tpl ..> N_proj : <<include>>
+
+note bottom of H_exch
+  Node and hub never call each other:
+  every <<include>> across the two systems
+  is carried out by the purchaser's client.
+end note
+
+@enduml

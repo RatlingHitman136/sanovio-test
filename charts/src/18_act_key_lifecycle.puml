@@ -1,0 +1,65 @@
+@startuml 18_act_key_lifecycle
+!include _style.iuml
+title Node signing key lifecycle: onboarding, rotation, revocation (one key pair in the system, D52)
+
+' declare swimlanes in reading order
+|Hub operator|
+|Node admin (hospital IT)|
+|Hospital node|
+|Supplier hub|
+|Hub operator|
+start
+partition "Onboarding" {
+  :POST /admin/tenants\n{name, supplier_facing_alias,\ndisclose_name_to_suppliers: false};
+  |Supplier hub|
+  :Create tenant ten_ksp;
+  |Node admin (hospital IT)|
+  :hospital-node keygen --kid ksp-2026-09;
+  |Hospital node|
+  :Write Ed25519 private key\n(file mode 0600 or key vault);\nprint public JWK + fingerprint;
+  |Node admin (hospital IT)|
+  :Send public JWK to operator\n(any channel);
+  |Hub operator|
+  :Confirm fingerprint out of band\n(phone / ticket);
+  if (Fingerprint matches?) then (no)
+    :Reject; request new key;
+    stop
+  else (yes)
+  endif
+  :POST /admin/tenants/ten_ksp/signing-keys\n{public_jwk, not_before};
+  |Supplier hub|
+  :Store tenant_signing_keys row\n(public only; CHECK no "d");
+  |Node admin (hospital IT)|
+  :set NODE_TENANT_ID, NODE_SIGNING_KID,\nHUB_AUDIENCE (no hub key to install: template\ndefinitions are plain JSON, D52);
+}
+
+partition "Rotation (yearly or on demand)" {
+  |Node admin (hospital IT)|
+  :keygen --kid ksp-2027-09;
+  |Hub operator|
+  :Register new public key\n(fingerprint confirmed);
+  |Node admin (hospital IT)|
+  :Switch NODE_SIGNING_KID to ksp-2027-09;
+  |Hospital node|
+  :New assertions\nsigned with the new key;
+  |Hub operator|
+  :After 5 min (assertion lifetime)\nset not_after on ksp-2026-09;
+  |Supplier hub|
+  :Hub tokens issued from the old key\nexpire within 30 min;
+}
+
+partition "Revocation (key compromised)" {
+  |Hub operator|
+  :POST /admin/tenants/ten_ksp/signing-keys/ksp-2026-09/revoke;
+  |Supplier hub|
+  :revoked_at = now;
+  :Reject assertions with that kid;
+  :Revoke all api_tokens issued from that kid;
+  |Node admin (hospital IT)|
+  :Destroy old private key; generate and\nregister a new one (onboarding steps);
+}
+
+|Hub operator|
+stop
+
+@enduml

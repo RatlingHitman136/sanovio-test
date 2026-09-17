@@ -1,0 +1,114 @@
+@startuml 02_component
+!pragma layout smetana
+!include _style.iuml
+title Components: hospital node + central supplier hub, client as the only bridge
+skinparam componentStyle uml2
+
+rectangle "Clients" {
+  component "Purchaser client\n(demo CLI now, SPA later;\nnode + hub tokens in memory)" as PC
+  component "Supplier client\n(Swagger UI, .http;\nsupplier SPA later)" as SC
+}
+
+interface "Node REST /api/v1\n(hospital LAN, node token)" as NREST
+interface "Hub REST /api/v1\n(internet HTTPS, hub token)" as HREST
+
+rectangle "Hospital node (apps/hospital-node, per hospital)" #E3F2FD {
+  component "api/v1 routers\n(auth, articles, users,\nrequirements, hub_assertions,\nreference, egress, templates)" as N_API
+  component "Auth\n(node users, hashed tokens)" as N_AUTH
+  component "Article services\n(facts, category,\nprojection)" as N_SVC
+  component "Normalization at ingestion\n(parsers + normalize_article)" as N_NORM
+  component "RequirementBuilder\n(allowlist from projection;\nper-user rate limits)" as N_ENV
+  component "AssertionSigner" as N_ASR
+  component "EgressLog" as N_EGR
+  component "ReferenceLink\n(preview, set, undo)" as N_LINK
+  component "UserDirectory\n(display names by\nhub_subject_id)" as N_USR
+  component "TemplateSync\n(validate + install\ntemplate definitions)" as N_TPL
+  database "node.db" as N_DB
+  artifact "Secrets: node Ed25519\nPRIVATE key;\nhospital Anthropic key" as N_SEC
+}
+
+rectangle "equivalence-core (shared library)" #FFF3E0 {
+  component "template model + loader,\nparsers, synonyms,\nidentifiers" as C_PARSE
+  component "comparators, facts\n(precedence, record_hash),\nverdict rules" as C_CMP
+  component "exchange: requirement\npayload, assertion, jws" as C_EXC
+}
+
+rectangle "Supplier hub (apps/supplier-hub, central)" #E8F5E9 {
+  component "api/v1 routers\n(auth, token_exchange, admin,\ncatalog, search, assessments,\nsupplier, dev)" as H_API
+  component "Auth\n(supplier/operator login,\nexchanged purchaser tokens)" as H_AUTH
+  component "TokenExchange +\nTenantKeys" as H_TOK
+  component "RequirementIntake\n(strict schema,\ntenant from token)" as H_INT
+  component "CandidateSearch\n(two passes, product hints)" as H_SEARCH
+  component "Assessment, Questions,\nEnrichment, Resolution\n(state machine, assignee)" as H_LOOP
+  component "AttributeRegistry +\nTemplateService\n(proposals, curation,\ncurrent definitions)" as H_REG
+  component "Hub worker\n(NORMALIZE_ITEM, ASSESS,\nEXTRACT_ANSWERS, ...)" as H_W
+  component "LLM pipelines\n(normalize, judge,\nextract, simulate)" as H_PIPE
+  interface "LLMClient" as LLMI
+  component "AnthropicClient" as ANT
+  component "FakeLLM" as FAKE
+  database "hub.db\n(tenant PUBLIC keys,\nhashed tokens)" as H_DB
+  artifact "Secrets: Anthropic key" as H_SEC
+}
+
+cloud "Anthropic API\n(Opus 5, Sonnet 5, Haiku 4.5)" as ANTAPI
+
+PC ..> NREST
+PC ..> HREST
+SC ..> HREST
+NREST - N_API
+HREST - H_API
+
+N_API --> N_AUTH
+N_API --> N_SVC
+N_API --> N_ENV
+N_API --> N_ASR
+N_API --> N_LINK
+N_API --> N_USR
+N_USR --> N_DB
+N_SVC --> N_NORM
+N_ENV --> N_EGR
+N_ASR --> N_EGR
+N_ASR ..> N_SEC : signs with
+N_SVC --> N_DB
+N_EGR --> N_DB
+N_API --> N_TPL
+N_TPL --> N_DB
+N_TPL ..> C_PARSE
+
+H_API --> H_AUTH
+H_AUTH --> H_TOK
+H_API --> H_INT
+H_API --> H_SEARCH
+H_API --> H_LOOP
+H_SEARCH --> H_INT
+H_LOOP --> H_INT
+H_W --> H_LOOP
+H_W --> H_PIPE
+H_PIPE ..> LLMI : uses
+LLMI - ANT
+LLMI - FAKE
+ANT --> ANTAPI : HTTPS
+H_LOOP --> H_DB
+H_TOK --> H_DB
+H_API --> H_REG
+H_LOOP ..> H_REG : proposals,\ncurrent definition
+H_W --> H_REG : PROPOSE_ATTRIBUTE
+H_REG --> H_DB
+
+N_NORM ..> C_PARSE
+N_ENV ..> C_EXC
+N_SVC ..> C_CMP
+H_INT ..> C_EXC
+H_TOK ..> C_EXC
+H_SEARCH ..> C_CMP
+H_LOOP ..> C_CMP
+H_PIPE ..> C_PARSE
+
+N_NORM ..> ANTAPI : at ingestion\n(hospital's key)
+N_NORM ..> N_SEC : reads key
+
+note "No network path between node and hub\nin either direction. Hub assertions are the\nonly signed object; requirements and template\ndefinitions are plain JSON. All of it travels\ninside client requests. Assessments live only\nat the hub; the client adds names from the node." as GAP
+N_API .. GAP
+GAP .. H_API
+
+@enduml

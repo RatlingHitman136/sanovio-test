@@ -1,0 +1,13 @@
+' Shared look for all diagrams (included by every source file).
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundCorner 6
+skinparam defaultFontName "DejaVu Sans"
+skinparam defaultFontSize 12
+skinparam titleFontSize 16
+skinparam ArrowColor #37474F
+skinparam ArrowFontSize 11
+skinparam classAttributeIconSize 0
+skinparam noteBackgroundColor #FFF8E1
+skinparam noteBorderColor #C9A227
+skinparam dpi 110

@@ -1,0 +1,428 @@
+@startuml 07b_hub_database_er
+!pragma layout smetana
+!include _style.iuml
+title Supplier hub database schema (ER, crow's-foot notation). * = NOT NULL
+hide circle
+skinparam linetype ortho
+
+entity organizations {
+  * id : uuid <<PK>>
+  --
+  * name : text
+  * type : text <<CHECK HOSPITAL|SUPPLIER|OPERATOR>>
+  supplier_facing_alias : text <<UNIQUE>>
+  * disclose_name_to_suppliers : boolean
+  * language : varchar(2)
+  country : varchar(2)
+  cors_origin : text
+  * is_active : boolean
+  * created_at : timestamptz
+  * updated_at : timestamptz
+}
+
+entity tenant_signing_keys {
+  * id : uuid <<PK>>
+  --
+  * tenant_id : uuid <<FK organizations>>
+  * kid : text <<UNIQUE>>
+  * public_jwk : jsonb <<CHECK no "d">>
+  * fingerprint : char(64)
+  * not_before : timestamptz
+  not_after : timestamptz
+  revoked_at : timestamptz
+  * registered_by : uuid <<FK users>>
+  * created_at : timestamptz
+}
+
+entity hospital_principals {
+  * id : uuid <<PK>>
+  --
+  * tenant_id : uuid <<FK organizations>>
+  * subject_id : text
+  * first_seen_at : timestamptz
+  * last_seen_at : timestamptz
+  * is_blocked : boolean
+  ..
+  UNIQUE (tenant_id, subject_id)
+}
+
+entity users {
+  * id : uuid <<PK>>
+  --
+  * org_id : uuid <<FK organizations>>
+  * email : text <<UNIQUE>>
+  * password_hash : text
+  * role : text <<CHECK SUPPLIER|OPERATOR>>
+  * display_name : text
+  * is_active : boolean
+  * created_at : timestamptz
+  * updated_at : timestamptz
+}
+
+entity api_tokens {
+  * id : uuid <<PK>>
+  --
+  user_id : uuid <<FK users>>
+  principal_id : uuid <<FK hospital_principals>>
+  tenant_id : uuid <<FK organizations>>
+  kid : text
+  assertion_jti : text
+  * token_hash : char(64) <<UNIQUE>>
+  * expires_at : timestamptz
+  revoked_at : timestamptz
+  last_used_at : timestamptz
+  * created_at : timestamptz
+  ..
+  CHECK exactly one of user_id / principal_id
+}
+
+entity used_assertion_jtis {
+  * jti : text <<PK>>
+  --
+  * tenant_id : uuid <<FK organizations>>
+  * expires_at : timestamptz
+}
+
+entity product_families {
+  * id : uuid <<PK>>
+  --
+  * supplier_id : uuid <<FK organizations>>
+  * manufacturer : text
+  brand_name : text
+  * name : text
+  product_type : text
+  category_code : text
+  category_source : text <<CHECK LLM_SUGGESTED|SUPPLIER>>
+  category_set_by : uuid <<FK users>>
+  category_set_at : timestamptz
+  description : text
+  properties_text : text
+  source_document : text
+  source_page : integer
+  * content_hash : char(64)
+  normalized_hash : char(64)
+  * raw : jsonb
+  * created_at : timestamptz
+  * updated_at : timestamptz
+}
+
+entity product_variants {
+  * id : uuid <<PK>>
+  --
+  * family_id : uuid <<FK product_families>>
+  * supplier_id : uuid <<FK organizations>>
+  * article_no : text
+  * label : text
+  order_unit : text
+  units_per_order_unit : integer
+  order_units_per_shipping_unit : integer
+  * source_row : jsonb
+  source_page : integer
+  * is_active : boolean
+  * content_hash : char(64)
+  * created_at : timestamptz
+  * updated_at : timestamptz
+  ..
+  UNIQUE (supplier_id, article_no)
+}
+
+entity item_facts {
+  * id : uuid <<PK>>
+  --
+  family_id : uuid <<FK product_families>>
+  variant_id : uuid <<FK product_variants>>
+  * attribute_key : text <<in attribute_definitions>>
+  value : jsonb
+  raw_value : text
+  * source : text <<CHECK CATALOG|EXTRACTION|\nSUPPLIER_ANSWER|UNAVAILABLE>>
+  evidence_quote : text
+  confidence : numeric(3,2)
+  answer_id : uuid <<FK answers>>
+  created_by : uuid <<FK users>>
+  llm_call_id : uuid <<FK llm_calls>>
+  model_id : text
+  prompt_version : text
+  superseded_by_id : uuid <<FK item_facts>>
+  * created_at : timestamptz
+  ..
+  CHECK num_nonnulls(family_id, variant_id) = 1
+  PARTIAL INDEX current facts per item
+}
+
+entity item_search_projection {
+  * id : uuid <<PK>>
+  --
+  * variant_id : uuid <<FK product_variants, UNIQUE>>
+  * supplier_id : uuid <<FK organizations>>
+  category_code : text
+  * display_name : text
+  * attributes : jsonb <<GIN index (Postgres)>>
+  * attribute_fact_ids : jsonb
+  * unknown_attributes : jsonb
+  * additional_attributes : jsonb <<PROVISIONAL values>>
+  * identifiers : jsonb <<GIN index: (scheme, value)>>
+  * search_text : text
+  * record_hash : char(64)
+  * updated_at : timestamptz
+}
+
+entity requirements {
+  * id : uuid <<PK>>
+  --
+  * tenant_id : uuid <<FK organizations, from token>>
+  * assessment_id : uuid <<FK assessments>>
+  * requirement_version : smallint
+  * article_ref : text
+  * template_code : text
+  * payload : jsonb
+  * requirement_hash : char(64)
+  * answered_question_ids : jsonb
+  * received_by_principal_id : uuid <<FK hospital_principals>>
+  * created_at : timestamptz
+}
+
+entity assessments {
+  * id : uuid <<PK>>
+  --
+  * hospital_tenant_id : uuid <<FK organizations>>
+  * supplier_id : uuid <<FK organizations>>
+  * article_ref : text <<opaque, no FK>>
+  * variant_id : uuid <<FK product_variants>>
+  * current_requirement_id : uuid <<FK requirements>>
+  * template_code : text
+  * status : text <<CHECK 8 statuses>>
+  * current_round : smallint
+  * max_rounds : smallint
+  proposed_verdict : text
+  final_verdict : text
+  resolution_kind : text <<CHECK CONFIRMED|OVERRIDDEN|MANUAL>>
+  resolution_note : text
+  manual_reason : text <<CHECK ROUND_CAP|NO_PROGRESS|\nBLOCKING_UNAVAILABLE>>
+  * version : integer
+  * created_by_principal_id : uuid <<FK hospital_principals>>
+  resolved_by_principal_id : uuid <<FK hospital_principals>>
+  assigned_to_principal_id : uuid <<FK hospital_principals>>
+  resolved_at : timestamptz
+  * created_at : timestamptz
+  * updated_at : timestamptz
+  ..
+  PARTIAL UNIQUE (hospital_tenant_id, article_ref, variant_id)
+    WHERE status NOT IN (RESOLVED, CANCELLED)
+  INDEX (hospital_tenant_id, assigned_to_principal_id, status)
+}
+
+entity assessment_rounds {
+  * id : uuid <<PK>>
+  --
+  * assessment_id : uuid <<FK assessments>>
+  * round_no : smallint
+  * requirement_id : uuid <<FK requirements>>
+  * supplier_record_hash : char(64)
+  * input_hash : char(64)
+  * input_snapshot : jsonb
+  * identifier_evidence : text <<CHECK SAME_TRADE_ITEM|NO_INFORMATION>>
+  * comparator_results : jsonb
+  * attribute_judgments : jsonb
+  * rule_verdict : text
+  llm_verdict : text
+  llm_confidence : numeric(3,2)
+  * disagreement : boolean
+  rationale : text
+  * extra_concerns : jsonb
+  * outcome_status : text
+  * definition_hash : char(64)
+  * prompt_version : text
+  * model_id : text
+  llm_call_id : uuid <<FK llm_calls>>
+  * created_at : timestamptz
+  ..
+  UNIQUE (assessment_id, round_no)
+}
+
+entity questions {
+  * id : uuid <<PK>>
+  --
+  * assessment_id : uuid <<FK assessments>>
+  * round_id : uuid <<FK assessment_rounds>>
+  * addressee : text <<CHECK SUPPLIER|PURCHASER>>
+  attribute_key : text
+  * text : text
+  * language : varchar(2)
+  * expected_answer : jsonb
+  rationale : text
+  * origin : text <<CHECK LLM|TEMPLATE|PURCHASER>>
+  * status : text <<CHECK DRAFT|SENT|ANSWERED|\nUNAVAILABLE|WITHDRAWN>>
+  * edited_by_purchaser : boolean
+  answered_in_requirement_id : uuid <<FK requirements>>
+  sent_at : timestamptz
+  * created_at : timestamptz
+  * updated_at : timestamptz
+}
+
+entity answers {
+  * id : uuid <<PK>>
+  --
+  * question_id : uuid <<FK questions, UNIQUE>>
+  * answered_by : uuid <<FK users>>
+  value : jsonb
+  comment : text
+  * cannot_provide : boolean
+  * applies_to_family : boolean
+  * is_draft : boolean
+  submitted_at : timestamptz
+  * extraction_status : text <<CHECK NOT_NEEDED|PENDING|\nEXTRACTED|UNCLEAR>>
+  * created_at : timestamptz
+  * updated_at : timestamptz
+}
+
+entity events {
+  * id : uuid <<PK>>
+  --
+  * assessment_id : uuid <<FK assessments>>
+  actor_user_id : uuid <<FK users>>
+  actor_principal_id : uuid <<FK hospital_principals>>
+  * type : text
+  from_status : text
+  to_status : text
+  * data : jsonb
+  * created_at : timestamptz
+}
+
+entity jobs {
+  * id : uuid <<PK>>
+  --
+  * kind : text <<CHECK NORMALIZE_ITEM|ASSESS|EXTRACT_ANSWERS|\nPROPOSE_ATTRIBUTE|SIMULATE_SUPPLIER|REBUILD_PROJECTION>>
+  * payload : jsonb
+  dedupe_key : text <<UNIQUE>>
+  * status : text
+  * attempts : smallint
+  * max_attempts : smallint
+  * run_after : timestamptz
+  locked_at : timestamptz
+  locked_by : text
+  last_error : text
+  finished_at : timestamptz
+  * created_at : timestamptz
+}
+
+entity llm_calls {
+  * id : uuid <<PK>>
+  --
+  * purpose : text <<CHECK NORMALIZE_ITEM|JUDGE|\nEXTRACT_ANSWER|PROPOSE_ATTRIBUTE|SIMULATE_SUPPLIER>>
+  * model : text
+  effort : text
+  * prompt_version : text
+  assessment_id : uuid <<FK assessments>>
+  * request : jsonb
+  response : jsonb
+  stop_reason : text
+  * input_tokens : integer
+  * output_tokens : integer
+  * cache_read_tokens : integer
+  * cache_write_tokens : integer
+  * latency_ms : integer
+  cost_usd : numeric(10,6)
+  error : text
+  * created_at : timestamptz
+}
+
+entity attribute_definitions {
+  * id : uuid <<PK>>
+  --
+  * key : text <<UNIQUE>>
+  * kind : text <<CHECK ATTRIBUTE|IDENTIFIER>>
+  * value_type : text <<CHECK number|bool|enum|text|list|identifier>>
+  unit : text
+  options : jsonb
+  * labels : jsonb
+  * synonyms : jsonb
+  question_hint : jsonb
+  * status : text <<CHECK PROVISIONAL|APPROVED|DEPRECATED>>
+  * origin : text <<CHECK SEED|PROPOSAL>>
+  proposal_id : uuid <<FK attribute_proposals>>
+  merged_into_id : uuid <<FK attribute_definitions>>
+  approved_by : uuid <<FK users>>
+  approved_at : timestamptz
+  * created_at : timestamptz
+  * updated_at : timestamptz
+}
+
+entity category_templates {
+  * id : uuid <<PK>>
+  --
+  * code : text <<UNIQUE>>
+  parent_code : text
+  * attributes : jsonb <<key, criticality, rule, shareable>>
+  * definition_hash : char(64)
+  change_note : text
+  * updated_by : uuid <<FK users>>
+  * updated_at : timestamptz
+  * created_at : timestamptz
+}
+
+entity attribute_proposals {
+  * id : uuid <<PK>>
+  --
+  * question_id : uuid <<FK questions, UNIQUE>>
+  * assessment_id : uuid <<FK assessments>>
+  * category_code : text
+  result : text <<CHECK EXISTING|NEW|IDENTIFIER>>
+  identifier_key : text
+  matched_attribute_id : uuid <<FK attribute_definitions>>
+  proposal : jsonb
+  attribute_id : uuid <<FK attribute_definitions>>
+  * status : text <<CHECK PENDING|MATCHED|PROVISIONAL|\nAPPROVED|MERGED|REJECTED|ROUTED>>
+  reviewed_by : uuid <<FK users>>
+  reviewed_at : timestamptz
+  review_note : text
+  llm_call_id : uuid <<FK llm_calls>>
+  * created_at : timestamptz
+  * updated_at : timestamptz
+}
+
+organizations ||--o{ tenant_signing_keys
+questions ||--o| attribute_proposals
+attribute_definitions |o--o{ attribute_proposals : matched_attribute_id,\nattribute_id
+attribute_definitions |o--o{ attribute_definitions : merged_into_id
+users ||--o{ category_templates : updated_by
+organizations ||--o{ hospital_principals
+organizations ||--o{ users
+users |o--o{ api_tokens
+hospital_principals |o--o{ api_tokens
+organizations ||--o{ used_assertion_jtis
+
+organizations ||--o{ product_families : supplier_id
+product_families ||--|{ product_variants
+product_families |o--o{ item_facts
+product_variants |o--o{ item_facts
+item_facts |o--o| item_facts : superseded_by_id
+answers |o--o{ item_facts : answer_id
+product_variants ||--o| item_search_projection
+
+organizations ||--o{ assessments : hospital_tenant_id,\nsupplier_id
+product_variants ||--o{ assessments
+hospital_principals |o--o{ assessments : created_by,\nresolved_by, assigned_to
+assessments ||--|{ requirements
+assessments }o--|| requirements : current_requirement_id
+hospital_principals ||--o{ requirements : received_by
+assessments ||--|{ assessment_rounds
+requirements ||--o{ assessment_rounds : requirement_id
+assessment_rounds ||--o{ questions
+requirements |o--o{ questions : answered_in_requirement_id
+questions ||--o| answers
+assessments ||--o{ events
+assessments |o--o{ llm_calls
+
+note bottom of jobs
+  payload references ids (no foreign keys).
+end note
+
+note as N_hub
+  category_templates.attributes and assessments.template_code
+  refer to the registry by key (no FK); rounds store definition_hash.
+  No hospital article data: article_ref is opaque.
+  Only PUBLIC keys and SHA-256 token hashes are stored;
+  private keys and the Anthropic key live in the secret store.
+end note
+
+@enduml

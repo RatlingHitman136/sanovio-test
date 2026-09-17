@@ -1,0 +1,60 @@
+@startuml 08_assessment_states
+!pragma layout smetana
+!include _style.iuml
+title Assessment lifecycle at the hub (state machine, supplier_hub/domain/state_machine.py)
+hide empty description
+
+[*] --> ASSESSING : POST /assessments\n{requirement, variant_id}
+
+state "Open (not final)" as OPEN {
+  state ASSESSING : job ASSESS judges current requirement\nagainst the variant's effective record
+  state NEEDS_QUESTION_REVIEW : purchaser edits, adds, withdraws;\npurchaser questions answered at the node
+  state AWAITING_ANSWERS : supplier saves drafts,\nsubmits the complete batch
+  state PROPOSED_RESOLUTION : decisive verdict proposed
+  state NEEDS_MANUAL_DECISION : manual_reason set
+  state FAILED : job retries exhausted
+
+  ASSESSING --> NEEDS_QUESTION_REVIEW : INSUFFICIENT_DATA\n[askable gaps, rounds left, progress]
+  ASSESSING --> PROPOSED_RESOLUTION : decisive verdict
+  ASSESSING --> NEEDS_MANUAL_DECISION : INSUFFICIENT_DATA\n[round cap / no progress /\nblocking gaps UNAVAILABLE]
+  ASSESSING --> FAILED : retries exhausted
+  FAILED --> ASSESSING : retry
+
+  NEEDS_QUESTION_REVIEW --> NEEDS_QUESTION_REVIEW : POST /assessments/{id}/requirements\n(new requirement; PURCHASER questions\nANSWERED / UNAVAILABLE)
+  NEEDS_QUESTION_REVIEW --> AWAITING_ANSWERS : send-questions\n[no open PURCHASER questions,\nno pending attribute proposals,\nsupplier questions exist]\n/ new attributes become PROVISIONAL
+  NEEDS_QUESTION_REVIEW --> ASSESSING : send-questions\n[no open PURCHASER questions,\nno pending attribute proposals,\nno supplier questions]
+  AWAITING_ANSWERS --> ASSESSING : supplier submits complete batch\n(extract, rebuild projection, re-judge)
+
+  PROPOSED_RESOLUTION --> NEEDS_QUESTION_REVIEW : request more info\n[+ new requirement]
+  NEEDS_MANUAL_DECISION --> AWAITING_ANSWERS : extra round\n[+ new requirement]
+}
+
+PROPOSED_RESOLUTION --> RESOLVED : confirm (CONFIRMED)\nor override with note (OVERRIDDEN)
+NEEDS_MANUAL_DECISION --> RESOLVED : manual verdict (MANUAL)
+OPEN --> CANCELLED : cancel
+
+RESOLVED --> [*]
+CANCELLED --> [*]
+
+note right of RESOLVED
+  final_verdict: EQUIVALENT |
+  EQUIVALENT_WITH_DEVIATIONS |
+  NOT_EQUIVALENT | UNDETERMINED
+  stays at the hub only, visible to
+  every purchaser of the tenant;
+  nothing is written to the node
+end note
+
+note bottom of OPEN
+  Manual resolve (MANUAL) is allowed from every open state except ASSESSING.
+  Assignee (PUT /assessments/{id}/assignee) can change in any state: event ASSIGNED, no transition.
+  identifier_evidence = SAME_TRADE_ITEM ends the round immediately: EQUIVALENT into PROPOSED_RESOLUTION, no comparators and no judge call.
+  send-questions answers 409 while PURCHASER questions are DRAFT or SENT, or attribute proposals are PENDING.
+  The current template definition is used each round; the round stores the definition it judged in input_snapshot (D52).
+  Every transition goes through the state machine table, writes an events row,
+  and increments assessments.version (optimistic locking, 409 on conflict).
+  Stop conditions: decisive verdict | round_no >= max_rounds (3) |
+  input_hash unchanged (requirement_hash + supplier record_hash + definition_hash) | all blocking gaps UNAVAILABLE.
+end note
+
+@enduml

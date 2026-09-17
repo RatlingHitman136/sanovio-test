@@ -1,0 +1,16 @@
+# Client sample data and local secrets
+data_examples/
+.secrets/
+.env
+
+# Runtime data
+var/
+
+# Tooling
+charts/.tools/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/

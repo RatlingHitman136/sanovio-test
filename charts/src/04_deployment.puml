@@ -1,0 +1,85 @@
+@startuml 04_deployment
+!pragma layout smetana
+!include _style.iuml
+title Deployment modes: same node artifact everywhere, no node <-> hub network path
+
+frame "Prototype (developer machine)" {
+  node "Workstation (WSL, uv)" as dev {
+    node "hospital-node :8001\n(ten_ksp)" as pn1 {
+      artifact "FastAPI + worker" as pn1app
+    }
+    node "hospital-node :8002\n(ten_spital2, isolation tests)" as pn2
+    node "supplier-hub :8000" as ph {
+      artifact "FastAPI + worker" as phapp
+    }
+    database "var/node_ksp.db" as pdb1
+    database "var/hub.db" as pdbh
+    artifact ".secrets/\n(node + hub Ed25519 keys, 0600)" as psec
+    artifact "demo client / .http /\nSwagger (two base URLs)" as pcl
+  }
+  cloud "Anthropic API" as panth
+}
+
+pcl --> pn1app : HTTP node token
+pcl --> phapp : HTTP hub token
+pn1app --> pdb1
+phapp --> pdbh
+pn1app ..> psec
+phapp ..> psec
+phapp --> panth : HTTPS
+
+frame "Production: on-prem node" {
+  frame "Hospital network (firewall: no inbound from outside)" #E3F2FD {
+    node "Hospital VM / container" as onp {
+      artifact "hospital-node\n(FastAPI + worker)" as onpapp
+      database "SQLite or Postgres" as onpdb
+      artifact "Key vault / HSM\n(node private key)" as onpkey
+    }
+    node "Purchaser workstation" as ws {
+      artifact "Purchaser SPA\n(served by the node)" as spa
+    }
+  }
+  frame "Our cloud" #E8F5E9 {
+    node "supplier-hub API hosts" as hubapi
+    node "hub worker process" as hubw
+    database "Postgres\n(+ pgvector later)" as hubpg
+    artifact "KMS / secret manager\n(hub private key,\nAnthropic key)" as hubkms
+    node "Supplier SPA hosting" as sspa
+  }
+  cloud "Anthropic API" as anth
+  actor "Supplier user" as sup
+}
+
+spa --> onpapp : HTTPS (LAN)
+spa --> hubapi : outbound HTTPS\n(CORS allowlist)
+onpapp --> onpdb
+onpapp ..> onpkey : sign
+onpapp ..> anth : optional (llm mode,\nhospital's key)
+hubapi --> hubpg
+hubw --> hubpg
+hubw --> anth : HTTPS
+hubapi ..> hubkms : sign
+sup --> sspa
+sspa --> hubapi : HTTPS
+
+frame "Production: managed node (run by us for a hospital)" {
+  frame "Isolated tenant environment (own network, no route to hub)" #E3F2FD {
+    node "hospital-node instance\n(same artifact)" as mnode
+    database "own database\n(not a shared schema)" as mdb
+    artifact "own secrets\n(node private key)" as msec
+  }
+  node "Purchaser workstation\n(hospital)" as mws
+}
+
+mws --> mnode : HTTPS\n(IP allowlist)
+mws --> hubapi : HTTPS
+mnode --> mdb
+mnode ..> msec
+
+note bottom of hubapi
+  The hub never connects to any node,
+  and no node has a hub URL: all exchange
+  goes through the purchaser's client.
+end note
+
+@enduml

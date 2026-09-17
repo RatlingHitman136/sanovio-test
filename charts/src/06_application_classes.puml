@@ -1,0 +1,296 @@
+@startuml 06_application_classes
+!pragma layout smetana
+!include _style.iuml
+title Application design (UML class diagram): node services, hub services, shared core
+hide empty members
+hide circle
+left to right direction
+
+package "hospital_node" #E3F2FD {
+  package "node services" {
+    class ArticleService {
+      +get_article(article_id)
+      +set_category(article_id, category_code, user)
+      +correct_fact(article_id, attribute_key, value, user, hub_question_id, cannot_provide)
+      +find_by_article_refs(article_refs)
+    }
+    class NormalizationService {
+      +normalize_batch(articles)
+      +normalize_stale_on_startup()
+      -rules_extract(name, template)
+      -llm_extract(names, template)
+      -merge(parser_facts, llm_facts)
+    }
+    class ArticleProjectionBuilder {
+      +rebuild(article_id)
+    }
+    class RequirementBuilder {
+      +build(article_id, answered_question_ids, user)
+      -product_hints(article_id)
+    }
+    class AssertionSigner {
+      +sign(user)
+    }
+    class EgressLog {
+      +record(kind, content, article_id, user, jti, kid)
+      +list(from, to, article_id, user_id)
+      +check_rate(user, kind)
+      +alert(user, kind)
+    }
+    class ReferenceLinkService {
+      +preview(article_id, variant_id, attributes)
+      +set(article_id, variant_id, attributes, conflict_choices, user)
+      +unlink(article_id, user)
+    }
+    class UserDirectoryService {
+      +list_users()
+    }
+    class TemplateSyncService {
+      +current()
+      +install(definition, user)
+    }
+    class NodeKeyStore {
+      +private_key()
+      +kid()
+    }
+  }
+}
+
+package "equivalence_core" #FFF3E0 {
+  class TemplateRegistry {
+    +get(category_code)
+  }
+  class CategoryTemplate {
+    code
+    definition_hash
+  }
+  class AttributeDefinition {
+    key
+    type
+    unit
+    criticality
+    comparison_rule
+    synonyms
+    shareable
+  }
+  class ValueParsers {
+    +parse_number_with_unit(text)
+    +parse_dimensions(text)
+    +parse_inch_fraction(text)
+    +parse_packaging(text)
+    +gauge_to_outer_diameter(gauge)
+    +normalize_synonym(attribute_key, text)
+  }
+  class IdentifierValidator {
+    +checksum_valid(scheme, value)
+    +data_quality_issues(identifiers)
+  }
+  abstract class Comparator {
+    +compare(attribute_definition, hospital_value, supplier_value)
+  }
+  class ExactComparator
+  class ToleranceComparator
+  class SameOrFinerComparator
+  class SameOrMoreComparator
+  class GaugeDiameterComparator
+  class FactResolver {
+    +effective_record(facts, side)
+    +record_hash(record)
+  }
+  class VerdictRules {
+    +decide(attribute_judgments)
+  }
+  class IdentifierEvidence {
+    +evaluate(hospital_identifiers, supplier_identifiers)
+  }
+  class RequirementPayload <<strict model>> {
+    +requirement_hash()
+  }
+  class HubAssertion <<claims model>>
+  class Jws {
+    +sign(claims, private_key, kid, typ)
+    +verify(token, key_lookup, typ, audience)
+  }
+}
+
+package "supplier_hub" #E8F5E9 {
+  package "hub services" {
+    class TenantKeyService {
+      +register_tenant(name, alias)
+      +register_key(tenant_id, public_jwk, not_before)
+      +revoke_key(tenant_id, kid)
+      +lookup(kid)
+    }
+    class TokenExchangeService {
+      +exchange(assertion)
+    }
+    class RequirementIntake {
+      +validate(requirement, token_tenant)
+    }
+    class CandidateSearchService {
+      +search(requirement, supplier_id, limit)
+      -match_product_hints(hints)
+    }
+    class CatalogProjectionBuilder {
+      +rebuild_variant(variant_id)
+      +rebuild_family(family_id)
+    }
+    class AssessmentService {
+      +create(requirement, variant_id, principal)
+      +add_requirement(assessment_id, requirement, version, principal)
+      +run_round(assessment_id, round_no)
+      +assign(assessment_id, subject_id, principal)
+      +list(tenant, status, article_ref, assigned_to)
+    }
+    class QuestionService {
+      +add(assessment_id, question, principal)
+      +edit(question_id, changes, principal)
+      +send(assessment_id, version, principal)
+    }
+    class EnrichmentService {
+      +save_drafts(assessment_id, answers, user)
+      +submit(assessment_id, user)
+      +apply_extraction(answer_id, result)
+    }
+    class ResolutionService {
+      +resolve(assessment_id, verdict, note, version, principal)
+      +request_more_info(assessment_id, version, principal)
+      +extra_round(assessment_id, version, principal)
+      +cancel(assessment_id, version, principal)
+      +retry(assessment_id, principal)
+    }
+    class CatalogService {
+      +variant_attributes(variant_id)
+    }
+    class AttributeRegistryService {
+      +propose(question_id)
+      +create_provisional(proposal_id)
+      +approve(proposal_id, definition, criticality, rule, user)
+      +merge(proposal_id, attribute_key, user)
+      +reject(proposal_id, note, user)
+    }
+    class TemplateService {
+      +definition(code)
+      +update(code, attributes, user)
+      +definition_hash(code)
+    }
+  }
+  package "hub domain" {
+    class StateMachine {
+      +transition(status, event)
+    }
+    class StopConditions {
+      +next_status(round_verdict, round_no, max_rounds, input_hashes, gaps)
+    }
+  }
+  package "hub llm" {
+    interface LLMClient <<interface>> {
+      +parse(purpose, messages, output_schema, model, effort)
+    }
+    class AnthropicClient
+    class FakeLLM
+    abstract class Pipeline {
+      +run(input)
+    }
+    class NormalizeItemPipeline
+    class JudgePipeline
+    class ExtractAnswerPipeline
+    class ProposeAttributePipeline
+    class SimulateSupplierPipeline
+  }
+  package "hub jobs" {
+    class HubWorker {
+      +run_forever()
+    }
+    interface JobHandler <<interface>> {
+      +handle(job)
+    }
+    class NormalizeItemHandler
+    class AssessHandler
+    class ExtractAnswersHandler
+    class ProposeAttributeHandler
+    class SimulateSupplierHandler
+    class RebuildProjectionHandler
+  }
+}
+
+' core structure
+TemplateRegistry "1" *-- "0..*" CategoryTemplate
+CategoryTemplate "1" *-- "1..*" AttributeDefinition
+Comparator <|-- ExactComparator
+Comparator <|-- ToleranceComparator
+Comparator <|-- SameOrFinerComparator
+Comparator <|-- SameOrMoreComparator
+Comparator <|-- GaugeDiameterComparator
+Comparator ..> ValueParsers
+Jws ..> HubAssertion
+
+' node
+ArticleService ..> NormalizationService : synchronous (D53)
+NormalizationService ..> ArticleProjectionBuilder : rebuild in-request
+NormalizationService ..> ValueParsers
+NormalizationService ..> TemplateRegistry
+ArticleService ..> IdentifierValidator
+ArticleProjectionBuilder ..> FactResolver
+RequirementBuilder ..> ArticleProjectionBuilder : reads projection only
+RequirementBuilder ..> RequirementPayload
+RequirementBuilder ..> EgressLog
+AssertionSigner ..> Jws
+AssertionSigner ..> EgressLog
+AssertionSigner ..> NodeKeyStore
+ReferenceLinkService ..> ArticleProjectionBuilder : rebuild
+
+' hub
+LLMClient <|.. AnthropicClient
+LLMClient <|.. FakeLLM
+Pipeline <|-- NormalizeItemPipeline
+Pipeline <|-- JudgePipeline
+Pipeline <|-- ExtractAnswerPipeline
+Pipeline <|-- SimulateSupplierPipeline
+Pipeline --> LLMClient
+JobHandler <|.. NormalizeItemHandler
+JobHandler <|.. AssessHandler
+JobHandler <|.. ExtractAnswersHandler
+JobHandler <|.. SimulateSupplierHandler
+JobHandler <|.. RebuildProjectionHandler
+HubWorker --> "1..*" JobHandler
+TokenExchangeService ..> TenantKeyService
+TokenExchangeService ..> Jws
+RequirementIntake ..> RequirementPayload
+RequirementPayload ..> FactResolver : record_hash
+CandidateSearchService ..> RequirementIntake
+CandidateSearchService ..> Comparator
+CandidateSearchService ..> TemplateRegistry
+AssessmentService ..> RequirementIntake
+AssessmentService ..> IdentifierEvidence : before comparators;\nSAME_TRADE_ITEM skips the judge
+IdentifierEvidence ..> IdentifierValidator
+AssessmentService ..> Comparator
+AssessmentService ..> JudgePipeline
+AssessmentService ..> VerdictRules
+AssessmentService ..> StopConditions
+AssessmentService ..> StateMachine
+QuestionService ..> StateMachine
+EnrichmentService ..> ExtractAnswerPipeline
+EnrichmentService ..> StateMachine
+ResolutionService ..> StateMachine
+CatalogService ..> CatalogProjectionBuilder
+CatalogProjectionBuilder ..> FactResolver
+NormalizeItemHandler ..> NormalizeItemPipeline
+AssessHandler ..> AssessmentService
+ExtractAnswersHandler ..> EnrichmentService
+SimulateSupplierHandler ..> SimulateSupplierPipeline
+RebuildProjectionHandler ..> CatalogProjectionBuilder
+
+' attribute registry
+Pipeline <|-- ProposeAttributePipeline
+JobHandler <|.. ProposeAttributeHandler
+ProposeAttributeHandler ..> AttributeRegistryService
+AttributeRegistryService ..> ProposeAttributePipeline
+AttributeRegistryService ..> TemplateService
+QuestionService ..> AttributeRegistryService : proposals pending?
+TemplateService ..> TemplateRegistry
+RequirementIntake ..> TemplateService : current definition
+TemplateSyncService ..> TemplateRegistry
+TemplateSyncService ..> ArticleProjectionBuilder : rebuild category
+
+@enduml

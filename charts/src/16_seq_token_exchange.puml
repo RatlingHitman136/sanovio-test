@@ -1,0 +1,66 @@
+@startuml 16_seq_token_exchange
+!include _style.iuml
+title Token exchange: purchaser reaches the hub with a node-signed assertion (no shared secret)
+autonumber
+skinparam sequenceMessageAlign left
+
+actor "Purchaser" as P
+participant "Purchaser client\n(tokens in memory only)" as C
+box "Hospital node" #E3F2FD
+  participant "api/v1 auth +\nhub_assertions" as N
+  participant "AssertionSigner" as SIG
+  collections "Secrets dir / key vault\n(node Ed25519 PRIVATE key)" as NKEY
+  database "node.db\n(users, api_tokens,\negress_log)" as NDB
+end box
+box "Supplier hub" #E8F5E9
+  participant "api/v1 auth/token-exchange" as H
+  participant "TokenExchangeService" as TX
+  database "hub.db\n(tenant_signing_keys, used_assertion_jtis,\nhospital_principals, api_tokens)" as HDB
+end box
+
+== Node login ==
+P -> C : email + password
+C -> N : POST /auth/login
+N -> NDB : verify argon2id hash; store SHA-256 of new token
+N --> C : 200 node token (8 h)
+
+== Assertion ==
+C -> N : POST /hub-assertions (node token)
+N -> NDB : per-user rate limit (429 above ASSERTION_RATE_LIMIT_PER_HOUR)
+N -> SIG : sign(user)
+SIG -> NDB : users.hub_subject_id
+SIG -> NKEY : private key for NODE_SIGNING_KID
+SIG -> SIG : header {alg: Ed25519, typ: assertion+jwt, kid: ksp-2026-09}\nclaims {iss: ten_ksp, sub: sub_7QF2..., aud: sanovio-hub,\nscope: purchaser, iat, exp: iat+300, jti}
+SIG -> NDB : egress_log: kind ASSERTION,\nclaims + sha256 (token itself not kept)
+N --> C : 200 {assertion, expires_at}
+
+== Exchange ==
+C -> H : POST /auth/token-exchange {assertion}
+H -> TX : exchange(assertion)
+TX -> TX : header typ = assertion+jwt and alg = Ed25519
+TX -> HDB : key by kid (tenant = iss, not revoked,\nnot_before <= now <= not_after)
+TX -> TX : verify signature, aud, exp - iat <= 300 s,\niat not in the future (60 s skew)
+TX -> HDB : insert jti into used_assertion_jtis
+alt any check fails, jti already used, tenant inactive, principal blocked
+  TX --> H : reject
+  H --> C : 401 (no detail about which check failed)
+else valid
+  TX -> HDB : upsert hospital_principals (ten_ksp, sub_7QF2...)
+  TX -> HDB : api_tokens: token_hash, principal_id,\ntenant_id, kid, assertion_jti, expires_at (+30 min)
+  H --> C : 200 {access_token, expires_at, tenant_alias}
+end
+
+== Using and renewing the hub token ==
+C -> H : any purchaser call (Bearer hub token)
+H -> HDB : token hash -> principal, tenant; kid not revoked
+H --> C : 200 (tenant-scoped data only)
+... 30 minutes later ...
+C -> H : call with expired token
+H --> C : 401
+C -> N : POST /hub-assertions (repeat steps 5-13)
+note over C, H
+  No refresh tokens: the client simply asks the node for a new assertion.
+  Revoking kid ksp-2026-09 at the hub rejects new assertions and every hub token issued from it.
+end note
+
+@enduml

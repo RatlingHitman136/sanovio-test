@@ -1,0 +1,75 @@
+@startuml 19_act_attribute_lifecycle
+!include _style.iuml
+title New attribute: from a free question to a category definition shared with all hospitals
+
+' declare swimlanes in reading order
+|Purchaser client (hospital A)|
+|Hub|
+|LLM|
+|Supplier user|
+|Hub operator (curator)|
+|Hospital nodes (via each client)|
+|Purchaser client (hospital A)|
+start
+:Add free question in review step\n"Does the pack include a peel-off\ndocumentation label?" (attribute_key NULL);
+|Hub|
+:Question DRAFT; attribute_proposals PENDING;\nenqueue PROPOSE_ATTRIBUTE;
+|LLM|
+:propose_attribute (Sonnet 5):\nquestion + category template + registry keys;
+note right
+  Output has no criticality field.
+  Labels must be neutral (validator rejects
+  tenant names, aliases, brands, products).
+end note
+|Hub|
+if (Asks for a product number?) then (IDENTIFIER)
+  :Question takes the identifier definition\n(kind = IDENTIFIER); proposal ROUTED;
+  :Answer becomes an identifier fact:\nno criticality, never in a template,\nnever compared (D50, D51);
+  stop
+elseif (Matches an existing attribute?) then (yes)
+  :Question gets the existing key;\nproposal MATCHED;
+  :Normal question flow;
+  stop
+else (no)
+  :Proposal NEW: peel_off_label, bool,\nDE/EN labels; question expected_answer typed;
+endif
+|Purchaser client (hospital A)|
+:POST send-questions\n(409 while any proposal is PENDING);
+|Hub|
+if (Question withdrawn before sending?) then (yes)
+  :Proposal discarded; no attribute created;
+  stop
+else (no)
+  :attribute_definitions row PROVISIONAL;\nquestion SENT with attribute_key peel_off_label;
+endif
+|Supplier user|
+:Answer "yes", applies to whole family;
+|Hub|
+:item_facts (FAMILY scope, SUPPLIER_ANSWER);\nREBUILD_PROJECTION -> additional_attributes;
+:Visible to ALL hospitals as additional information\n(catalog, search candidates, comparison views);\nnot filtered, not judged, never auto-asked;
+|Hub operator (curator)|
+:Review proposal;
+if (Decision?) then (approve)
+  :Set final key, labels, synonyms;\nset CRITICALITY (e.g. major) and comparison rule;\nset shareable flag;
+  :Add to the syringe_single_use definition;\nnew definition_hash, updated_at;
+elseif (Decision?) then (merge)
+  :Merge (deferred, D55):\nhub would re-add facts under the target key,\nsupersede old facts, set merged_into;
+else (reject)
+  :Reject (deferred, D55):\nattribute would become DEPRECATED;\nfacts kept for audit;
+endif
+if (Definition changed?) then (yes)
+  |Hub|
+  :attribute APPROVED; definition served
+  by GET /templates (no signing, D52);
+  |Hospital nodes (via each client)|
+  :After token exchange: compare updated_at;\nfetch definition; PUT /templates at node;
+  :Validate against the core model, store,\nrebuild category projections;
+  :peel_off_label now in unknown_attributes\n(unless in EGRESS_DENY_ATTRIBUTES);
+  |Hub|
+  :New assessments: major UNKNOWN on the hospital side\n-> PURCHASER question; BD value already known -> BD not asked;
+  :Open assessments pick it up next round;\nrounds already judged keep their stored definition;
+else (no)
+endif
+stop
+
+@enduml

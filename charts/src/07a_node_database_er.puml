@@ -1,0 +1,176 @@
+@startuml 07a_node_database_er
+!pragma layout smetana
+!include _style.iuml
+title Hospital node database schema (ER, crow's-foot notation). * = NOT NULL
+hide circle
+skinparam linetype ortho
+
+entity users {
+  * id : uuid <<PK>>
+  --
+  * email : text <<UNIQUE>>
+  * password_hash : text
+  * role : text <<CHECK PURCHASER|NODE_ADMIN>>
+  * display_name : text
+  * hub_subject_id : text <<UNIQUE>>
+  * is_active : boolean
+  * created_at : timestamptz
+  * updated_at : timestamptz
+}
+
+entity api_tokens {
+  * id : uuid <<PK>>
+  --
+  * user_id : uuid <<FK users>>
+  * token_hash : char(64) <<UNIQUE>>
+  * expires_at : timestamptz
+  revoked_at : timestamptz
+  last_used_at : timestamptz
+  * created_at : timestamptz
+}
+
+entity hospital_articles {
+  * id : uuid <<PK>>
+  --
+  * internal_id : text <<UNIQUE>>
+  * article_ref : text <<UNIQUE>>
+  * name : text
+  brand : text
+  annual_quantity : integer
+  order_unit : text
+  base_units_per_order_unit : integer
+  base_unit : text
+  target_net_price : numeric(12,4)
+  currency : char(3)
+  category_code : text
+  category_source : text <<CHECK RULES|LLM_SUGGESTED|PURCHASER>>
+  category_set_by : uuid <<FK users>>
+  category_set_at : timestamptz
+  reference_hub_variant_id : text <<no FK>>
+  reference_label : text
+  reference_source : text <<CHECK CLIENT_REPORTED>>
+  reference_linked_by : uuid <<FK users>>
+  reference_linked_at : timestamptz
+  * content_hash : char(64)
+  normalized_hash : char(64)
+  * data_quality_issues : jsonb
+  * raw : jsonb
+  * created_at : timestamptz
+  * updated_at : timestamptz
+}
+
+entity article_facts {
+  * id : uuid <<PK>>
+  --
+  * article_id : uuid <<FK hospital_articles>>
+  * attribute_key : text
+  value : jsonb
+  raw_value : text
+  * source : text <<CHECK HOSPITAL_MASTER|EXTRACTION|\nREFERENCE_ITEM|PURCHASER_ANSWER|UNAVAILABLE>>
+  method : text <<CHECK RULES|LLM>>
+  evidence_quote : text
+  confidence : numeric(3,2)
+  hub_variant_id : text <<no FK>>
+  hub_fact_id : text <<no FK>>
+  hub_question_id : text <<no FK>>
+  created_by : uuid <<FK users>>
+  parser_version : text
+  llm_call_id : uuid <<FK llm_calls>>
+  model_id : text
+  prompt_version : text
+  superseded_by_id : uuid <<FK article_facts>>
+  * created_at : timestamptz
+  ..
+  PARTIAL INDEX (article_id, attribute_key)
+    WHERE superseded_by_id IS NULL
+}
+
+entity article_projection {
+  * id : uuid <<PK>>
+  --
+  * article_id : uuid <<FK hospital_articles, UNIQUE>>
+  category_code : text
+  * definition_hash : char(64)
+  * attributes : jsonb
+  * attribute_origin : jsonb
+  * attribute_fact_ids : jsonb
+  * identifiers : jsonb
+  * unknown_attributes : jsonb
+  * unavailable_attributes : jsonb
+  * record_hash : char(64)
+  * requirement_hash : char(64)
+  * updated_at : timestamptz
+}
+
+entity egress_log {
+  * id : uuid <<PK>>
+  --
+  * kind : text <<CHECK ASSERTION|REQUIREMENT>>
+  article_id : uuid <<FK hospital_articles>>
+  * user_id : uuid <<FK users>>
+  * content : jsonb
+  * content_sha256 : char(64)
+  jti : text
+  kid : text
+  alert : text <<CHECK RATE_80_PERCENT|RATE_EXCEEDED|\nUNUSUAL_DAILY_VOLUME>>
+  * created_at : timestamptz
+  ..
+  INDEX (user_id, created_at)
+}
+
+entity llm_calls {
+  * id : uuid <<PK>>
+  --
+  * purpose : text <<CHECK NORMALIZE_ARTICLE>>
+  * model : text
+  effort : text
+  * prompt_version : text
+  * request : jsonb
+  response : jsonb
+  stop_reason : text
+  * input_tokens : integer
+  * output_tokens : integer
+  * cache_read_tokens : integer
+  * cache_write_tokens : integer
+  * latency_ms : integer
+  cost_usd : numeric(10,6)
+  error : text
+  * created_at : timestamptz
+}
+
+entity template_versions {
+  * id : uuid <<PK>>
+  --
+  * code : text <<UNIQUE>>
+  * definition : jsonb
+  * definition_hash : char(64)
+  * hub_updated_at : timestamptz
+  * installed_by : uuid <<FK users>>
+  * installed_at : timestamptz
+}
+
+users ||--o{ api_tokens
+users ||--o{ template_versions : installed_by
+users |o--o{ hospital_articles : category_set_by,\nreference_linked_by
+hospital_articles ||--o{ article_facts
+article_facts |o--o| article_facts : superseded_by_id
+users |o--o{ article_facts : created_by
+hospital_articles ||--|| article_projection
+hospital_articles |o--o{ egress_log
+users ||--o{ egress_log : user_id
+llm_calls |o--o{ article_facts : llm_call_id
+
+note as N_cross
+  Columns marked <<no FK>> hold ids from the
+  supplier hub. There is no database link
+  between node and hub; the client carries them.
+  The node has no jobs table (D53): normalization
+  runs in one batch at ingestion (D56) and
+  projection rebuilds run inside the writing
+  transaction. llm_calls logs that one call.
+  No assessment table: the client lists
+  assessments from the hub and joins them by
+  article_ref and users.hub_subject_id.
+end note
+
+@enduml

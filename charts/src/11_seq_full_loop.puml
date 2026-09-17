@@ -1,0 +1,134 @@
+@startuml 11_seq_full_loop
+!include _style.iuml
+title Full loop through the client bridge (scenario 1: art_03 vs BD Plastipak Luer-Lok 10 ml, 300912)
+autonumber
+skinparam sequenceMessageAlign left
+
+actor "Purchaser" as P
+participant "Purchaser client\n(demo CLI / SPA)" as C
+box "Hospital network" #E3F2FD
+  participant "Hospital node\n:8001" as N
+end box
+box "Central hub" #E8F5E9
+  participant "Supplier hub API\n:8000" as H
+  participant "Hub worker" as W
+  participant "Claude Opus 5\njudge" as OPUS
+  participant "Claude Haiku 4.5\nextract_answer" as HAIKU
+end box
+actor "Supplier user\n(BD)" as S
+
+== Log in, exchange token, sync templates ==
+P -> C : credentials
+C -> N : POST /auth/login
+N --> C : 200 node token
+C -> N : POST /hub-assertions
+N -> N : rate limit; sign assertion+jwt (node private key);\negress row ASSERTION
+N --> C : 200 assertion (5 min)
+C -> H : POST /auth/token-exchange {assertion}
+H -> H : verify kid, signature, aud, exp, jti unused;\nupsert principal; store token hash
+H --> C : 200 hub token (30 min, tenant ten_ksp)
+C -> H : GET /templates
+C -> N : GET /templates; PUT /templates {definition} if the hub's is newer
+
+== Prepare the article (node only) ==
+C -> N : GET /articles/art_03
+N --> C : 200 attributes + sources, unknowns,\nidentifier flags, data_quality_issues
+
+== One search ==
+C -> N : POST /articles/art_03/requirement
+N -> N : rate limit; allowlist from projection;\negress row REQUIREMENT
+N --> C : 200 requirement (plain JSON)
+C -> H : POST /search {requirement}
+H -> H : validate schema (tenant from token);\nsearch projection; pre-check
+H --> C : 200 candidates: Injekt 4606728V, Omnifix,\nPlastipak 300912, ...
+opt "this is our current product" on the Injekt row
+  C -> H : GET /catalog/variants/var_injekt_ll_10/attributes
+  H --> C : 200 effective attributes
+  C -> N : POST /articles/art_03/reference/preview
+  N --> C : 200 fills (8), conflicts (0)
+  C -> N : PUT /articles/art_03/reference
+  N -> N : REFERENCE_ITEM facts (client reported);\nrebuild projection
+  C -> N : POST /articles/art_03/requirement
+  N --> C : 200 richer requirement
+  C -> H : POST /search {requirement}
+  H --> C : 200 re-ranked candidates\n(second pass: extended parameter set)
+  note right of H : the hub is never told\nabout the link
+end
+
+== Start the assessment ==
+C -> N : POST /articles/art_03/requirement
+N --> C : 200 requirement (egress row)
+C -> H : POST /assessments {requirement, variant_id}
+H -> H : store requirement; assessment ASSESSING,\nevent CREATED, job ASSESS (one transaction)
+H --> C : 202 {id: asm_1, status: ASSESSING}
+opt assign a purchaser
+  C -> N : GET /users
+  N --> C : 200 display names + hub_subject_id
+  C -> H : PUT /assessments/asm_1/assignee {subject_id}
+  H -> H : upsert principal; assigned_to_principal_id;\nevent ASSIGNED
+  H --> C : 200
+end
+
+== Round 1 (hub background) ==
+W -> W : claim ASSESS; requirement attributes vs variant\neffective record; comparators (final)
+W -> OPUS : judge undecided attributes
+OPUS --> W : judgments, verdict, question wording
+W -> W : verdict rules: INSUFFICIENT_DATA
+W -> H : round 1, 3 DRAFT SUPPLIER questions,\nNEEDS_QUESTION_REVIEW
+loop until status is not ASSESSING
+  C -> H : GET /assessments/asm_1
+  H --> C : 200 status, comparison rows, questions
+end
+C -> N : GET /articles/art_03 (join hospital-side names locally)
+
+== Review and send questions ==
+C -> H : PATCH /assessments/asm_1/questions/q_2
+H --> C : 200
+opt PURCHASER questions exist (scenario 3)
+  C -> N : PUT /articles/{id}/facts/{attr} {value, hub_question_id}
+  C -> N : POST /articles/{id}/requirement {answered_question_ids}
+  N --> C : 200 requirement
+  C -> H : POST /assessments/{id}/requirements {requirement, version}
+  H --> C : 200 questions ANSWERED
+end
+C -> H : POST /assessments/asm_1/send-questions {version}
+H --> C : 200 AWAITING_ANSWERS\n(409 on stale version or open purchaser questions)
+
+== Supplier answers ==
+S -> H : POST /auth/login, GET /supplier/requests
+H --> S : 200 requests from "Hospital H-7F3A"
+S -> H : PUT /supplier/requests/asm_1/answers (drafts)
+S -> H : POST /supplier/requests/asm_1/submit
+alt incomplete batch
+  H --> S : 422 unanswered question ids
+else complete
+  H -> H : freeze answers; typed values -> SUPPLIER_ANSWER facts;\nASSESSING; job EXTRACT_ANSWERS
+  H --> S : 200
+end
+
+== Enrichment and round 2 (hub background) ==
+W -> HAIKU : extract_answer ("Zylinder und Stopfen\nenthalten kein DEHP.")
+HAIKU --> W : dehp_free = true + quote
+W -> W : fact, rebuild projection (new record_hash),\nASSESS round 2
+W -> OPUS : judge round 2
+OPUS --> W : judgments
+W -> H : EQUIVALENT_WITH_DEVIATIONS,\nPROPOSED_RESOLUTION
+
+== Resolve (the verdict stays at the hub) ==
+C -> H : POST /assessments/asm_1/resolve {verdict, note, version}
+H -> H : RESOLVED (CONFIRMED), event
+H --> C : 200
+
+== Assessment list (any purchaser of the hospital) ==
+C -> H : GET /assessments?assigned_to=me
+H --> C : 200 status, verdict, article_ref,\nassignee subject_id
+C -> N : GET /articles?article_ref=ar_5MZQ4K7T2V9C; GET /users
+N --> C : 200 article names, user names
+C --> P : list with local names
+
+note over C, N
+  On 401 from the hub (token expired) the client repeats the assertion and the token exchange.
+  The node and the hub never exchange a single request directly. Hub assertions are the only signed object (D52).
+end note
+
+@enduml

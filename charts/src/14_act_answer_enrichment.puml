@@ -1,0 +1,83 @@
+@startuml 14_act_answer_enrichment
+!include _style.iuml
+title Answers: supplier path at the hub, purchaser path through node + requirement
+
+' declare swimlanes in reading order
+|Purchaser client|
+|Hospital node|
+|Supplier user|
+|Hub API|
+|Hub worker|
+|LLM|
+|Purchaser client|
+start
+:Assessment in NEEDS_QUESTION_REVIEW;\nquestions to SUPPLIER and/or PURCHASER;
+if (Open PURCHASER questions?) then (yes)
+  repeat
+    |Purchaser client|
+    :Show question next to the article\n(article data read from the node);
+    |Hospital node|
+    if (Purchaser can answer?) then (yes)
+      :PURCHASER_ANSWER fact\n(typed value, hub_question_id);
+    else (cannot provide)
+      :UNAVAILABLE fact (hub_question_id);
+    endif
+    :REBUILD_PROJECTION;
+  repeat while (More purchaser questions?) is (yes)
+  ->no;
+  :Issue new requirement with\nanswered_question_ids; egress row;
+  |Hub API|
+  :POST /assessments/{id}/requirements:\nvalidate; current_requirement_id;\nquestions ANSWERED / UNAVAILABLE\n(answered_in_requirement_id);
+else (no)
+endif
+|Hub API|
+:POST send-questions {version}\n(409 while PURCHASER questions open);
+if (SUPPLIER questions to send?) then (no)
+  :Status ASSESSING; enqueue ASSESS;
+  stop
+else (yes)
+  :Questions SENT; status AWAITING_ANSWERS;
+endif
+|Supplier user|
+:PUT /supplier/requests/{id}/answers\n(save drafts, repeatable);
+:POST /supplier/requests/{id}/submit;
+|Hub API|
+if (Every SENT question has a value,\na comment or cannot_provide?) then (no)
+  :422 with unanswered question ids;
+  stop
+else (yes)
+endif
+:Freeze answers (submitted_at);
+repeat
+  :Take next answer;
+  :Fact scope = FAMILY if applies_to_family,\nelse VARIANT;
+  if (cannot_provide?) then (yes)
+    :UNAVAILABLE fact;\nquestion UNAVAILABLE;
+  elseif (identifier question?) then (yes)
+    :Validate check digit (GS1 mod-10);
+    :Identifier fact (SUPPLIER_ANSWER, answer_id);\nquestion ANSWERED; feeds search and\nidentifier_evidence only;
+  elseif (typed value?) then (yes)
+    :Validate against expected_answer;
+    :SUPPLIER_ANSWER fact;\nquestion ANSWERED;
+  else (comment only)
+    :extraction_status PENDING;\nquestion ANSWERED;
+  endif
+repeat while (More answers?) is (yes)
+->no;
+:Status ASSESSING;\nevent ANSWERS_SUBMITTED;\nenqueue EXTRACT_ANSWERS;
+|Hub worker|
+while (Pending comments?) is (yes)
+  |LLM|
+  :extract_answer (Haiku 4.5);
+  |Hub worker|
+  if (Result unclear?) then (yes)
+    :extraction_status UNCLEAR;\nattribute stays UNKNOWN\n(follow-up question next round);
+  else (no)
+    :SUPPLIER_ANSWER fact with quote;\nextraction_status EXTRACTED;
+  endif
+endwhile (no)
+:REBUILD_PROJECTION\n(family fact -> all variants of the family);
+:Enqueue ASSESS for the next round;
+stop
+
+@enduml

@@ -1,0 +1,66 @@
+@startuml 13_act_assess_job
+!include _style.iuml
+title ASSESS job at the hub: one judgment round on the current requirement
+
+' declare swimlanes in reading order
+|Hub worker|
+|Domain (core + hub)|
+|LLM|
+|hub.db|
+|Hub worker|
+start
+:Claim ASSESS job\n(assessment_id, round_no);
+|hub.db|
+:Load assessment, current requirement,\nvariant projection;
+|Domain (core + hub)|
+if (identifier_evidence: valid GTIN or\nmanufacturer article no. match?) then (SAME_TRADE_ITEM)
+  :Verdict EQUIVALENT (reason SAME_TRADE_ITEM);\nno comparators, no judge call;
+  |hub.db|
+  :Write assessment_round (identifier_evidence),\nstatus PROPOSED_RESOLUTION, events;
+  |Hub worker|
+  :Mark job SUCCEEDED;
+  stop
+else (NO_INFORMATION)
+  |Domain (core + hub)|
+  :Identifier facts dropped from the comparison:\nnever MISMATCH, never an unknown,\nnever in the judge prompt;
+endif
+|hub.db|
+if (Family facts stale?) then (yes)
+  |LLM|
+  :normalize_item (Sonnet 5);
+  |hub.db|
+  :Insert EXTRACTION facts;\nrebuild projection;
+else (no)
+endif
+|Domain (core + hub)|
+:Hospital side = requirement attributes\n(+ unknown / unavailable lists);\nsupplier side = variant effective record;
+:input_hash = hash(requirement_hash\n+ supplier record_hash + definition_hash);\nstore snapshot (incl. the definition judged);
+:Run comparators where both sides\nhave structured values\n(results are final);
+|LLM|
+:judge (Opus 5)\nundecided attributes only;
+note right
+  Prompt gets requirement values and
+  supplier facts only: no tenant name,
+  no article_ref. API error: retry with
+  growing delay; after max_attempts the
+  job and the assessment become FAILED
+end note
+|Domain (core + hub)|
+:Validate output against schema\n(one repair retry);
+:Discard judgments for comparator-decided\nattributes; unknown citations -> UNKNOWN;
+:Apply verdict rules\n(critical MISMATCH -> NOT_EQUIVALENT,\ncritical/major UNKNOWN -> INSUFFICIENT_DATA,\nmajor MISMATCH or deviation -> WITH_DEVIATIONS,\nelse EQUIVALENT);
+if (Verdict decisive?) then (yes)
+  :next status = PROPOSED_RESOLUTION;
+elseif (round cap reached\nor input_hash unchanged\nor all blocking gaps UNAVAILABLE?) then (yes)
+  :next status = NEEDS_MANUAL_DECISION\n(manual_reason set);
+else (no)
+  :Create DRAFT questions\n(SUPPLIER for supplier-side gaps,\nPURCHASER for requirement unknowns;\nsupplier text never includes hospital values);
+  :next status = NEEDS_QUESTION_REVIEW;
+endif
+|hub.db|
+:Write assessment_round (requirement_id, input_hash),\nquestions, status + version, events, llm_calls;
+|Hub worker|
+:Mark job SUCCEEDED;
+stop
+
+@enduml

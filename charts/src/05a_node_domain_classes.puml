@@ -1,0 +1,221 @@
+@startuml 05a_node_domain_classes
+!pragma layout smetana
+!include _style.iuml
+title Hospital node domain model (UML class diagram, Appendix N.1-N.11; N.8 removed)
+hide empty methods
+hide circle
+
+package "Identity" {
+  class User {
+    id : UUID
+    email : Text {unique}
+    password_hash : Text
+    role : NodeRole
+    display_name : Text
+    hub_subject_id : Text {unique}
+    is_active : Boolean
+  }
+  class ApiToken {
+    id : UUID
+    token_hash : Hash {unique}
+    expires_at : Timestamp
+    revoked_at : Timestamp [0..1]
+    last_used_at : Timestamp [0..1]
+  }
+}
+
+package "Master data" {
+  class HospitalArticle {
+    id : UUID
+    internal_id : Text {unique}
+    article_ref : Text {unique}
+    name : Text
+    brand : Text [0..1]
+    annual_quantity : Integer [0..1]
+    order_unit : Text [0..1]
+    base_units_per_order_unit : Integer [0..1]
+    base_unit : Text [0..1]
+    {field} target_net_price : Decimal(12,4) [0..1]
+    currency : Code3 [0..1]
+    category_code : Text [0..1]
+    category_source : CategorySource [0..1]
+    category_set_by : User [0..1]
+    category_set_at : Timestamp [0..1]
+    reference_hub_variant_id : Text [0..1]
+    reference_label : Text [0..1]
+    reference_source : CLIENT_REPORTED [0..1]
+    reference_linked_by : User [0..1]
+    reference_linked_at : Timestamp [0..1]
+    content_hash : Hash
+    normalized_hash : Hash [0..1]
+    data_quality_issues : Text [*]
+    raw : JSON
+  }
+}
+
+package "Facts & read model" {
+  class ArticleFact {
+    id : UUID
+    attribute_key : Text
+    value : TypedValue [0..1]
+    raw_value : Text [0..1]
+    source : ArticleFactSource
+    method : ExtractionMethod [0..1]
+    evidence_quote : Text [0..1]
+    {field} confidence : Decimal(3,2) [0..1]
+    hub_variant_id : Text [0..1]
+    hub_fact_id : Text [0..1]
+    hub_question_id : Text [0..1]
+    created_by : User [0..1]
+    parser_version : Text [0..1]
+    llm_call : LlmCall [0..1]
+    model_id : Text [0..1]
+    prompt_version : Text [0..1]
+    superseded_by : ArticleFact [0..1]
+  }
+  class ArticleProjection <<derived>> {
+    id : UUID
+    category_code : Text [0..1]
+    definition_hash : Hash
+    attributes : JSON
+    attribute_origin : JSON
+    attribute_fact_ids : JSON
+    identifiers : JSON
+    unknown_attributes : Text [*]
+    unavailable_attributes : Text [*]
+    record_hash : Hash
+    requirement_hash : Hash
+    updated_at : Timestamp
+  }
+  class TypedValue <<datatype>> {
+    type : ValueType
+    value : Number | Boolean | Code | Text | List
+    unit : Text [0..1]
+    scheme : IdentifierScheme [0..1]
+    checksum_valid : Boolean [0..1]
+  }
+  note bottom of TypedValue
+    type = identifier carries scheme +
+    checksum_valid (round 7): GTIN, EAN,
+    MANUFACTURER_REF, PHARMACODE are
+    ArticleFact rows, not a separate table.
+  end note
+}
+
+package "Exchange" {
+  class EgressLog <<append-only>> {
+    id : UUID
+    kind : EgressKind
+    content : JSON
+    content_sha256 : Hash
+    jti : Text [0..1]
+    kid : Text [0..1]
+    alert : Text [0..1]
+    created_at : Timestamp
+  }
+}
+
+package "Templates" {
+  class TemplateVersion {
+    id : UUID
+    code : Text {unique}
+    definition : JSON
+    definition_hash : Hash
+    hub_updated_at : Timestamp
+    installed_by : User
+    installed_at : Timestamp
+  }
+}
+
+package "Ingestion" {
+  class LlmCall <<append-only>> {
+    id : UUID
+    purpose : NORMALIZE_ARTICLE
+    model : Text
+    prompt_version : Text
+    request : JSON
+    response : JSON [0..1]
+    input_tokens : Integer
+    output_tokens : Integer
+    latency_ms : Integer
+    {field} cost_usd : Decimal(10,6) [0..1]
+  }
+  note bottom of LlmCall
+    One batched normalize_article call at
+    seed / stale startup (D56), against the
+    hospital's own account. Empty in rules
+    mode. The node has no job queue (D53).
+  end note
+}
+
+package "Enumerations" {
+  enum NodeRole {
+    PURCHASER
+    NODE_ADMIN
+  }
+  enum CategorySource {
+    RULES
+    LLM_SUGGESTED
+    PURCHASER
+  }
+  enum ArticleFactSource {
+    HOSPITAL_MASTER
+    EXTRACTION
+    REFERENCE_ITEM
+    PURCHASER_ANSWER
+    UNAVAILABLE
+  }
+  enum ExtractionMethod {
+    RULES
+    LLM
+  }
+  enum EgressKind {
+    ASSERTION
+    REQUIREMENT
+  }
+}
+
+User "1" *-- "0..*" ApiToken
+HospitalArticle "1" *-- "0..*" ArticleFact
+HospitalArticle "1" -- "1" ArticleProjection
+ArticleProjection ..> ArticleFact : <<derive>>
+HospitalArticle "0..1" -- "0..*" EgressLog : article (NULL for assertions)
+User "1" -- "0..*" EgressLog : caused by
+ArticleProjection "0..*" ..> "1" TemplateVersion : category_code
+
+note bottom of TemplateVersion
+  One current definition per category,
+  synced as plain JSON by the client and
+  validated against the core model (D52).
+  The node runs no job queue (D53); its
+  one LLM call is at ingestion (D56). Node setting
+  EGRESS_DENY_ATTRIBUTES withholds
+  attributes from requirements;
+  SHARE_PRODUCT_HINTS (default off);
+  per-user rate limits.
+end note
+
+note right of HospitalArticle
+  article_ref is random and the only
+  article identifier sent to the hub.
+  reference_hub_variant_id never
+  leaves the node.
+end note
+
+note right of User
+  hub_subject_id is the only user id the
+  hub sees. The client maps hub creator /
+  resolver / assignee subjects back to
+  names with GET /users. The node keeps
+  no copy of assessments or verdicts;
+  hub_* columns are opaque text (no FK).
+end note
+
+note bottom of EgressLog
+  Exact content of every issued
+  requirement and assertion
+  (issuance, not delivery);
+  drives rate limits and alerts.
+end note
+
+@enduml

@@ -39,7 +39,7 @@ Companion to the prototype plan ([design-plan.md](design-plan.md), see §4.6 for
 | password_hash | text | NO | argon2id |
 | role | text | NO | CHECK `PURCHASER`, `NODE_ADMIN` |
 | display_name | text | NO | |
-| hub_subject_id | text | NO | unique; random `sub_` + 20 base32 chars; the only user identifier the hub ever sees. Regenerating it makes the person a new principal at the hub. The client maps hub creator/resolver/assignee subjects back to names with it (`GET /users`). A retired subject is never reused or deleted (`is_active = false` keeps the row), so old hub attributions stay resolvable. |
+| hub_subject_id | text | NO | unique; random `sub_` + 20 Crockford base32 chars (no I, L, O, U); the only user identifier the hub ever sees. Regenerating it makes the person a new principal at the hub. The client maps hub creator/resolver/assignee subjects back to names with it (`GET /users`). A retired subject is never reused or deleted (`is_active = false` keeps the row), so old hub attributions stay resolvable. |
 | is_active | boolean | NO | default true |
 
 | id | email | password_hash | role | display_name | hub_subject_id | is_active |
@@ -68,7 +68,7 @@ MDR class is an attribute, so it lives in `article_facts`. GTIN, EAN and article
 |---|---|---|---|
 | id | uuid | NO | PK |
 | internal_id | text | NO | unique; hospital's own ID |
-| article_ref | text | NO | unique; random `ar_` + 12 base32 chars; the only article identifier sent to the hub; never derived from other fields; used by `GET /articles?article_ref=` to join hub assessments |
+| article_ref | text | NO | unique; random `ar_` + 12 Crockford base32 chars (60 bits); the only article identifier sent to the hub; never derived from other fields; used by `GET /articles?article_ref=` to join hub assessments |
 | name | text | NO | Artikelbezeichnung, as given |
 | brand | text | YES | Marke |
 | annual_quantity | integer | YES | Jahresmenge |
@@ -148,11 +148,11 @@ Partial index `(article_id, attribute_key) WHERE superseded_by_id IS NULL`.
 | definition_hash | char(64) | NO | hash of the template definition this projection was built against (D52) |
 | attributes | jsonb | NO | effective typed values per attribute |
 | attribute_origin | jsonb | NO | coarse origin per attribute: `MASTER`, `EXTRACTED`, `REFERENCE`, `PURCHASER` (what the requirement may carry) |
-| identifiers | jsonb | NO | identifier facts as a **list** (`[{scheme, value, checksum_valid, fact_id}]`), kept out of `attributes` so precedence and `record_hash` are unaffected. Read only by product hints (D47) and the client-side identifier check; never mapped into a requirement |
+| identifiers | jsonb | NO | identifier facts as a **list** (`[{scheme, value, checksum_valid, fact_id}]`), kept out of `attributes` so precedence is unaffected; they are still part of `record_hash`. Read only by product hints (D47) and the client-side identifier check; never mapped into a requirement |
 | attribute_fact_ids | jsonb | NO | attribute → fact ID (node-internal) |
 | unknown_attributes / unavailable_attributes | jsonb | NO | |
-| record_hash | char(64) | NO | core `record_hash` over **all** resolved attributes and identifier facts; drives local change detection (rebuilds, "requirement outdated" hints) |
-| requirement_hash | char(64) | NO | core `record_hash` over the **shareable subset only** (`shareable: true` attributes + unknown/unavailable/withheld lists, plus `product_hints` when the hospital sends them); equals the hash the hub computes over the received requirement. A change to a non-shareable attribute (e.g. `units_per_order_unit`) changes `record_hash` but not `requirement_hash` |
+| record_hash | char(64) | NO | core `record_hash` over **all** resolved attributes, unavailable marks and identifier facts; drives local change detection (rebuilds, "requirement outdated" hints) |
+| requirement_hash | char(64) | NO | equals `RequirementPayload.requirement_hash()` of the requirement built from this projection (ARCHITECTURE §16): `template_code`, the **shareable** attributes, the unknown/unavailable/withheld lists and `product_hints` when the hospital sends them. The hub computes the same hash over the requirement it receives. A change to a non-shareable attribute (e.g. `units_per_order_unit`) changes `record_hash` but not `requirement_hash` |
 | updated_at | timestamptz | NO | |
 
 | article_id | category_code | attributes | attribute_origin | unknown_attributes | record_hash | requirement_hash |

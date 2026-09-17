@@ -1,0 +1,17 @@
+code: hypodermic_needle
+parent: generic_consumable
+keywords: [Kanüle]
+attributes:
+  # Gauge is authoritative; the outer diameter is only a cross-check derived from it.
+  - {key: gauge, criticality: critical, rule: exact}
+  - {key: outer_diameter_mm, criticality: minor, rule: derived}
+  - {key: length_mm, criticality: critical, rule: exact}
+  - {key: inner_diameter_mm, criticality: major, rule: tolerance, tolerance: 0.02}
+  - {key: wall_type, criticality: major, rule: exact}
+  - {key: bevel, criticality: major, rule: exact}
+  - {key: purpose, criticality: critical, rule: exact}
+  - {key: filter_um, criticality: critical, rule: exact}
+  - {key: safety_mechanism, criticality: critical, rule: exact}
+  - {key: connector, criticality: critical, rule: exact}
+  - {key: colour_code, criticality: minor, rule: derived}
+  - {key: iso_7864_compliant, criticality: major, rule: exact}

@@ -1,0 +1,14 @@
+# The 10 rows of the client's sample article list (sample-challenge-v01, Tabelle3),
+# hand-copied for tests. The repository must stay private (client question 11).
+# gtin / ean keep the Excel apostrophe exactly as exported.
+articles:
+  - {id: 1, name: "Nitrilhandschuh Sensicare Ice blau L", brand: "Medline", article_no: "486803", gtin: "'04046719012345", ean: "'4046719012348", mdr_class: "I", category: generic_consumable}
+  - {id: 2, name: "Verbandstoff-Wundversorgung-Set steril", brand: "Hartmann", article_no: "4754183", gtin: "'04046719098765", ean: "'4046719098768", mdr_class: "IIa", category: generic_consumable}
+  - {id: 3, name: "Einmalspritze 10 ml Luer-Lock steril", brand: "B. Braun", article_no: "9154010", gtin: "'04040456781234", ean: "'4040456781237", mdr_class: "IIa", category: syringe_single_use}
+  - {id: 4, name: "Infusionsbesteck Intrafix Safe", brand: "B. Braun", article_no: "4169125", gtin: "'04040456783456", ean: "'4040456783456", mdr_class: "IIa", category: generic_consumable}
+  - {id: 5, name: "OP-Maske mit Bindebändern", brand: "Hartmann", article_no: "2912301", gtin: "'04046719111223", ean: "'4046719111226", mdr_class: "I", category: generic_consumable}
+  - {id: 6, name: "Kanüle Sterican 0,8 × 40 mm", brand: "B. Braun", article_no: "4657689", gtin: "'04040456999887", ean: "'4040456999880", mdr_class: "IIa", category: hypodermic_needle}
+  - {id: 7, name: "Desinfektionstücher Mikrozid AF", brand: "Schülke", article_no: "70003456", gtin: "'04012345001234", ean: "'4012345001237", mdr_class: "IIa", category: generic_consumable}
+  - {id: 8, name: "Einmalhandschuh Latex puderfrei M", brand: "Ansell", article_no: "9265432", gtin: "'05010023456789", ean: "'5010023456784", mdr_class: "I", category: generic_consumable}
+  - {id: 9, name: "Urinbecher 100 ml steril", brand: "Sarstedt", article_no: "751345", gtin: "'04012345678901", ean: "'4012345678906", mdr_class: "I", category: generic_consumable}
+  - {id: 10, name: "Wundpflaster elastic 6 cm × 5 m", brand: "Hartmann", article_no: "9001234", gtin: "'04046719222334", ean: "'4046719222339", mdr_class: "I", category: generic_consumable}

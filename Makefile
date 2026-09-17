@@ -35,9 +35,10 @@ lint:
 	uv run mypy
 	uv run lint-imports
 
+# Format first: `ruff check --fix` exits non-zero on anything it cannot fix.
 format:
-	uv run ruff check --fix .
 	uv run ruff format .
+	uv run ruff check --fix .
 
 test:
 	uv run pytest

@@ -1,0 +1,166 @@
+# Attribute definitions shared by all categories (the seed of the hub registry).
+# Synonyms map a spelling to an option code (enums) or to "true"/"false" (bools).
+# When a whole article name is scanned, only these listed phrases are matched,
+# never bare option codes, so short codes such as "I" cannot be picked up by accident.
+attributes:
+  # --- generic_consumable ---------------------------------------------------
+  - key: mdr_class
+    type: enum
+    options: [I, I_S, I_M, I_R, IIA, IIB, III]
+    labels: {de: MDR-Risikoklasse, en: MDR risk class}
+  - key: sterile
+    type: bool
+    labels: {de: Steril, en: Sterile}
+    synonyms: {steril: "true", sterile: "true", unsteril: "false", nicht steril: "false"}
+  - key: single_use
+    type: bool
+    labels: {de: Einmalgebrauch, en: Single use}
+    synonyms: {Einmalgebrauch: "true", single use: "true"}
+  - key: latex_free
+    type: bool
+    labels: {de: Latexfrei, en: Latex-free}
+    synonyms: {latexfrei: "true", latex-frei: "true", ohne Latex: "true", latex free: "true"}
+  - key: dehp_free
+    type: bool
+    labels: {de: DEHP-frei, en: DEHP-free}
+    synonyms: {DEHP-frei: "true", ohne DEHP: "true", DEHP free: "true"}
+  - key: pvc_free
+    type: bool
+    labels: {de: PVC-frei, en: PVC-free}
+    synonyms: {PVC-frei: "true", ohne PVC: "true", PVC free: "true"}
+  - key: bpa_free
+    type: bool
+    labels: {de: BPA-frei, en: BPA-free}
+    synonyms: {BPA-frei: "true", ohne Bisphenol A: "true", BPA free: "true"}
+  - key: standards
+    type: list
+    labels: {de: Normen, en: Standards}
+  - key: units_per_order_unit
+    type: number
+    unit: pcs
+    labels: {de: Stück pro Bestelleinheit, en: Units per order unit}
+
+  # --- syringe_single_use -----------------------------------------------------
+  - key: nominal_volume_ml
+    type: number
+    unit: ml
+    labels: {de: Nennvolumen, en: Nominal volume}
+  - key: usable_volume_ml
+    type: number
+    unit: ml
+    labels: {de: Nutzbares Volumen, en: Usable volume}
+  - key: connector
+    type: enum
+    options: [LUER, LUER_LOCK, NRFIT, CATHETER, ORAL]
+    labels: {de: Ansatz, en: Connector}
+    synonyms:
+      Luer-Lock: LUER_LOCK
+      Luer Lock: LUER_LOCK
+      Luer-Lok: LUER_LOCK
+      LL: LUER_LOCK
+      Luer: LUER
+      Luer-Ansatz: LUER
+      Luer-Slip: LUER
+      NRFit: NRFIT
+      Katheteransatz: CATHETER
+      Oral: ORAL
+  - key: cone_position
+    type: enum
+    options: [CENTRIC, ECCENTRIC]
+    labels: {de: Konusposition, en: Cone position}
+    synonyms: {zentrisch: CENTRIC, centric: CENTRIC, exzentrisch: ECCENTRIC, eccentric: ECCENTRIC}
+  - key: design
+    type: enum
+    options: [TWO_PART, THREE_PART]
+    labels: {de: Bauart, en: Design}
+    synonyms:
+      zweiteilig: TWO_PART
+      zweiteilige: TWO_PART
+      2-teilig: TWO_PART
+      dreiteilig: THREE_PART
+      dreiteilige: THREE_PART
+      3-teilig: THREE_PART
+  - key: graduation_step_ml
+    type: number
+    unit: ml
+    labels: {de: Skalierung, en: Graduation step}
+  - key: special_scale
+    type: text
+    labels: {de: Spezialskala, en: Special scale}
+  - key: needle_included
+    type: bool
+    labels: {de: Mit Kanüle, en: Needle included}
+    synonyms: {mit Kanüle: "true", ohne Kanüle: "false"}
+  - key: safety_mechanism
+    type: bool
+    labels: {de: Sicherheitsmechanismus, en: Safety mechanism}
+  - key: pump_compatible
+    type: bool
+    labels: {de: Pumpenkompatibel, en: Pump compatible}
+  - key: light_protected
+    type: bool
+    labels: {de: Lichtgeschützt, en: Light protected}
+    synonyms: {lichtgeschützt: "true", light protected: "true"}
+  - key: silicone_oil_free
+    type: bool
+    labels: {de: Silikonölfrei, en: Silicone oil-free}
+    synonyms: {silikonölfrei: "true", ohne Silikonöl: "true"}
+  - key: barrel_material
+    type: text
+    labels: {de: Zylindermaterial, en: Barrel material}
+  - key: plunger_material
+    type: text
+    labels: {de: Kolbenmaterial, en: Plunger material}
+  - key: stopper_material
+    type: text
+    labels: {de: Stopfenmaterial, en: Stopper material}
+  - key: iso_7886_1_compliant
+    type: bool
+    labels: {de: DIN EN ISO 7886-1, en: ISO 7886-1 compliant}
+
+  # --- hypodermic_needle ------------------------------------------------------
+  - key: gauge
+    type: number
+    unit: G
+    labels: {de: Gauge, en: Gauge}
+  - key: outer_diameter_mm
+    type: number
+    unit: mm
+    labels: {de: Außendurchmesser, en: Outer diameter}
+  - key: length_mm
+    type: number
+    unit: mm
+    labels: {de: Länge, en: Length}
+  - key: inner_diameter_mm
+    type: number
+    unit: mm
+    labels: {de: Innendurchmesser, en: Inner diameter}
+  - key: wall_type
+    type: enum
+    options: [REGULAR, THIN]
+    labels: {de: Wandstärke, en: Wall type}
+    synonyms: {regulär: REGULAR, regular wall: REGULAR, dünnwandig: THIN, thin wall: THIN}
+  - key: bevel
+    type: enum
+    options: [LONG, SHORT, BLUNT]
+    labels: {de: Schliff, en: Bevel}
+    synonyms: {Langschliff: LONG, Kurzschliff: SHORT, stumpf: BLUNT}
+  - key: purpose
+    type: enum
+    options: [INJECTION, FILLING, FILTER, IRRIGATION]
+    labels: {de: Verwendung, en: Purpose}
+    synonyms:
+      Injektionskanüle: INJECTION
+      Aufziehkanüle: FILLING
+      Filterkanüle: FILTER
+      Spülkanüle: IRRIGATION
+  - key: filter_um
+    type: number
+    unit: µm
+    labels: {de: Filterporengröße, en: Filter pore size}
+  - key: colour_code
+    type: text
+    labels: {de: Farbcode, en: Colour code}
+  - key: iso_7864_compliant
+    type: bool
+    labels: {de: DIN EN ISO 7864, en: ISO 7864 compliant}

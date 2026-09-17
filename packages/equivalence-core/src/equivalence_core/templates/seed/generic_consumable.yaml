@@ -1,0 +1,14 @@
+# Applies to every category; used alone when no specific template matches.
+code: generic_consumable
+limited_template: true
+attributes:
+  - {key: mdr_class, criticality: critical, rule: exact}
+  - {key: sterile, criticality: critical, rule: exact}
+  - {key: single_use, criticality: critical, rule: exact}
+  - {key: latex_free, criticality: critical, rule: exact}
+  - {key: dehp_free, criticality: major, rule: exact}
+  - {key: pvc_free, criticality: minor, rule: exact}
+  - {key: bpa_free, criticality: minor, rule: exact}
+  - {key: standards, criticality: major, rule: includes}
+  # Commercial, shown as information only and never sent to the hub.
+  - {key: units_per_order_unit, criticality: minor, rule: info_only, shareable: false}

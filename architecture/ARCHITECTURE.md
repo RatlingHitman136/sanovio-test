@@ -144,7 +144,7 @@ Only **syringes** (CSV row 3) and **hypodermic needles** (CSV row 6) appear in b
 | Units and parsing | **pint**; own parsers for German decimal commas, "×" dimensions, inch fractions (½, ¼, ⅜), gauge ↔ outer diameter (ISO 6009), synonym dictionaries. **In the core**, so node and hub parse identically. |
 | Identifiers | Own GS1 mod-10 check-digit validator (core) |
 | Category templates | **Hub registry** (database tables; §7.2). Seeded from YAML (`pyyaml`) in the core. The core holds the Pydantic `TemplateDefinition` model and loader. The client syncs the current definition per category to each node as plain JSON (D52). |
-| Signatures and tokens | **PyJWT[crypto]** (uses `cryptography`) for Ed25519 JWS, used for **hub assertions only** (node key; D52 removed the hub-signed bundles). Algorithm pinned (`Ed25519` identifier per RFC 9864 where supported, else `EdDSA` with the key type fixed); `none` and HMAC never accepted. Requirements are plain JSON validated by a strict schema. |
+| Signatures and tokens | **PyJWT[crypto]** (uses `cryptography`) for Ed25519 JWS, used for **hub assertions only** (node key; D52 removed the hub-signed bundles). Algorithm pinned to `EdDSA` with the key type fixed to Ed25519 (PyJWT 2.14 does not know the RFC 9864 name `Ed25519`); `none` and HMAC never accepted. Requirements are plain JSON validated by a strict schema. |
 | Auth | **Node:** local accounts (`pwdlib[argon2]`), opaque bearer tokens hashed in the node DB. **Hub:** supplier and operator accounts the same way; purchasers only via **token exchange** (§17). `HTTPBearer` dependencies check role and tenant. |
 | Architecture checks | **import-linter** contracts: `hospital_node` ⟂ `supplier_hub`; `equivalence_core` imports neither and no FastAPI/SQLAlchemy/anthropic; the demo client imports neither app. |
 | API clients | Swagger UI on each service (`:8001/docs` node, `:8000/docs` hub). **`tools/demo-client`**: typer + httpx + rich CLI that plays purchaser (node + hub) and supplier (hub), bridging the two services exactly as the SPA will. |
@@ -228,16 +228,21 @@ sanovio/
 
 | Module | Responsibility |
 |---|---|
-| `templates/` | `TemplateDefinition` model, YAML seed loader, `definition_hash`, fixed identifier-scheme lists per side |
-| `parsers/` | German decimals, `×` dimensions, inch fractions, gauge ↔ outer diameter, packaging, synonym dictionaries |
-| `identifiers.py` | GS1 check digit; problems between identifiers (`GTIN_EAN_MISMATCH` …) |
-| `facts.py` | source precedence per side, family → variant merge, identifier facts kept as a set, canonical JSON, `record_hash` |
+| `values.py` | the typed value shapes (A.0 of the data model); `AttributeValue` is the same union without identifiers, used by the requirement |
+| `hashing.py` | canonical JSON and SHA-256 behind `record_hash`, `requirement_hash` and `definition_hash` |
+| `ids.py` | random `article_ref` and the id patterns (Crockford base32) |
+| `quality.py` | `DataQualityIssue` flags (checksum and GTIN/EAN problems, gauge/diameter disagreement) |
+| `templates/` | `TemplateDefinition` model, YAML seed loader (attribute definitions kept separate from per-template settings, as in the hub registry), `definition_hash`, category keywords |
+| `parsers/` | German decimals, units (pint), `×` dimensions, inch fractions, gauge ↔ outer diameter, packaging, synonym matching, and `extract_attributes` for a whole article name |
+| `identifiers.py` | fixed identifier-scheme lists per side; GS1 check digit; problems between identifiers (`GTIN_EAN_MISMATCH` …) |
+| `facts.py` | source precedence per side, family → variant merge, identifier facts kept as a set, `record_hash` |
 | `comparators.py` | exact, tolerance, same-or-finer, same-or-more, gauge ↔ diameter |
 | `verdict_rules.py` | per-attribute results → verdict |
 | `identifier_evidence.py` | `SAME_TRADE_ITEM` or `NO_INFORMATION`; never a mismatch |
 | `exchange/requirement.py` | strict `RequirementPayload` (`extra="forbid"`), `requirement_hash` |
 | `exchange/assertion.py` | `HubAssertion` claims model |
-| `exchange/jws.py` | Ed25519 `sign` / `verify`: pinned algorithm, `typ`, `aud`, expiry, `kid` bound to the issuer |
+| `exchange/keys.py` | Ed25519 key generation, owner-only storage, public JWK and RFC 7638 fingerprint |
+| `exchange/jws.py` | Ed25519 `sign` / `verify`: pinned algorithm, `typ`, `aud`, expiry against an injected clock, `kid` bound to the issuer |
 
 **`apps/hospital-node`**
 
@@ -282,6 +287,8 @@ Every attribute has: a key, type, unit, **criticality** (critical / major / mino
 | **hypodermic_needle** | gauge (critical · exact; **authoritative**), outer_diameter_mm (cross-check only, not compared separately: filled in from gauge when missing; if a source's OD disagrees with its own gauge, a data-quality flag is raised and gauge wins), length_mm (critical · exact), inner_diameter_mm (major · ±0.02), wall_type `REGULAR\|THIN` (major · exact), bevel `LONG\|SHORT\|BLUNT` (major · exact), purpose `INJECTION\|FILLING\|FILTER\|IRRIGATION` (critical · exact), filter_um (critical · exact if present), safety_mechanism (critical · exact), connector (critical · exact), colour_code (minor · derived), ISO 7864 (major) |
 
 Articles in uncovered categories (gloves, masks…) use `generic_consumable` alone and are marked `limited_template: true`.
+
+**Seed layout** (`equivalence_core/templates/seed/`): `attributes.yaml` holds each attribute's definition once — type, unit, options, labels and synonyms — and each template file lists only its per-category settings (criticality, rule, tolerance, `shareable`) plus the **category keywords** used to suggest a category from an article name (`Einmalspritze`, `Spritze` → syringe; `Kanüle` → needle). When several keywords match, the one appearing first in the name wins, because German article names lead with the noun. When a whole name is scanned, only the listed synonym phrases are matched, never bare option codes, so a short code such as `I` cannot be picked up by accident.
 
 ### 7.2 Attribute registry: who owns templates, and how new attributes are added
 
@@ -700,8 +707,8 @@ Deterministic, read-only, no LLM call, **nothing stored at the hub**. The same e
 
 | Field | Example | Notes |
 |---|---|---|
-| `requirement_version` | `1` | hub accepts a list of supported versions |
-| `article_ref` | `ar_5MZQ4K7T2V9C` | random 60-bit base32, stable per article, **not derived** from internal ID |
+| `requirement_version` | `1` | the only version so far; anything else is rejected |
+| `article_ref` | `ar_5MZQ4K7T2V9C` | random 60 bits as 12 Crockford base32 characters (no I, L, O, U), stable per article, **not derived** from internal ID |
 | identifier keys | — | identifier schemes are a fixed list in the core (`GTIN`, `EAN`, `MANUFACTURER_REF`, `PHARMACODE` at the node; `GTIN`, `SUPPLIER_ARTICLE_NO`, `PZN`, `HIMIV` at the hub), **not** registry lookups, because the node has no copy of the registry  |
 | `template_code` | `syringe_single_use` | the category the node built the requirement for; the hub validates against its current definition (D52) |
 | `attributes` | `{"nominal_volume_ml":{"type":"number","value":10,"unit":"ml"}, "connector":{"type":"enum","value":"LUER_LOCK"}, …}` | only template attributes with `shareable: true`; typed values; no quotes, no raw text |
@@ -720,6 +727,8 @@ Deterministic, read-only, no LLM call, **nothing stored at the hub**. The same e
 - Free-text attribute values (e.g. `stopper_material`) are included only when the template marks the attribute `shareable: true` and the value is a synonym-normalized code or a short text of at most 60 characters. Otherwise the attribute is sent as unknown.
 - Attributes listed in `EGRESS_DENY_ATTRIBUTES` move to `withheld_attributes`.
 - Every issued requirement is written to `egress_log` (exact content + SHA-256) **before** it is returned. The log records issuance; the client could still choose not to send it.
+
+**`requirement_hash`** is the SHA-256 of the canonical JSON of `template_code`, `attributes`, the three status lists (sorted) and `product_hints`. It deliberately leaves out `article_ref`, `answered_question_ids` and `attribute_origin`: sending the same content again, or only re-labelling where a value came from, is not progress for the stop condition in §11.
 
 **Rate limits and alerts (node, D48):**
 - Per user: `REQUIREMENT_RATE_LIMIT_PER_HOUR` (default 120) and `ASSERTION_RATE_LIMIT_PER_HOUR` (default 30); above the limit → 429.
@@ -777,10 +786,10 @@ Deterministic, read-only, no LLM call, **nothing stored at the hub**. The same e
 Template definitions are plain JSON, validated against the core `TemplateDefinition` model at the node (D52).
 
 **JWT checks for both (RFC 8725):**
-- **Algorithm pinned:** `Ed25519` (RFC 9864 identifier; `EdDSA` with key type fixed if the library lacks it). `none` and HMAC are rejected.
+- **Algorithm pinned:** `EdDSA`, and the verifying key must be an Ed25519 public key. (RFC 9864's more specific name `Ed25519` is not supported by PyJWT 2.14; switching to it later needs no data change.) `none` and HMAC are rejected.
 - **Explicit `typ`,** checked per endpoint (`assertion+jwt` is the only accepted value), so a token minted for anything else is rejected.
 - **`kid` must belong to the claimed issuer:** the tenant named in `iss`.
-- **Claims:** `aud` validated; `exp` and `iat` with ±60 s skew. Keys are never taken from token headers (`jwk`, `jku`, `x5u` ignored).
+- **Claims:** `iss`, `aud`, `iat`, `exp` and `jti` are required; `aud` validated; `exp` and `iat` checked with ±60 s skew against a clock passed in by the caller. Keys are never taken from token headers (`jwk`, `jku`, `x5u` ignored).
 
 Requirements and variant attributes are plain JSON over TLS with bearer tokens (D34, D37).
 

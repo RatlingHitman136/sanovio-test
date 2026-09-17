@@ -1,0 +1,20 @@
+code: syringe_single_use
+parent: generic_consumable
+keywords: [Einmalspritze, Spritze]
+attributes:
+  - {key: nominal_volume_ml, criticality: critical, rule: exact}
+  - {key: usable_volume_ml, criticality: minor, rule: same_or_more}
+  - {key: connector, criticality: critical, rule: exact}
+  - {key: cone_position, criticality: major, rule: exact}
+  - {key: design, criticality: major, rule: exact}
+  - {key: graduation_step_ml, criticality: major, rule: same_or_finer}
+  - {key: special_scale, criticality: major, rule: exact}
+  - {key: needle_included, criticality: critical, rule: exact}
+  - {key: safety_mechanism, criticality: critical, rule: exact}
+  - {key: pump_compatible, criticality: major, rule: required_if_hospital}
+  - {key: light_protected, criticality: major, rule: exact}
+  - {key: silicone_oil_free, criticality: minor, rule: exact}
+  - {key: barrel_material, criticality: minor, rule: semantic}
+  - {key: plunger_material, criticality: minor, rule: semantic}
+  - {key: stopper_material, criticality: minor, rule: semantic}
+  - {key: iso_7886_1_compliant, criticality: major, rule: exact}

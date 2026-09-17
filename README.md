@@ -29,4 +29,4 @@ make test     # all unit tests
 ```
 
 ## Status
-Stage 0 of 7 (workspace and tooling) — see ARCHITECTURE §22 for the stage plan.
+Stages 0–1 of 7 done: workspace and tooling; the shared core the hospital node needs (values, templates, parsers, identifiers, facts, requirement, assertion signing). See ARCHITECTURE §22 for the stage plan.

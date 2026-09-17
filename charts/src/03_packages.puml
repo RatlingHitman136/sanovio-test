@@ -5,6 +5,7 @@ title Project structure: uv workspace and allowed package dependencies
 
 frame "sanovio/ (uv workspace root: pyproject.toml, uv.lock)" {
   frame "packages/equivalence-core" #FFF3E0 {
+    package "values, hashing,\nids, quality\n(shared primitives)" as core_primitives
     package "templates" as core_templates
     package "parsers" as core_parsers
     package "identifiers" as core_identifiers
@@ -78,6 +79,13 @@ core_facts ..> core_templates
 core_parsers ..> core_templates
 core_verdict_rules ..> core_templates
 core_identifier_evidence ..> core_identifiers
+core_facts ..> core_identifiers
+core_exchange ..> core_identifiers
+core_templates ..> core_primitives
+core_parsers ..> core_primitives
+core_facts ..> core_primitives
+core_exchange ..> core_primitives
+core_identifiers ..> core_primitives
 
 demo_client ..> node_api : HTTP only
 demo_client ..> hub_api : HTTP only

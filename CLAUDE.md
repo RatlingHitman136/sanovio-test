@@ -31,7 +31,7 @@ Working rules and project map for the Article Equivalence Loop prototype. The de
 
 ## Project structure
 
-Status: ✅ exists after stage 0 · ⏳ filled by the stage in brackets.
+Status: ✅ exists (stages 0–1 done) · ⏳ filled by the stage in brackets.
 
 ```
 sanovio/
@@ -47,12 +47,16 @@ sanovio/
 ├── packages/
 │   └── equivalence-core/         shared library, plain Python
 │       └── src/equivalence_core/
+│           ├── values.py         ✅ typed value shapes (AttributeValue excludes identifiers)
+│           ├── hashing.py        ✅ canonical JSON + SHA-256 for every compared hash
+│           ├── ids.py            ✅ article_ref / subject id patterns (Crockford base32)
+│           ├── quality.py        ✅ DataQualityIssue flags
+│           ├── identifiers.py    ✅ scheme lists per side, GS1 check digit, identifier problems
 │           ├── service_info.py   ✅ health response shared by both services and the demo client
-│           ├── exchange/         ✅ keys (stage 0) · ⏳ requirement, assertion, jws [1]
-│           ├── templates/        ⏳ [1] TemplateDefinition, YAML seeds, definition_hash
-│           ├── parsers/          ⏳ [1] German numbers, dimensions, gauge, packaging, synonyms
-│           ├── identifiers.py    ⏳ [1] GS1 check digit, identifier data-quality checks
-│           ├── facts.py          ⏳ [1] precedence, merge, record_hash
+│           ├── templates/        ✅ model, loader, seed/*.yaml (definitions + 3 templates)
+│           ├── parsers/          ✅ numbers, units, gauge, dimensions, packaging, synonyms, text
+│           ├── facts.py          ✅ precedence, resolver, record_hash
+│           ├── exchange/         ✅ keys, requirement, assertion, jws
 │           ├── comparators.py    ⏳ [3]
 │           ├── verdict_rules.py  ⏳ [3]
 │           └── identifier_evidence.py  ⏳ [3]
@@ -93,7 +97,7 @@ Each workspace member keeps its tests in its own `tests/` directory.
 
 | Command | What it does |
 |---|---|
-| `make setup` | `uv sync`; creates each app's `.env` from `.env.example` if missing |
+| `make setup` | `uv sync --all-packages` (a plain `uv sync` at the root would drop the members); creates each app's `.env` from `.env.example` if missing |
 | `make keys` | node signing keys for `ten_ksp` and `ten_spital2` in `.secrets/` (never overwrites) |
 | `make dev` | hub on :8000 and node on :8001 (`make dev-hub`, `make dev-node` for one) |
 | `make lint` | ruff, format check, mypy strict, import contracts |

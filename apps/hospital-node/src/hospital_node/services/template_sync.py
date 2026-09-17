@@ -19,7 +19,7 @@ from equivalence_core.templates import (
 from hospital_node.core.settings import NodeSettings
 from hospital_node.models import HospitalArticle, InstalledTemplate
 from hospital_node.services import projection
-from hospital_node.services.errors import Unprocessable
+from service_kit.errors import Unprocessable
 
 type Templates = Mapping[str, TemplateDefinition]
 

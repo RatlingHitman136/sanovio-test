@@ -9,9 +9,9 @@ from hospital_node.models.exchange import EgressAlert, EgressKind
 from hospital_node.models.users import Role
 from hospital_node.services import egress_log
 from hospital_node.services.egress_log import Limits
-from hospital_node.services.errors import RateLimited
 from hospital_node.services.seed import SeedReport
 from node_fixtures import FakeClock, user
+from service_kit.errors import RateLimited
 
 LIMITS = Limits(per_hour=5, daily_alert=8)
 

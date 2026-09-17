@@ -4,9 +4,9 @@ from fastapi import APIRouter
 
 from hospital_node.api.deps import Context, DbSession, NodeAdmin
 from hospital_node.schemas.admin import ResetSeed, SeedResult
-from hospital_node.services.errors import Conflict
 from hospital_node.services.normalization import NormalizationUnavailable
 from hospital_node.services.seed import SeedError, seed
+from service_kit.errors import Conflict
 
 router = APIRouter(prefix="/dev", tags=["dev"])
 

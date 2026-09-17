@@ -1,0 +1,139 @@
+{
+  "Injekt® Luer Lock Solo": {
+    "category_code": "syringe_single_use",
+    "facts": [
+      {
+        "attribute_key": "latex_free",
+        "value": true,
+        "unit": null,
+        "quote": "Nicht hergestellt mit Silikonöl, Bisphenol A, Latex, DEHP und PVC",
+        "confidence": 0.95
+      },
+      {
+        "attribute_key": "dehp_free",
+        "value": true,
+        "unit": null,
+        "quote": "Nicht hergestellt mit Silikonöl, Bisphenol A, Latex, DEHP und PVC",
+        "confidence": 0.95
+      },
+      {
+        "attribute_key": "silicone_oil_free",
+        "value": true,
+        "unit": null,
+        "quote": "Nicht hergestellt mit Silikonöl",
+        "confidence": 0.9
+      },
+      {
+        "attribute_key": "sterile",
+        "value": true,
+        "unit": null,
+        "quote": "Einzeln steril verpackt",
+        "confidence": 0.98
+      },
+      {
+        "attribute_key": "iso_7886_1_compliant",
+        "value": true,
+        "unit": null,
+        "quote": "gefertigt nach der DIN EN ISO-Norm 7886-1",
+        "confidence": 0.97
+      },
+      {
+        "attribute_key": "pump_compatible",
+        "value": true,
+        "unit": null,
+        "quote": "für alle Infusionspumpen validiert",
+        "confidence": 0.4
+      }
+    ]
+  },
+  "BD Plastipak™ Luer-Lok™": {
+    "category_code": "syringe_single_use",
+    "facts": [
+      {
+        "attribute_key": "latex_free",
+        "value": true,
+        "unit": null,
+        "quote": "Der latexfreie Stopfen",
+        "confidence": 0.93
+      },
+      {
+        "attribute_key": "sterile",
+        "value": true,
+        "unit": null,
+        "quote": "Sterile Einzelverpackung",
+        "confidence": 0.98
+      },
+      {
+        "attribute_key": "single_use",
+        "value": true,
+        "unit": null,
+        "quote": "Einmalgebrauch",
+        "confidence": 0.98
+      },
+      {
+        "attribute_key": "pump_compatible",
+        "value": true,
+        "unit": null,
+        "quote": "Validiert für die Verwendung mit den meisten Infusionspumpen",
+        "confidence": 0.9
+      }
+    ]
+  },
+  "BD Emerald™ Luer": {
+    "category_code": "syringe_single_use",
+    "facts": [
+      {
+        "attribute_key": "latex_free",
+        "value": true,
+        "unit": null,
+        "quote": "Der latexfreie Stopfen",
+        "confidence": 0.93
+      },
+      {
+        "attribute_key": "sterile",
+        "value": true,
+        "unit": null,
+        "quote": "Sterile Einzelverpackung",
+        "confidence": 0.98
+      }
+    ]
+  },
+  "Sterican® Standard-Einmalkanülen": {
+    "category_code": "hypodermic_needle",
+    "facts": [
+      {
+        "attribute_key": "iso_7864_compliant",
+        "value": true,
+        "unit": null,
+        "quote": "gefertigt nach der DIN EN ISO-Norm 7864",
+        "confidence": 0.97
+      },
+      {
+        "attribute_key": "purpose",
+        "value": "INJECTION",
+        "unit": null,
+        "quote": "Einmalkanülen zur Injektion",
+        "confidence": 0.9
+      }
+    ]
+  },
+  "BD Microlance™ Injektionskanülen": {
+    "category_code": "hypodermic_needle",
+    "facts": [
+      {
+        "attribute_key": "sterile",
+        "value": true,
+        "unit": null,
+        "quote": "Sterile Einzelverpackung",
+        "confidence": 0.98
+      },
+      {
+        "attribute_key": "purpose",
+        "value": "INJECTION",
+        "unit": null,
+        "quote": "Injektionskanülen",
+        "confidence": 0.9
+      }
+    ]
+  }
+}

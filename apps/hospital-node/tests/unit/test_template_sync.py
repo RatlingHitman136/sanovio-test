@@ -7,9 +7,9 @@ from equivalence_core.templates import load_seed_templates
 from hospital_node.core.settings import NodeSettings
 from hospital_node.models.users import Role
 from hospital_node.services import template_sync
-from hospital_node.services.errors import Unprocessable
 from hospital_node.services.seed import SeedReport
 from node_fixtures import FakeClock, article, user
+from service_kit.errors import Unprocessable
 
 PEEL_OFF_LABEL = {
     "key": "peel_off_label",

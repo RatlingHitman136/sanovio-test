@@ -1,0 +1,490 @@
+{
+  "supplier": {
+    "code": "org_bd",
+    "name": "BD",
+    "country": "CH",
+    "user": {
+      "email": "catalog@bd-demo.example",
+      "display_name": "BD Catalog Team"
+    }
+  },
+  "families": [
+    {
+      "code": "fam_bd_plastipak_ll",
+      "manufacturer": "BD",
+      "brand_name": "Plastipak™",
+      "name": "BD Plastipak™ Luer-Lok™",
+      "product_type": "Dreiteilige Spritzen",
+      "category_code": "syringe_single_use",
+      "description": "BD Plastipak™ Spritzen mit BD Luer-Lok™-Ansatz ohne Kanüle",
+      "properties_text": "Die BD Plastipak™ Spritzen sind für die allgemeine Injektion und Aspiration von Flüssigkeiten bestimmt. Der latexfreie Stopfen verhindert das Auslaufen des Medikaments um den Kolben herum und dient als Indikator für das Abmessen des Spritzeninhalts. · Spezial-Silikon-Gleitmittel sorgt für eine reibungslose und gleichmäßige Bewegung des Kolbens. · Der Haltering verhindert ein unbeabsichtigtes Herausziehen des Kolbens. · Validiert für die Verwendung mit den meisten Infusionspumpen, einschließlich BD Alaris™ Infusionspumpen. · Sterile Einzelverpackung, Einmalgebrauch.",
+      "source_document": "product_catalog_02.pdf",
+      "source_page": 13,
+      "connector_label": "BD Luer-Lok™-Ansatz",
+      "variants": [
+        {
+          "article_no": "309628",
+          "label": "BD Plastipak™ Luer-Lok™ 1 ml (aus Polykarbonat), zentrisch",
+          "order_unit": "Packung",
+          "units_per_order_unit": 100,
+          "order_units_per_shipping_unit": 8,
+          "source_row": {
+            "Volumen": "1 ml (aus Polykarbonat)",
+            "Ansatz": "zentrisch",
+            "Graduierung": "unterteilt in 0,01 ml",
+            "Produkt-Nr.": "309628",
+            "VE / UK": "100 / 800"
+          }
+        },
+        {
+          "article_no": "309658",
+          "label": "BD Plastipak™ Luer-Lok™ 3 ml, zentrisch",
+          "order_unit": "Packung",
+          "units_per_order_unit": 200,
+          "order_units_per_shipping_unit": 4,
+          "source_row": {
+            "Volumen": "3 ml",
+            "Ansatz": "zentrisch",
+            "Graduierung": "unterteilt in 0,1 ml",
+            "Produkt-Nr.": "309658",
+            "VE / UK": "200 / 800"
+          }
+        },
+        {
+          "article_no": "309649",
+          "label": "BD Plastipak™ Luer-Lok™ 5 ml, zentrisch",
+          "order_unit": "Packung",
+          "units_per_order_unit": 125,
+          "order_units_per_shipping_unit": 4,
+          "source_row": {
+            "Volumen": "5 ml",
+            "Ansatz": "zentrisch",
+            "Graduierung": "unterteilt in 0,2 ml",
+            "Produkt-Nr.": "309649",
+            "VE / UK": "125 / 500"
+          }
+        },
+        {
+          "article_no": "300912",
+          "label": "BD Plastipak™ Luer-Lok™ 10 ml, zentrisch",
+          "order_unit": "Packung",
+          "units_per_order_unit": 100,
+          "order_units_per_shipping_unit": 4,
+          "source_row": {
+            "Volumen": "10 ml",
+            "Ansatz": "zentrisch",
+            "Graduierung": "unterteilt in 0,2 ml",
+            "Produkt-Nr.": "300912",
+            "VE / UK": "100 / 400"
+          }
+        },
+        {
+          "article_no": "300629",
+          "label": "BD Plastipak™ Luer-Lok™ 20 ml, zentrisch",
+          "order_unit": "Packung",
+          "units_per_order_unit": 120,
+          "order_units_per_shipping_unit": 4,
+          "source_row": {
+            "Volumen": "20 ml",
+            "Ansatz": "zentrisch",
+            "Graduierung": "unterteilt in 1 ml",
+            "Produkt-Nr.": "300629",
+            "VE / UK": "120 / 480"
+          }
+        },
+        {
+          "article_no": "301229",
+          "label": "BD Plastipak™ Luer-Lok™ 30 ml, zentrisch",
+          "order_unit": "Packung",
+          "units_per_order_unit": 60,
+          "order_units_per_shipping_unit": 4,
+          "source_row": {
+            "Volumen": "30 ml",
+            "Ansatz": "zentrisch",
+            "Graduierung": "unterteilt in 1 ml",
+            "Produkt-Nr.": "301229",
+            "VE / UK": "60 / 240"
+          }
+        },
+        {
+          "article_no": "300865",
+          "label": "BD Plastipak™ Luer-Lok™ 50 ml, zentrisch",
+          "order_unit": "Packung",
+          "units_per_order_unit": 60,
+          "order_units_per_shipping_unit": 4,
+          "source_row": {
+            "Volumen": "50 ml",
+            "Ansatz": "zentrisch",
+            "Graduierung": "unterteilt in 1 ml",
+            "Produkt-Nr.": "300865",
+            "VE / UK": "60 / 240"
+          }
+        },
+        {
+          "article_no": "300869",
+          "label": "BD Plastipak™ Luer-Lok™ 50 ml, lichtgeschützt, zentrisch",
+          "order_unit": "Packung",
+          "units_per_order_unit": 60,
+          "order_units_per_shipping_unit": 4,
+          "source_row": {
+            "Volumen": "50 ml, lichtgeschützt",
+            "Ansatz": "zentrisch",
+            "Graduierung": "unterteilt in 1 ml",
+            "Produkt-Nr.": "300869",
+            "VE / UK": "60 / 240"
+          }
+        }
+      ]
+    },
+    {
+      "code": "fam_bd_plastipak_luer",
+      "manufacturer": "BD",
+      "brand_name": "Plastipak™",
+      "name": "BD Plastipak™ Luer",
+      "product_type": "Dreiteilige Spritzen",
+      "category_code": "syringe_single_use",
+      "description": "BD Plastipak™ Spritzen mit Luer-Ansatz ohne Kanüle",
+      "properties_text": "Die BD Plastipak™ Spritzen sind für die allgemeine Injektion und Aspiration von Flüssigkeiten bestimmt. Der latexfreie Stopfen verhindert das Auslaufen des Medikaments um den Kolben herum und dient als Indikator für das Abmessen des Spritzeninhalts. · Spezial-Silikon-Gleitmittel sorgt für eine reibungslose und gleichmäßige Bewegung des Kolbens. · Der Haltering verhindert ein unbeabsichtigtes Herausziehen des Kolbens. · Validiert für die Verwendung mit den meisten Infusionspumpen, einschließlich BD Alaris™ Infusionspumpen. · Sterile Einzelverpackung, Einmalgebrauch.",
+      "source_document": "product_catalog_02.pdf",
+      "source_page": 13,
+      "connector_label": "Luer-Ansatz",
+      "variants": [
+        {
+          "article_no": "300613",
+          "label": "BD Plastipak™ Luer 20 ml, exzentrisch",
+          "order_unit": "Packung",
+          "units_per_order_unit": 120,
+          "order_units_per_shipping_unit": 4,
+          "source_row": {
+            "Volumen": "20 ml",
+            "Ansatz": "exzentrisch",
+            "Graduierung": "unterteilt in 1 ml",
+            "Produkt-Nr.": "300613",
+            "VE / UK": "120 / 480"
+          }
+        },
+        {
+          "article_no": "301231",
+          "label": "BD Plastipak™ Luer 30 ml, exzentrisch",
+          "order_unit": "Packung",
+          "units_per_order_unit": 60,
+          "order_units_per_shipping_unit": 4,
+          "source_row": {
+            "Volumen": "30 ml",
+            "Ansatz": "exzentrisch",
+            "Graduierung": "unterteilt in 1 ml",
+            "Produkt-Nr.": "301231",
+            "VE / UK": "60 / 240"
+          }
+        },
+        {
+          "article_no": "300866",
+          "label": "BD Plastipak™ Luer 50 ml, exzentrisch",
+          "order_unit": "Packung",
+          "units_per_order_unit": 60,
+          "order_units_per_shipping_unit": 4,
+          "source_row": {
+            "Volumen": "50 ml",
+            "Ansatz": "exzentrisch",
+            "Graduierung": "unterteilt in 1 ml",
+            "Produkt-Nr.": "300866",
+            "VE / UK": "60 / 240"
+          }
+        }
+      ]
+    },
+    {
+      "code": "fam_bd_emerald",
+      "manufacturer": "BD",
+      "brand_name": "Emerald™",
+      "name": "BD Emerald™ Luer",
+      "product_type": "Dreiteilige Spritzen",
+      "category_code": "syringe_single_use",
+      "description": "BD Emerald™ Spritzen mit Luer-Ansatz ohne Kanüle",
+      "properties_text": "Der latexfreie Stopfen verhindert das Auslaufen von Medikamenten um den Kolben herum und dient als Indikator zur Abmessung des Spritzeninhalts. · Der grüne Stopfen und deutliche Skalenmarkierungen ermöglichen eine genaue Dosierung. · Transparenter Zylinder für eine klare Sicht auf die Flüssigkeit. · Haltering zur Vermeidung eines versehentlichen Herausziehens des Kolbens. · Minimiert die Abfallentstehung. · Sterile Einzelverpackung, Einmalgebrauch.",
+      "source_document": "product_catalog_02.pdf",
+      "source_page": 12,
+      "connector_label": "Luer-Ansatz",
+      "variants": [
+        {
+          "article_no": "307727",
+          "label": "BD Emerald™ Luer 2 ml, zentrisch",
+          "order_unit": "Packung",
+          "units_per_order_unit": 100,
+          "order_units_per_shipping_unit": 30,
+          "source_row": {
+            "Volumen": "2 ml",
+            "Ansatz": "zentrisch",
+            "Graduierung": "unterteilt in 0,1 ml",
+            "Produkt-Nr.": "307727",
+            "VE / UK": "100 / 3.000"
+          }
+        },
+        {
+          "article_no": "307731",
+          "label": "BD Emerald™ Luer 5 ml, zentrisch",
+          "order_unit": "Packung",
+          "units_per_order_unit": 100,
+          "order_units_per_shipping_unit": 20,
+          "source_row": {
+            "Volumen": "5 ml",
+            "Ansatz": "zentrisch",
+            "Graduierung": "unterteilt in 0,2 ml",
+            "Produkt-Nr.": "307731",
+            "VE / UK": "100 / 2.000"
+          }
+        },
+        {
+          "article_no": "307736",
+          "label": "BD Emerald™ Luer 10 ml, zentrisch",
+          "order_unit": "Packung",
+          "units_per_order_unit": 100,
+          "order_units_per_shipping_unit": 12,
+          "source_row": {
+            "Volumen": "10 ml",
+            "Ansatz": "zentrisch",
+            "Graduierung": "unterteilt in 0,2 ml",
+            "Produkt-Nr.": "307736",
+            "VE / UK": "100 / 1.200"
+          }
+        },
+        {
+          "article_no": "303219",
+          "label": "BD Emerald™ Luer 10 ml, exzentrisch",
+          "order_unit": "Packung",
+          "units_per_order_unit": 100,
+          "order_units_per_shipping_unit": 12,
+          "source_row": {
+            "Volumen": "10 ml",
+            "Ansatz": "exzentrisch",
+            "Graduierung": "unterteilt in 0,2 ml",
+            "Produkt-Nr.": "303219",
+            "VE / UK": "100 / 1.200"
+          }
+        }
+      ]
+    },
+    {
+      "code": "fam_bd_microlance",
+      "manufacturer": "BD",
+      "brand_name": "Microlance™",
+      "name": "BD Microlance™ Injektionskanülen",
+      "product_type": "Injektionskanülen",
+      "category_code": "hypodermic_needle",
+      "description": "BD Microlance™ Injektionskanülen",
+      "properties_text": "Kanülen mit dünnwandigem Innendurchmesser ermöglichen es, eine Kanülengröße zu verwenden, die eine Nummer kleiner ist als die einer normalen Kanüle. · BD Microlance™ Kanülen können an einen Luer-Konnektor oder Luer-Lock-Konnektor angeschlossen werden. · Dreifacher Präzisionsfacettenschliff. · Polierte Kanülenoberfläche. · Sterile Einzelverpackung, Einmalgebrauch.",
+      "source_document": "product_catalog_02.pdf",
+      "source_page": 6,
+      "variants": [
+        {
+          "article_no": "304000",
+          "label": "BD Microlance™ 30 G 1/2\"",
+          "order_unit": "Packung",
+          "units_per_order_unit": 100,
+          "order_units_per_shipping_unit": 50,
+          "source_row": {
+            "Größe": "30 G 1/2\"",
+            "Außendurchmesser (mm)": "0,3",
+            "Länge (mm)": "13",
+            "Wandstärke": "regulär",
+            "Farbcode": "gelb",
+            "Produkt-Nr.": "304000",
+            "VE / UK": "100 / 5.000"
+          }
+        },
+        {
+          "article_no": "300635",
+          "label": "BD Microlance™ 27 G 1/2\"",
+          "order_unit": "Packung",
+          "units_per_order_unit": 100,
+          "order_units_per_shipping_unit": 50,
+          "source_row": {
+            "Größe": "27 G 1/2\"",
+            "Außendurchmesser (mm)": "0,4",
+            "Länge (mm)": "13",
+            "Wandstärke": "regulär",
+            "Farbcode": "grau",
+            "Produkt-Nr.": "300635",
+            "VE / UK": "100 / 5.000"
+          }
+        },
+        {
+          "article_no": "300400",
+          "label": "BD Microlance™ 25 G 1\" – Nr. 18",
+          "order_unit": "Packung",
+          "units_per_order_unit": 100,
+          "order_units_per_shipping_unit": 50,
+          "source_row": {
+            "Größe": "25 G 1\" – Nr. 18",
+            "Außendurchmesser (mm)": "0,5",
+            "Länge (mm)": "25",
+            "Wandstärke": "dünnwandig",
+            "Farbcode": "orange",
+            "Produkt-Nr.": "300400",
+            "VE / UK": "100 / 5.000"
+          }
+        },
+        {
+          "article_no": "300600",
+          "label": "BD Microlance™ 25 G 5/8\"",
+          "order_unit": "Packung",
+          "units_per_order_unit": 100,
+          "order_units_per_shipping_unit": 50,
+          "source_row": {
+            "Größe": "25 G 5/8\"",
+            "Außendurchmesser (mm)": "0,5",
+            "Länge (mm)": "16",
+            "Wandstärke": "dünnwandig",
+            "Farbcode": "orange",
+            "Produkt-Nr.": "300600",
+            "VE / UK": "100 / 5.000"
+          }
+        },
+        {
+          "article_no": "303273",
+          "label": "BD Microlance™ 23 G 1 1/2\"",
+          "order_unit": "Packung",
+          "units_per_order_unit": 100,
+          "order_units_per_shipping_unit": 50,
+          "source_row": {
+            "Größe": "23 G 1 1/2\"",
+            "Außendurchmesser (mm)": "0,6",
+            "Länge (mm)": "40",
+            "Wandstärke": "dünnwandig",
+            "Farbcode": "blau",
+            "Produkt-Nr.": "303273",
+            "VE / UK": "100 / 5.000"
+          }
+        },
+        {
+          "article_no": "300800",
+          "label": "BD Microlance™ 23 G 1\" – Nr. 16",
+          "order_unit": "Packung",
+          "units_per_order_unit": 100,
+          "order_units_per_shipping_unit": 50,
+          "source_row": {
+            "Größe": "23 G 1\" – Nr. 16",
+            "Außendurchmesser (mm)": "0,6",
+            "Länge (mm)": "25",
+            "Wandstärke": "dünnwandig",
+            "Farbcode": "blau",
+            "Produkt-Nr.": "300800",
+            "VE / UK": "100 / 5.000"
+          }
+        },
+        {
+          "article_no": "301155",
+          "label": "BD Microlance™ 21 G 2\"",
+          "order_unit": "Packung",
+          "units_per_order_unit": 100,
+          "order_units_per_shipping_unit": 50,
+          "source_row": {
+            "Größe": "21 G 2\"",
+            "Außendurchmesser (mm)": "0,8",
+            "Länge (mm)": "50",
+            "Wandstärke": "dünnwandig",
+            "Farbcode": "grün",
+            "Produkt-Nr.": "301155",
+            "VE / UK": "100 / 5.000"
+          }
+        },
+        {
+          "article_no": "304432",
+          "label": "BD Microlance™ 21 G 1 1/2\" – Nr. 2",
+          "order_unit": "Packung",
+          "units_per_order_unit": 100,
+          "order_units_per_shipping_unit": 50,
+          "source_row": {
+            "Größe": "21 G 1 1/2\" – Nr. 2",
+            "Außendurchmesser (mm)": "0,8",
+            "Länge (mm)": "40",
+            "Wandstärke": "dünnwandig",
+            "Farbcode": "grün",
+            "Produkt-Nr.": "304432",
+            "VE / UK": "100 / 5.000"
+          }
+        },
+        {
+          "article_no": "301156",
+          "label": "BD Microlance™ 21 G 1\"",
+          "order_unit": "Packung",
+          "units_per_order_unit": 100,
+          "order_units_per_shipping_unit": 50,
+          "source_row": {
+            "Größe": "21 G 1\"",
+            "Außendurchmesser (mm)": "0,8",
+            "Länge (mm)": "25",
+            "Wandstärke": "dünnwandig",
+            "Farbcode": "grün",
+            "Produkt-Nr.": "301156",
+            "VE / UK": "100 / 5.000"
+          }
+        },
+        {
+          "article_no": "304434",
+          "label": "BD Microlance™ 21 G 5/8\"",
+          "order_unit": "Packung",
+          "units_per_order_unit": 100,
+          "order_units_per_shipping_unit": 50,
+          "source_row": {
+            "Größe": "21 G 5/8\"",
+            "Außendurchmesser (mm)": "0,8",
+            "Länge (mm)": "16",
+            "Wandstärke": "dünnwandig",
+            "Farbcode": "grün",
+            "Produkt-Nr.": "304434",
+            "VE / UK": "100 / 5.000"
+          }
+        },
+        {
+          "article_no": "310205",
+          "label": "BD Microlance™ 18 G 2\"",
+          "order_unit": "Packung",
+          "units_per_order_unit": 100,
+          "order_units_per_shipping_unit": 50,
+          "source_row": {
+            "Größe": "18 G 2\"",
+            "Außendurchmesser (mm)": "1,2",
+            "Länge (mm)": "50",
+            "Wandstärke": "dünnwandig",
+            "Farbcode": "rosa",
+            "Produkt-Nr.": "310205",
+            "VE / UK": "100 / 5.000"
+          }
+        },
+        {
+          "article_no": "303262",
+          "label": "BD Microlance™ 18 G 1 1/2\"",
+          "order_unit": "Packung",
+          "units_per_order_unit": 100,
+          "order_units_per_shipping_unit": 50,
+          "source_row": {
+            "Größe": "18 G 1 1/2\"",
+            "Außendurchmesser (mm)": "1,2",
+            "Länge (mm)": "40",
+            "Wandstärke": "dünnwandig",
+            "Farbcode": "rosa",
+            "Produkt-Nr.": "303262",
+            "VE / UK": "100 / 5.000"
+          }
+        },
+        {
+          "article_no": "300637",
+          "label": "BD Microlance™ 16 G 1 1/2\"",
+          "order_unit": "Packung",
+          "units_per_order_unit": 100,
+          "order_units_per_shipping_unit": 50,
+          "source_row": {
+            "Größe": "16 G 1 1/2\"",
+            "Außendurchmesser (mm)": "1,6",
+            "Länge (mm)": "40",
+            "Wandstärke": "dünnwandig",
+            "Farbcode": "weiß",
+            "Produkt-Nr.": "300637",
+            "VE / UK": "100 / 5.000"
+          }
+        }
+      ]
+    }
+  ]
+}

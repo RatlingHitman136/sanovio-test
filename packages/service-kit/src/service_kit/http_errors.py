@@ -3,7 +3,7 @@
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 
-from hospital_node.services.errors import (
+from service_kit.errors import (
     Conflict,
     Forbidden,
     NotFound,

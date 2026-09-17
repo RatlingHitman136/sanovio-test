@@ -1,5 +1,5 @@
 # Every Python command runs through uv (see CLAUDE.md).
-.PHONY: setup keys seed dev dev-hub dev-node demo-node lint format test charts
+.PHONY: setup keys seed seed-node seed-hub dev dev-hub dev-node demo-node demo-search lint format test charts
 
 NODE_KEYS := .secrets/node_ksp_ed25519.pem .secrets/node_spital2_ed25519.pem
 
@@ -18,10 +18,20 @@ keys: $(NODE_KEYS)
 .secrets/node_spital2_ed25519.pem:
 	uv run --package hospital-node hospital-node keygen --out $@ --kid sp2-2026-09
 
-# Replaces the node database with the demo_ksp dataset (NODE_SEED_PASSWORD and, in llm mode,
-# ANTHROPIC_API_KEY come from apps/hospital-node/.env).
-seed: .secrets/node_ksp_ed25519.pem
+# Replaces both databases with the demo data and registers the node keys at the hub.
+seed: seed-node seed-hub
+
+# NODE_SEED_PASSWORD and, in llm mode, ANTHROPIC_API_KEY come from apps/hospital-node/.env.
+seed-node: .secrets/node_ksp_ed25519.pem
 	uv run --package hospital-node --env-file apps/hospital-node/.env hospital-node seed --reset
+
+# HUB_SEED_PASSWORD and, in anthropic mode, ANTHROPIC_API_KEY come from apps/supplier-hub/.env.
+seed-hub: $(NODE_KEYS)
+	uv run --package supplier-hub --env-file apps/supplier-hub/.env supplier-hub seed --reset
+	uv run --package supplier-hub --env-file apps/supplier-hub/.env supplier-hub register-tenant \
+		--tenant ten_ksp --jwk-file .secrets/node_ksp_ed25519.pub.jwk.json
+	uv run --package supplier-hub --env-file apps/supplier-hub/.env supplier-hub register-tenant \
+		--tenant ten_spital2 --jwk-file .secrets/node_spital2_ed25519.pub.jwk.json
 
 dev:
 	$(MAKE) -j2 dev-hub dev-node
@@ -37,6 +47,10 @@ dev-node: .secrets/node_ksp_ed25519.pem
 # Walks through the standalone node; needs `make dev-node` running in another terminal.
 demo-node:
 	uv run --package demo-client --env-file apps/hospital-node/.env demo-client node-demo
+
+# Node and hub together: a requirement, the token exchange and a candidate search (`make dev`).
+demo-search:
+	uv run --package demo-client --env-file apps/hospital-node/.env demo-client demo-search
 
 lint:
 	uv run ruff check .

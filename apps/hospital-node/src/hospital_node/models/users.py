@@ -7,7 +7,8 @@ from enum import StrEnum
 from sqlalchemy import ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from hospital_node.core.db import Base, one_of
+from hospital_node.core.db import Base
+from service_kit.db import one_of
 
 
 class Role(StrEnum):

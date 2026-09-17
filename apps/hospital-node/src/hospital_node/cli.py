@@ -13,18 +13,18 @@ from equivalence_core.exchange.keys import (
     public_jwk,
     write_private_key,
 )
-from hospital_node.core.clock import utc_now
-from hospital_node.core.db import make_engine, make_session_factory
 from hospital_node.core.migrations import upgrade_to_head
-from hospital_node.core.security import PasswordHasher
 from hospital_node.core.settings import NodeSettings
 from hospital_node.llm.factory import make_llm
 from hospital_node.models.users import Role
-from hospital_node.services.errors import Conflict
 from hospital_node.services.normalization import NormalizationUnavailable
 from hospital_node.services.seed import DATASETS, SeedError
 from hospital_node.services.seed import seed as seed_dataset
 from hospital_node.services.user_directory import create_user as add_user
+from service_kit.clock import utc_now
+from service_kit.db import make_engine, make_session_factory
+from service_kit.errors import Conflict
+from service_kit.security import PasswordHasher
 
 app = typer.Typer(no_args_is_help=True)
 

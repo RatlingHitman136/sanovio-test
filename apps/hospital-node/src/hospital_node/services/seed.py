@@ -12,13 +12,13 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from hospital_node.core.db import Base
-from hospital_node.core.security import PasswordHasher
 from hospital_node.core.settings import NodeSettings
 from hospital_node.models import User
 from hospital_node.models.users import Role
 from hospital_node.services import articles, normalization, template_sync
 from hospital_node.services.user_directory import create_user
 from llm_client import LLMClient
+from service_kit.security import PasswordHasher
 
 DATASETS = ("demo_ksp", "demo_spital2")
 

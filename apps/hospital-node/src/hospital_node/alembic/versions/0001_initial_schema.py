@@ -9,7 +9,7 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-import hospital_node.core.db
+import service_kit.db
 
 revision: str = "0001"
 down_revision: str | None = None
@@ -34,7 +34,7 @@ def upgrade() -> None:
         sa.Column("latency_ms", sa.Integer(), nullable=False),
         sa.Column("cost_usd", sa.Numeric(precision=10, scale=6), nullable=True),
         sa.Column("error", sa.String(), nullable=True),
-        sa.Column("created_at", hospital_node.core.db.UtcDateTime(timezone=True), nullable=False),
+        sa.Column("created_at", service_kit.db.UtcDateTime(timezone=True), nullable=False),
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.CheckConstraint("purpose IN ('NORMALIZE_ARTICLE')", name=op.f("ck_llm_calls_purpose")),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_llm_calls")),
@@ -57,9 +57,9 @@ def upgrade() -> None:
         "api_tokens",
         sa.Column("user_id", sa.Uuid(), nullable=False),
         sa.Column("token_hash", sa.String(length=64), nullable=False),
-        sa.Column("expires_at", hospital_node.core.db.UtcDateTime(timezone=True), nullable=False),
-        sa.Column("revoked_at", hospital_node.core.db.UtcDateTime(timezone=True), nullable=True),
-        sa.Column("last_used_at", hospital_node.core.db.UtcDateTime(timezone=True), nullable=True),
+        sa.Column("expires_at", service_kit.db.UtcDateTime(timezone=True), nullable=False),
+        sa.Column("revoked_at", service_kit.db.UtcDateTime(timezone=True), nullable=True),
+        sa.Column("last_used_at", service_kit.db.UtcDateTime(timezone=True), nullable=True),
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.ForeignKeyConstraint(
             ["user_id"], ["users.id"], name=op.f("fk_api_tokens_user_id_users")
@@ -82,16 +82,12 @@ def upgrade() -> None:
         sa.Column("category_code", sa.String(), nullable=True),
         sa.Column("category_source", sa.String(), nullable=True),
         sa.Column("category_set_by", sa.Uuid(), nullable=True),
-        sa.Column(
-            "category_set_at", hospital_node.core.db.UtcDateTime(timezone=True), nullable=True
-        ),
+        sa.Column("category_set_at", service_kit.db.UtcDateTime(timezone=True), nullable=True),
         sa.Column("reference_hub_variant_id", sa.String(), nullable=True),
         sa.Column("reference_label", sa.String(), nullable=True),
         sa.Column("reference_source", sa.String(), nullable=True),
         sa.Column("reference_linked_by", sa.Uuid(), nullable=True),
-        sa.Column(
-            "reference_linked_at", hospital_node.core.db.UtcDateTime(timezone=True), nullable=True
-        ),
+        sa.Column("reference_linked_at", service_kit.db.UtcDateTime(timezone=True), nullable=True),
         sa.Column("content_hash", sa.String(length=64), nullable=False),
         sa.Column("normalized_hash", sa.String(length=64), nullable=True),
         sa.Column("data_quality_issues", sa.JSON(), nullable=False),
@@ -124,11 +120,9 @@ def upgrade() -> None:
         sa.Column("code", sa.String(), nullable=False),
         sa.Column("definition", sa.JSON(), nullable=False),
         sa.Column("definition_hash", sa.String(length=64), nullable=False),
-        sa.Column(
-            "hub_updated_at", hospital_node.core.db.UtcDateTime(timezone=True), nullable=False
-        ),
+        sa.Column("hub_updated_at", service_kit.db.UtcDateTime(timezone=True), nullable=False),
         sa.Column("installed_by", sa.Uuid(), nullable=False),
-        sa.Column("installed_at", hospital_node.core.db.UtcDateTime(timezone=True), nullable=False),
+        sa.Column("installed_at", service_kit.db.UtcDateTime(timezone=True), nullable=False),
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.ForeignKeyConstraint(
             ["installed_by"], ["users.id"], name=op.f("fk_template_versions_installed_by_users")
@@ -150,13 +144,13 @@ def upgrade() -> None:
         sa.Column("hub_fact_id", sa.String(), nullable=True),
         sa.Column("hub_question_id", sa.String(), nullable=True),
         sa.Column("created_by", sa.Uuid(), nullable=True),
-        sa.Column("created_at", hospital_node.core.db.UtcDateTime(timezone=True), nullable=False),
+        sa.Column("created_at", service_kit.db.UtcDateTime(timezone=True), nullable=False),
         sa.Column("parser_version", sa.String(), nullable=True),
         sa.Column("llm_call_id", sa.Uuid(), nullable=True),
         sa.Column("model_id", sa.String(), nullable=True),
         sa.Column("prompt_version", sa.String(), nullable=True),
         sa.Column("superseded_by_id", sa.Uuid(), nullable=True),
-        sa.Column("retracted_at", hospital_node.core.db.UtcDateTime(timezone=True), nullable=True),
+        sa.Column("retracted_at", service_kit.db.UtcDateTime(timezone=True), nullable=True),
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.CheckConstraint("method IN ('RULES', 'LLM')", name=op.f("ck_article_facts_method")),
         sa.CheckConstraint(
@@ -203,7 +197,7 @@ def upgrade() -> None:
         sa.Column("unavailable_attributes", sa.JSON(), nullable=False),
         sa.Column("record_hash", sa.String(length=64), nullable=False),
         sa.Column("requirement_hash", sa.String(length=64), nullable=False),
-        sa.Column("updated_at", hospital_node.core.db.UtcDateTime(timezone=True), nullable=False),
+        sa.Column("updated_at", service_kit.db.UtcDateTime(timezone=True), nullable=False),
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.ForeignKeyConstraint(
             ["article_id"],
@@ -223,7 +217,7 @@ def upgrade() -> None:
         sa.Column("jti", sa.String(), nullable=True),
         sa.Column("kid", sa.String(), nullable=True),
         sa.Column("alert", sa.String(), nullable=True),
-        sa.Column("created_at", hospital_node.core.db.UtcDateTime(timezone=True), nullable=False),
+        sa.Column("created_at", service_kit.db.UtcDateTime(timezone=True), nullable=False),
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.CheckConstraint(
             "(content IS NOT NULL AND content_sha256 IS NOT NULL) OR COALESCE(alert, '') = 'RATE_EXCEEDED'",

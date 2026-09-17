@@ -10,7 +10,8 @@ from sqlalchemy import ForeignKey, Index, Numeric, String, and_, column
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from equivalence_core.facts import HospitalSource
-from hospital_node.core.db import Base, one_of
+from hospital_node.core.db import Base
+from service_kit.db import one_of
 
 
 class CategorySource(StrEnum):

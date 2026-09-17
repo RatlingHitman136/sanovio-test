@@ -7,7 +7,6 @@ from contextlib import asynccontextmanager
 from fastapi import APIRouter, FastAPI
 
 from hospital_node.api.deps import NodeContext
-from hospital_node.api.errors import install_error_handlers
 from hospital_node.api.v1 import (
     admin,
     articles,
@@ -21,13 +20,14 @@ from hospital_node.api.v1 import (
     templates,
     users,
 )
-from hospital_node.core.clock import Clock, utc_now
-from hospital_node.core.db import make_engine, make_session_factory
 from hospital_node.core.secrets import load_node_secrets
 from hospital_node.core.settings import NodeSettings
 from hospital_node.llm.factory import make_llm
 from hospital_node.services import normalization, template_sync
 from llm_client import LLMClient
+from service_kit.clock import Clock, utc_now
+from service_kit.db import make_engine, make_session_factory
+from service_kit.http_errors import install_error_handlers
 
 log = logging.getLogger(__name__)
 

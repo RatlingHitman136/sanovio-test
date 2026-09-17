@@ -8,8 +8,9 @@ from typing import Any
 from sqlalchemy import CheckConstraint, ForeignKey, Index, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from hospital_node.core.db import Base, one_of
+from hospital_node.core.db import Base
 from hospital_node.models.users import User
+from service_kit.db import one_of
 
 
 class EgressKind(StrEnum):

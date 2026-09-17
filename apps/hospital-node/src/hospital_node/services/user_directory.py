@@ -6,10 +6,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from equivalence_core.ids import new_subject_id
-from hospital_node.core.security import PasswordHasher
 from hospital_node.models import User
 from hospital_node.models.users import Role
-from hospital_node.services.errors import Conflict
+from service_kit.errors import Conflict
+from service_kit.security import PasswordHasher
 
 MIN_PASSWORD_LENGTH = 12
 

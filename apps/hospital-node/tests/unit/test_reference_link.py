@@ -9,10 +9,10 @@ from hospital_node.core.settings import NodeSettings
 from hospital_node.models import HospitalArticle
 from hospital_node.models.users import Role
 from hospital_node.services import articles, reference_link, template_sync
-from hospital_node.services.errors import Unprocessable
 from hospital_node.services.reference_link import Choice, Reported
 from hospital_node.services.seed import SeedReport
 from node_fixtures import FakeClock, article, user, values
+from service_kit.errors import Unprocessable
 
 # Injekt® Luer Lock Solo 10 ml as the hub would report it (ARCHITECTURE §21).
 INJEKT = {

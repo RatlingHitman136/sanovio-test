@@ -1,6 +1,6 @@
 """Command line entry point: `demo-client <command>`."""
 
-from typing import Annotated
+from typing import Annotated, Any
 
 import httpx
 import typer
@@ -8,6 +8,7 @@ from rich.console import Console
 from rich.table import Table
 
 from demo_client.client import check_health
+from demo_client.hub import HubClient
 from demo_client.node import NodeClient
 
 app = typer.Typer(no_args_is_help=True)
@@ -120,3 +121,64 @@ def node_demo(
             )
         console.print(egress)
         console.print(f"issued per user: {log['issued_per_user']}, alerts: {log['alerts']}")
+
+
+@app.command("demo-search")
+def demo_search(
+    node_url: Annotated[
+        str, typer.Option(help="Hospital node base URL.")
+    ] = "http://127.0.0.1:8001",
+    hub_url: Annotated[str, typer.Option(help="Supplier hub base URL.")] = "http://127.0.0.1:8000",
+    email: Annotated[str, typer.Option(help="Purchaser account.")] = "anna.meier@demo-ksp.example",
+    password: Annotated[
+        str, typer.Option(envvar="NODE_SEED_PASSWORD", help="Password of the demo accounts.")
+    ] = "",
+    internal_id: Annotated[str, typer.Option(help="Which article to search with.")] = "3",
+) -> None:
+    """Both sides at once: build a requirement at the node, exchange, search at the hub."""
+    console = Console()
+    if not password:
+        console.print("[red]set NODE_SEED_PASSWORD (the password `make seed` used)[/red]")
+        raise typer.Exit(code=1)
+    with httpx.Client(timeout=30.0) as http:
+        node = NodeClient(http, node_url)
+        node.login(email, password)
+        article = next(a for a in node.articles() if a["internal_id"] == internal_id)
+        issued = node.requirement(article["id"])
+        requirement = issued["requirement"]
+        console.print(
+            f"[bold]{article['name']}[/bold] → requirement for {requirement['template_code']} "
+            f"({len(requirement['attributes'])} attributes, "
+            f"{len(requirement['unknown_attributes'])} unknown)"
+        )
+
+        hub = HubClient(http, hub_url)
+        exchanged = hub.exchange(node.assertion()["assertion"])
+        console.print(f"exchanged at the hub as [bold]{exchanged['tenant_alias']}[/bold]")
+
+        result = hub.search(requirement)
+        _print_candidates(console, result)
+
+        excluded = result["excluded_by"]
+        console.print(
+            f"excluded by a known contradiction: {excluded or 'nothing'} · "
+            f"hospital gaps: {len(result['hospital_gaps'])}"
+        )
+
+
+def _print_candidates(console: Console, result: dict[str, Any]) -> None:
+    table = Table(
+        "article", "candidate", "supplier", "score", "coverage", "critical unknowns", "id match"
+    )
+    for candidate in result["candidates"][:10]:
+        table.add_row(
+            candidate["article_no"],
+            candidate["display_name"],
+            candidate["supplier"],
+            f"{candidate['score']:.2f}",
+            f"{candidate['coverage']:.0%}",
+            str(candidate["critical_unknowns"]),
+            candidate["identifier_match"] or "-",
+        )
+    console.print(table)
+    console.print(f"hard filters: {', '.join(result['search_spec']['hard_filters']) or '-'}")

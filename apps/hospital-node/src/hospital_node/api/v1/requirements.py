@@ -6,7 +6,7 @@ from hospital_node.api.deps import Context, DbSession, Purchaser
 from hospital_node.models.exchange import EgressKind
 from hospital_node.schemas.exchange import RequirementRequest, RequirementResponse
 from hospital_node.services import articles, egress_log, projection, template_sync
-from hospital_node.services.errors import Conflict
+from service_kit.errors import Conflict
 
 router = APIRouter(tags=["exchange"])
 

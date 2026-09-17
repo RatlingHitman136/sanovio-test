@@ -6,10 +6,10 @@ from sqlalchemy import func, select
 from typer.testing import CliRunner
 
 from hospital_node import cli
-from hospital_node.core.db import make_engine, make_session_factory
 from hospital_node.models import HospitalArticle, LlmCall
 from llm_client import FakeLLM
 from node_fixtures import fake_normalizer
+from service_kit.db import make_engine, make_session_factory
 
 runner = CliRunner()
 

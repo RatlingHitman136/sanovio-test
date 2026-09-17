@@ -6,9 +6,9 @@ from datetime import datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from hospital_node.core.security import PasswordHasher, hash_token, new_token
 from hospital_node.models import ApiToken, User
-from hospital_node.services.errors import Unauthorized
+from service_kit.errors import Unauthorized
+from service_kit.security import PasswordHasher, hash_token, new_token
 
 _INVALID_LOGIN = "invalid email or password"
 _INVALID_TOKEN = "invalid or expired token"

@@ -8,15 +8,15 @@ from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session, sessionmaker
 
-from hospital_node.core.clock import Clock
 from hospital_node.core.secrets import NodeSecrets
-from hospital_node.core.security import PasswordHasher
 from hospital_node.core.settings import NodeSettings
 from hospital_node.models import User
 from hospital_node.models.users import Role
 from hospital_node.services import auth
-from hospital_node.services.errors import Forbidden, Unauthorized
 from llm_client import LLMClient
+from service_kit.clock import Clock
+from service_kit.errors import Forbidden, Unauthorized
+from service_kit.security import PasswordHasher
 
 
 @dataclass

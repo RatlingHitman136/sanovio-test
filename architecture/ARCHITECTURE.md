@@ -133,7 +133,7 @@ Only **syringes** (CSV row 3) and **hypodermic needles** (CSV row 6) appear in b
 | Concern | Choice |
 |---|---|
 | Python and packages | **uv only.** One **uv workspace** at the repo root (`[tool.uv.workspace] members = ["packages/*", "apps/*", "tools/*"]`) with one committed `uv.lock`. Members depend on the core through `[tool.uv.sources] equivalence-core = { workspace = true }`. Commands: `uv sync`, `uv add --package supplier-hub …`, `uv run --package hospital-node …`. `uv python pin` (≥3.12; the installed 3.14 is fine). No pip, venv, poetry or requirements.txt. |
-| Web API (both services) | **FastAPI** + Uvicorn |
+| Web API (both services) | **FastAPI** + Uvicorn. The plumbing both services share — declarative base, UTC timestamps, UUIDv7 keys, injected clock, argon2id passwords, opaque tokens and the service-error → HTTP mapping — lives once in **`packages/service-kit`**; each service keeps its own metadata, models and migration history. |
 | Schemas / config | **Pydantic v2**, `pydantic-settings` (one settings class and `.env` per service) |
 | Database layer | **SQLAlchemy 2.0** (typed ORM, synchronous sessions) + **Alembic**, one migration history per service |
 | Databases | **SQLite** (WAL) per service: `var/node_ksp.db`, `var/hub.db`; Postgres by changing `DATABASE_URL`. **Never shared** between services. |
@@ -155,7 +155,7 @@ Only **syringes** (CSV row 3) and **hypodermic needles** (CSV row 6) appear in b
 - **Makefile:** `setup`, `keys` (dev signing keys), `seed`, `dev` (hub :8000 + node :8001 together), `dev-hub`, `dev-node`, `demo-node`, `test`, `lint` (ruff, mypy, import-linter), `eval`, `demo`. Every Python target runs through `uv run`.
 - **Per-service `.env.example`:**
   - `apps/hospital-node/.env.example`: `NODE_TENANT_ID`, `NODE_SIGNING_KEY_FILE`, `NODE_SIGNING_KID`, `HUB_AUDIENCE`, `ANTHROPIC_API_KEY` (the hospital's own), `NORMALIZE_MODE=llm|rules`, `NORMALIZE_BATCH_SIZE`, `EGRESS_DENY_ATTRIBUTES`, `SHARE_PRODUCT_HINTS`, rate limits, `EGRESS_DAILY_ALERT_PER_USER`, `NODE_SEED_PASSWORD`, `DATABASE_URL`, `APP_ENV`.
-  - `apps/supplier-hub/.env.example`: `ANTHROPIC_API_KEY`, `LLM_MODE=anthropic|fake`, model and effort per pipeline, `MAX_ROUNDS`, `HUB_AUDIENCE`, `CORS_ORIGINS`, `DATABASE_URL`, `APP_ENV`.
+  - `apps/supplier-hub/.env.example`: `ANTHROPIC_API_KEY`, `LLM_MODE=anthropic|fake`, model and effort per pipeline, `MAX_ROUNDS`, `HUB_AUDIENCE`, `CORS_ORIGINS`, `TOKEN_TTL_HOURS`, `EXCHANGE_TTL_MINUTES`, `HUB_SEED_PASSWORD`, `DATABASE_URL`, `APP_ENV`.
 - `.gitignore`: `data_examples/`, `.secrets/`, `var/`, `.env`, `charts/.tools/`.
 - `architecture/ARCHITECTURE.md` (this document) and a README with the demo script.
 
@@ -167,6 +167,7 @@ sanovio/
   uv.lock  .python-version  Makefile  README.md  .gitignore
   architecture/               # ARCHITECTURE.md (the design), data-model.md (all tables), charts.md (diagram inventory)
   packages/
+    service-kit/src/service_kit/   # db base (UTC, UUIDv7), clock, argon2id + bearer tokens, error mapping
     llm-client/src/llm_client/    # LLMClient interface, Anthropic adapter, FakeLLM, prompts, pricing
     equivalence-core/src/equivalence_core/
       templates/              # TemplateDefinition model + loader; seed/*.yaml (the three starting templates)
@@ -198,10 +199,11 @@ sanovio/
         cli.py                # keygen, migrate, seed, create-user
       tests/                  # unit/, integration/
     supplier-hub/
-      pyproject.toml  alembic.ini  alembic/  .env.example
+      pyproject.toml  alembic.ini  .env.example
       src/supplier_hub/
         main.py
-        core/                 # settings, db, security (hub tokens, supplier logins), secrets loader (Anthropic key)
+        alembic/  seed/       # migrations, the demo catalogs and the scripted fake readings
+        core/                 # settings, db, migrations (the Anthropic key comes from settings)
         models/  schemas/
         api/v1/               # auth, token_exchange, admin (tenants, keys), catalog, search, assessments, supplier, dev
         services/             # tenants_keys, token_exchange, requirement_intake, candidate_search (product hints), projection,
@@ -214,7 +216,6 @@ sanovio/
           prompts/            # *_v1.j2
         jobs/                 # NORMALIZE_ITEM, ASSESS, EXTRACT_ANSWERS, PROPOSE_ATTRIBUTE, SIMULATE_SUPPLIER, REBUILD_PROJECTION
         cli.py                # seed, create-operator, register-tenant
-      seed/                   # suppliers, users, catalog families/variants, hidden datasheets, tenants
       evals/                  # golden.jsonl, run.py
       tests/
   tools/
@@ -265,14 +266,16 @@ The node has **no job queue** (D53). Until the hub exists, `template_sync` loads
 
 | Layer | Modules |
 |---|---|
-| `core/` | settings, database, hub-token security, secrets loader (Anthropic key) |
+| `core/` | settings, database, migrations; tokens and passwords come from `service_kit`, the Anthropic key from settings |
 | `models/` + Alembic | tenants and identity, catalog and facts, attribute registry, assessment loop, `jobs`, `llm_calls` |
 | `services/` | `tenants_keys` · `token_exchange` · `requirement_intake` · `candidate_search` · `projection` · `catalog` · `templates` · `attribute_registry` · `assessment` · `questions` · `enrichment` · `resolution` |
 | `domain/` | `state_machine`, `stop_conditions` |
 | `llm/` | `LLMClient`, Anthropic adapter, FakeLLM; pipelines `normalize_item`, `judge`, `extract_answer`, `propose_attribute`, `simulate_supplier` |
 | `jobs/` | queue + worker; handlers `NORMALIZE_ITEM`, `REBUILD_PROJECTION`, `ASSESS`, `EXTRACT_ANSWERS`, `PROPOSE_ATTRIBUTE`, `SIMULATE_SUPPLIER` |
 | `api/v1/` | `auth`, `token_exchange`, `admin`, `catalog`, `search`, `templates`, `assessments`, `supplier`, `dev` |
-| `cli.py` | `seed`, `create-operator`, `register-tenant` |
+| `cli.py` | `migrate`, `seed`, `create-operator`, `register-tenant` (registers a node's public JWK) |
+
+**`packages/service-kit`** — the declarative base (UTC timestamps, UUIDv7 keys, stable constraint names), the injected clock, argon2id passwords, opaque bearer tokens and the service-error → HTTP mapping. It knows nothing about articles, catalogs or assessments; each service defines its own `Base`, so the two schemas never mix.
 
 **`packages/llm-client`** — the `LLMClient` protocol with its typed request and call record, the Anthropic adapter (adaptive thinking, effort, structured outputs, prompt caching, one repair retry), `FakeLLM`, per-model prices and the Jinja2 prompt loader. Each service keeps its own prompts and writes the returned call record to its own `llm_calls` table.
 
@@ -615,7 +618,7 @@ The random `article_ref` is a reference, not an anonymization measure: the attri
 - Opus 5 requests enable server-side refusal fallbacks; `stop_reason` checked before reading output.
 - Prompt caching on the unchanging system prompt + template prefix.
 - Every call logged to that service's `llm_calls` (never the key).
-- `LLM_MODE=fake` runs deterministically offline.
+- `LLM_MODE=fake` runs deterministically offline: the hub answers `normalize_item` from scripted readings shipped with the seed, so an offline seed produces the same facts a real run would.
 - **The judge prompt never receives hospital identity or identifiers**: only requirement attributes (without `article_ref` or product hints) and the supplier's *attribute* facts. Identifier facts are filtered out before the prompt is built.
 
 ## 14. API (both `/api/v1`, REST, typed through OpenAPI)
@@ -642,10 +645,10 @@ The random `article_ref` is a reference, not an anonymization measure: the attri
 **Supplier hub** (`:8000`, internet-facing)
 - **Auth:**
   - `POST /auth/login` (supplier users, operators), `POST /auth/logout`, `GET /auth/me`
-  - `POST /auth/token-exchange {assertion}` → `{access_token, expires_at, tenant_alias}` (purchasers)
+  - `POST /auth/token-exchange {assertion}` → `{access_token, expires_at, tenant_alias}` (purchasers). Every refusal answers the same 401 with one message, so a caller learns that it was refused and nothing else.
 - **Operator admin:**
-  - `POST /admin/tenants`, `GET /admin/tenants`
-  - `POST /admin/tenants/{id}/signing-keys {public_jwk, not_before}`, `POST /admin/tenants/{id}/signing-keys/{kid}/revoke`
+  - `POST /admin/tenants {code, name, supplier_facing_alias, …}`, `GET /admin/tenants` (`code` is the readable tenant id a node signs as `iss`)
+  - `POST /admin/tenants/{id}/signing-keys {public_jwk, not_before?}` → the fingerprint to confirm out of band, `GET /admin/tenants/{id}/signing-keys`, `POST /admin/tenants/{id}/signing-keys/{kid}/revoke`
   - `GET /admin/attribute-proposals?status=`, `POST /admin/attribute-proposals/{id}/approve {key, labels, type, unit, options, category_code, criticality, comparison_rule, shareable, synonyms}` (adds the attribute to the category's DRAFT version), `POST .../merge {attribute_key}`, `POST .../reject {note}`
   - `PATCH /admin/templates/{code}` (edit the current definition; used by approve)
 - **Any authenticated hub user (purchaser, supplier, operator):**
@@ -693,15 +696,15 @@ Deterministic, read-only, no LLM call, **nothing stored at the hub**. The same e
    - **Soft criteria:** remaining known attributes, ranking only.
    - **Ignored:** attributes in `unknown_attributes` / `withheld_attributes` → returned as `hospital_gaps`, with a hint to mark the current product.
    - **Options:** `supplier_id` (none = all suppliers, so the current product can appear) and `limit` (D54).
-4. **Query** `item_search_projection`: active variants matching hard filters (JSON path conditions; GIN in Postgres, `json_extract` in SQLite). Removals are counted per filter into `excluded_by`.
+4. **Query** `item_search_projection`: the category's active variants come from the database, and the hard filters are then evaluated over their stored attributes, counting removals per filter into `excluded_by`. With a catalog of this size (~50 variants) that is one indexed query plus a loop; a real catalog pushes the same conditions into the database as JSON path conditions (GIN in Postgres, `json_extract` in SQLite).
 5. **Product hints** (only if present in the requirement, D47): an exact match on a valid GTIN, or on manufacturer article no. + manufacturer, sets `identifier_match: GTIN | ARTICLE_NO` and ranks that candidate first. Matching reads the projection's `identifiers` section by `(scheme, value)` (GIN index in Postgres, `json_extract` in SQLite). It is still pre-checked and never linked automatically.
 6. **Pre-check each candidate** with the core comparators: MATCH 1 / ACCEPTABLE_DEVIATION 0.7 / UNKNOWN 0.3 / MISMATCH 0, weighted critical 3 · major 2 · minor 1, normalized to 0–1.
    - Sort order: identifier match → fewest critical unknowns → score → coverage.
    - Flags: `open_assessment_id` / `last_verdict` for this tenant's `article_ref`; supplier identifier warnings.
    - Provisional attribute values go into `additional_information` (§7.2).
 7. **Response 200:**
-   - `search_spec`, `hospital_gaps`, `excluded_by`
-   - `candidates[]`: variant, family, supplier, article_no, score, coverage, counts, per-attribute pre-check, flags, `identifier_match`, `additional_information`
+   - `search_spec` (category, hard filters, soft criteria, hospital gaps), `hospital_gaps`, `excluded_by`
+   - `candidates[]`: `variant_id`, `article_no`, `display_name`, supplier, family, manufacturer, `score`, `coverage`, `critical_unknowns`, `identifier_match`, the per-attribute `precheck`, and `additional_information`
 8. **The client completes the view:**
    - It marks `is_current_product` from the node's reference variant (the hub doesn't know it) and shows the article name from the node.
 9. **Row actions** (two):
@@ -810,7 +813,7 @@ Requirements and variant attributes are plain JSON over TLS with bearer tokens (
 1. Operator: `POST /admin/tenants {name, supplier_facing_alias, disclose_name_to_suppliers:false}` → `ten_…`.
 2. Node admin: `uv run --package hospital-node hospital-node keygen --kid ksp-2026-09` → writes the private key (0600) and prints the public JWK + fingerprint.
 3. The public JWK goes to the operator by any channel; **the fingerprint is confirmed out of band** (phone/ticket) before `POST /admin/tenants/{id}/signing-keys`.
-4. Node admin sets `NODE_TENANT_ID` and `HUB_AUDIENCE`.
+4. Node admin sets `NODE_TENANT_ID` (the tenant's `code`, e.g. `ten_ksp`, which the assertion carries as `iss`) and `HUB_AUDIENCE`.
 
 **Rotation and revocation**
 - **Rotation (node):** generate a new key with a new `kid` → register it at the hub → switch `NODE_SIGNING_KID` → after 5 minutes (the assertion lifetime) set `not_after` on the old key.
@@ -893,14 +896,15 @@ If the hub token expires mid-flow (401), the client repeats step 0's assertion +
 - **Hub:**
   - **Tenants:** `ten_ksp` ("Demo Kantonsspital", alias "Hospital H-7F3A") and `ten_spital2` ("Demo Spital Zwei", alias "Hospital H-2C91"), each with a registered dev public key; an operator user.
   - **Suppliers:** **B. Braun** and **BD**, one user each.
-  - **Catalogs** from the example PDFs (~6 families / ~25 variants per supplier), `source_document` + page. Examples:
+  - **Catalogs** transcribed from the example PDFs — 6 families and 54 variants, each row as printed, with `source_document` and page (B. Braun: Injekt® p. 6, Sterican® p. 26; BD: Microlance™ p. 6, Emerald™ p. 12, Plastipak™ Luer-Lok™ and Luer p. 13). Examples:
     - B. Braun: Injekt® Luer Lock Solo (4606728V, 10 ml, usable to 12 ml, centric, 0.5 ml step, 12 × 100), Sterican® (4657527B, 21 G × 1½", 0.80 × 40 mm, ID 0.58 mm, 40 × 100)
     - BD: Plastipak™ Luer-Lok™ (300912, 10 ml, centric, 0.2 ml step, 100/400), Emerald™ Luer (307736, 10 ml, centric, 0.2 ml step, 100/1.200), Microlance™ (304432, 21 G 1½", 0.8 × 40 mm, thin wall, green, 100/5.000)
   - **Hidden datasheets** (simulator ground truth only, marked synthetic): MDR class, GTIN, DEHP status, inner diameter.
 - **Node `ten_ksp`:** the **10 articles from the example CSV**, all fields as given (including invalid identifiers), one purchaser (Anna Meier) and one node admin. `make seed` normalizes all ten in **one** `normalize_article` call (FakeLLM offline, the hospital's key with `NORMALIZE_MODE=llm`).
 - **Node `ten_spital2`:** 2 articles and one purchaser, only for isolation tests.
 - **Keys:** `make keys` before `make seed`.
-- **Templates:** `make seed` loads the YAML seeds into the hub registry (all attributes `APPROVED`) and installs the definitions at both nodes (D52).
+- **Templates:** `make seed` loads the YAML seeds into the hub registry (all attributes `APPROVED`, identifier definitions with `kind = IDENTIFIER`) and installs the definitions at both nodes (D52).
+- **Keys at the hub:** `make seed` also registers each node's public JWK from `.secrets/` through `supplier-hub register-tenant`, printing the fingerprint that would be confirmed out of band.
 
 **Scenarios** (all on real example-data pairs):
 1. **Full loop:** CSV #3 "Einmalspritze 10 ml Luer-Lock steril" (B. Braun, MDR IIa) vs **BD Plastipak™ Luer-Lok™ 10 ml (300912)**.
@@ -948,7 +952,7 @@ Each stage is implemented and tested on its own. The hospital node is complete a
 | 1 | Core: what the node needs | ½ | 0 | core unit tests pass on the real German strings and the 10 CSV identifiers |
 | 2 | Hospital node, standalone | 1 | 1 | `make seed` then `make demo-node`: login, 10 normalized articles, a clean requirement, an assertion, the egress log and a 429 |
 | 3 | Core: comparison | ¼ | 1 | the verdict table (§8) reproduced by tests |
-| 4 | Hub foundation: tenants, catalog, search | 1 | 1, 3 | a real node assertion exchanged; a real node requirement searched; Emerald excluded by connector |
+| 4 | Hub foundation: tenants, catalog, search | 1 | 1, 3 | `make seed` then `make dev` + `make demo-search`: a node assertion exchanged for a hub token, a node requirement returning Plastipak and Injekt, Emerald excluded by connector |
 | 5 | Hub loop: assessment, questions, answers | 1¼ | 4 | scenarios 1–3 complete under FakeLLM; a `SAME_TRADE_ITEM` round makes no judge call |
 | 6 | Demo client, e2e, evals, docs | 1 | 2, 5 | `make demo SCENARIO=1..4` with fake and real keys; e2e suite green |
 

@@ -8,14 +8,15 @@ from sqlalchemy.orm import Session
 
 import hospital_node.models  # noqa: F401  (registers every table)
 from equivalence_core.exchange.keys import generate_private_key, write_private_key
-from hospital_node.core.db import Base, make_engine, make_session_factory
-from hospital_node.core.security import PasswordHasher
+from hospital_node.core.db import Base
 from hospital_node.core.settings import NodeSettings
 from hospital_node.main import create_app
 from hospital_node.models import User
 from hospital_node.models.users import Role
 from hospital_node.services.seed import SeedReport
 from node_fixtures import FakeClock, Users, seed_demo, user
+from service_kit.db import make_engine, make_session_factory
+from service_kit.security import PasswordHasher
 
 
 @pytest.fixture

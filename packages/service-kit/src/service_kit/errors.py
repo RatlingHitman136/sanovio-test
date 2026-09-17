@@ -1,4 +1,4 @@
-"""Failures a service reports; the API layer turns each into one HTTP status."""
+"""Failures a service reports; `http_errors` turns each into one HTTP status."""
 
 
 class ServiceError(Exception):

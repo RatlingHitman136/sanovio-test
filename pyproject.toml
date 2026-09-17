@@ -33,7 +33,8 @@ select = ["E", "F", "I", "B", "UP", "SIM"]
 
 [tool.ruff.lint.isort]
 known-first-party = [
-    "equivalence_core", "llm_client", "hospital_node", "supplier_hub", "demo_client", "node_fixtures",
+    "equivalence_core", "llm_client", "service_kit", "hospital_node", "supplier_hub", "demo_client",
+    "node_fixtures", "hub_fixtures",
 ]
 
 [tool.mypy]
@@ -42,6 +43,7 @@ plugins = ["pydantic.mypy"]
 files = [
     "packages/equivalence-core/src",
     "packages/llm-client/src",
+    "packages/service-kit/src",
     "apps/hospital-node/src",
     "apps/supplier-hub/src",
     "tools/demo-client/src",
@@ -50,7 +52,7 @@ files = [
 [tool.pytest.ini_options]
 addopts = "--import-mode=importlib"
 # Directories whose uniquely named helper modules the tests import.
-pythonpath = ["apps/hospital-node/tests"]
+pythonpath = ["apps/hospital-node/tests", "apps/supplier-hub/tests"]
 filterwarnings = [
     # Raised inside starlette's own test client (starlette 1.6 / anyio 4.15); nothing to fix on our side.
     "ignore:The anyio.abc.BlockingPortal alias is deprecated:DeprecationWarning:starlette.testclient",
@@ -58,13 +60,16 @@ filterwarnings = [
 testpaths = [
     "packages/equivalence-core/tests",
     "packages/llm-client/tests",
+    "packages/service-kit/tests",
     "apps/hospital-node/tests",
     "apps/supplier-hub/tests",
     "tools/demo-client/tests",
 ]
 
 [tool.importlinter]
-root_packages = ["equivalence_core", "llm_client", "hospital_node", "supplier_hub", "demo_client"]
+root_packages = [
+    "equivalence_core", "llm_client", "service_kit", "hospital_node", "supplier_hub", "demo_client",
+]
 include_external_packages = true
 
 [[tool.importlinter.contracts]]
@@ -73,17 +78,24 @@ type = "independence"
 modules = ["hospital_node", "supplier_hub", "demo_client"]
 
 [[tool.importlinter.contracts]]
+name = "The service kit imports no app and no domain code"
+type = "forbidden"
+source_modules = ["service_kit"]
+forbidden_modules = ["hospital_node", "supplier_hub", "demo_client", "equivalence_core", "llm_client"]
+
+[[tool.importlinter.contracts]]
 name = "The LLM client imports no app and no domain code"
 type = "forbidden"
 source_modules = ["llm_client"]
-forbidden_modules = ["hospital_node", "supplier_hub", "demo_client", "equivalence_core"]
+forbidden_modules = ["hospital_node", "supplier_hub", "demo_client", "equivalence_core", "service_kit"]
 
 [[tool.importlinter.contracts]]
 name = "Core imports no app and no web, database or LLM library"
 type = "forbidden"
 source_modules = ["equivalence_core"]
 forbidden_modules = [
-    "hospital_node", "supplier_hub", "demo_client", "llm_client", "fastapi", "sqlalchemy", "anthropic",
+    "hospital_node", "supplier_hub", "demo_client", "llm_client", "service_kit",
+    "fastapi", "sqlalchemy", "anthropic",
 ]
 
 [[tool.importlinter.contracts]]

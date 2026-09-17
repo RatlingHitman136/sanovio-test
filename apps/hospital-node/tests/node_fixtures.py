@@ -12,7 +12,6 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from hospital_node.core.security import PasswordHasher
 from hospital_node.core.settings import NodeSettings
 from hospital_node.llm.normalize_article import PURPOSE
 from hospital_node.llm.outputs import NormalizeBatch, NormalizedArticle
@@ -21,6 +20,7 @@ from hospital_node.models.users import Role
 from hospital_node.services.seed import SeedReport, seed
 from hospital_node.services.user_directory import create_user
 from llm_client import FakeLLM, StructuredRequest
+from service_kit.security import PasswordHasher
 
 PASSWORD = "correct horse battery"
 FIXTURES = Path(__file__).parent / "fixtures"

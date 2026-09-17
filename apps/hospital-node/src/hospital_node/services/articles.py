@@ -23,9 +23,9 @@ from hospital_node.core.settings import NodeSettings
 from hospital_node.models import HospitalArticle, User
 from hospital_node.models.articles import CategorySource
 from hospital_node.services import normalization, projection
-from hospital_node.services.errors import NotFound, Unprocessable
 from hospital_node.services.facts import IDENTIFIER_KEYS, active_facts, add_fact, typed_value
 from hospital_node.services.template_sync import Templates
+from service_kit.errors import NotFound, Unprocessable
 
 # Column names of the client's article list (sample-challenge-v01, Tabelle3).
 _IDENTIFIER_COLUMNS = {

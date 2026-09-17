@@ -16,7 +16,6 @@ from hospital_node.core.settings import NodeSettings
 from hospital_node.models import ArticleFact, HospitalArticle, User
 from hospital_node.models.articles import ReferenceSource
 from hospital_node.services import projection
-from hospital_node.services.errors import Unprocessable
 from hospital_node.services.facts import (
     IDENTIFIER_KEYS,
     active_facts,
@@ -25,6 +24,7 @@ from hospital_node.services.facts import (
     retract,
     to_core,
 )
+from service_kit.errors import Unprocessable
 
 _ANSWERS = frozenset({HospitalSource.PURCHASER_ANSWER, HospitalSource.UNAVAILABLE})
 

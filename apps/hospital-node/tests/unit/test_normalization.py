@@ -10,7 +10,6 @@ from sqlalchemy import Engine, func, select
 from sqlalchemy.orm import Session
 
 from equivalence_core.facts import HospitalSource
-from hospital_node.core.security import PasswordHasher
 from hospital_node.core.settings import NodeSettings
 from hospital_node.main import create_app
 from hospital_node.models import LlmCall, User
@@ -28,6 +27,7 @@ from node_fixtures import (
     seed_demo,
     values,
 )
+from service_kit.security import PasswordHasher
 
 API_KEY = "sk-ant-api03-never-log-me"
 

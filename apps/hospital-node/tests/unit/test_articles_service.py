@@ -12,9 +12,9 @@ from hospital_node.models import HospitalArticle
 from hospital_node.models.articles import CategorySource
 from hospital_node.models.users import Role
 from hospital_node.services import articles, template_sync
-from hospital_node.services.errors import NotFound, Unprocessable
 from hospital_node.services.seed import SeedReport
 from node_fixtures import FakeClock, article, user, values
+from service_kit.errors import NotFound, Unprocessable
 
 
 def _set(

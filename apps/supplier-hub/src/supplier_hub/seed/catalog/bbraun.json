@@ -1,0 +1,457 @@
+{
+  "supplier": {
+    "code": "org_bbraun",
+    "name": "B. Braun",
+    "country": "DE",
+    "user": {
+      "email": "katalog@bbraun-demo.example",
+      "display_name": "B. Braun Katalog"
+    }
+  },
+  "families": [
+    {
+      "code": "fam_bb_injekt_ll",
+      "manufacturer": "B. Braun",
+      "brand_name": "Injekt®",
+      "name": "Injekt® Luer Lock Solo",
+      "product_type": "Zweiteilige Einmalspritzen mit Luer-Lock-Ansatz",
+      "category_code": "syringe_single_use",
+      "description": "Injekt® Luer Lock Solo, gefertigt nach der DIN EN ISO-Norm 7886-1",
+      "properties_text": "· Integrierter Kolbenstopp · Mit grüner Kolbenstange · Hochtransparenter Zylinder · Schwarze, wischfeste Graduierung · Über Nennvolumen hinaus verlängerte Skala · Mit Luer-Lock-Ansatz · Spritzenzylinder aus Polypropylen, Spritzenkolben aus Polyethylen · Nicht hergestellt mit Silikonöl, Bisphenol A, Latex, DEHP und PVC · Einzeln steril verpackt · Packung zu 100 Stück",
+      "source_document": "product_catalog_01.pdf",
+      "source_page": 6,
+      "variants": [
+        {
+          "article_no": "4606701V",
+          "label": "Injekt® Luer Lock Solo 2 ml, nutzbar bis 3 ml",
+          "order_unit": "Packung",
+          "units_per_order_unit": 100,
+          "order_units_per_shipping_unit": 25,
+          "source_row": {
+            "Größe": "2 ml, nutzbar bis 3 ml",
+            "Konus": "Zentrisch",
+            "Graduierung": "0,1 ml",
+            "VE / Karton": "25 x 100 Stück",
+            "Art.-Nr.": "4606701V",
+            "PZN": "00610968",
+            "HiMiV": "03.29.01.1050"
+          }
+        },
+        {
+          "article_no": "4606710V",
+          "label": "Injekt® Luer Lock Solo 5 ml, nutzbar bis 6 ml",
+          "order_unit": "Packung",
+          "units_per_order_unit": 100,
+          "order_units_per_shipping_unit": 20,
+          "source_row": {
+            "Größe": "5 ml, nutzbar bis 6 ml",
+            "Konus": "Zentrisch",
+            "Graduierung": "0,2 ml",
+            "VE / Karton": "20 x 100 Stück",
+            "Art.-Nr.": "4606710V",
+            "PZN": "00610974",
+            "HiMiV": "03.29.01.1051"
+          }
+        },
+        {
+          "article_no": "4606728V",
+          "label": "Injekt® Luer Lock Solo 10 ml, nutzbar bis 12 ml",
+          "order_unit": "Packung",
+          "units_per_order_unit": 100,
+          "order_units_per_shipping_unit": 12,
+          "source_row": {
+            "Größe": "10 ml, nutzbar bis 12 ml",
+            "Konus": "Zentrisch",
+            "Graduierung": "0,5 ml",
+            "VE / Karton": "12 x 100 Stück",
+            "Art.-Nr.": "4606728V",
+            "PZN": "00611005",
+            "HiMiV": "03.29.01.1052"
+          }
+        },
+        {
+          "article_no": "4606736V",
+          "label": "Injekt® Luer Lock Solo 20 ml, nutzbar bis 24 ml",
+          "order_unit": "Packung",
+          "units_per_order_unit": 100,
+          "order_units_per_shipping_unit": 8,
+          "source_row": {
+            "Größe": "20 ml, nutzbar bis 24 ml",
+            "Konus": "Zentrisch",
+            "Graduierung": "1,0 ml",
+            "VE / Karton": "8 x 100 Stück",
+            "Art.-Nr.": "4606736V",
+            "PZN": "00611034",
+            "HiMiV": "03.29.01.1053"
+          }
+        }
+      ]
+    },
+    {
+      "code": "fam_bb_sterican",
+      "manufacturer": "B. Braun",
+      "brand_name": "Sterican®",
+      "name": "Sterican® Standard-Einmalkanülen",
+      "product_type": "Standard-Einmalkanülen zur Injektion",
+      "category_code": "hypodermic_needle",
+      "description": "Sterican® Einmalkanülen, gefertigt nach der DIN EN ISO-Norm 7864",
+      "properties_text": "Einmalkanülen zur Injektion · Langschliff · Einzeln steril verpackt",
+      "source_document": "product_catalog_01.pdf",
+      "source_page": 26,
+      "variants": [
+        {
+          "article_no": "4657853B",
+          "label": "Sterican® 25 G x 5/8 \" · 0,50 mm x 16 mm",
+          "order_unit": "Packung",
+          "units_per_order_unit": 100,
+          "order_units_per_shipping_unit": 40,
+          "source_row": {
+            "Gauge x Länge (inch)": "Sterican® 25 G x 5/8 \"",
+            "AD x Länge (mm)": "0,50 mm x 16 mm",
+            "ø ID": "0,26 mm",
+            "Schliff": "Langschliff",
+            "VE / Karton": "40 x 100 Stück",
+            "Art.-Nr.": "4657853B",
+            "PZN": "18746384"
+          }
+        },
+        {
+          "article_no": "9186158B",
+          "label": "Sterican® 25 G x 1 \" · 0,50 mm x 25 mm",
+          "order_unit": "Packung",
+          "units_per_order_unit": 100,
+          "order_units_per_shipping_unit": 40,
+          "source_row": {
+            "Gauge x Länge (inch)": "Sterican® 25 G x 1 \"",
+            "AD x Länge (mm)": "0,50 mm x 25 mm",
+            "ø ID": "0,26 mm",
+            "Schliff": "Langschliff",
+            "VE / Karton": "40 x 100 Stück",
+            "Art.-Nr.": "9186158B",
+            "PZN": "18746390"
+          }
+        },
+        {
+          "article_no": "9186166B",
+          "label": "Sterican® 25 G x 1 ½ \" · 0,50 mm x 40 mm",
+          "order_unit": "Packung",
+          "units_per_order_unit": 100,
+          "order_units_per_shipping_unit": 40,
+          "source_row": {
+            "Gauge x Länge (inch)": "Sterican® 25 G x 1 ½ \"",
+            "AD x Länge (mm)": "0,50 mm x 40 mm",
+            "ø ID": "0,26 mm",
+            "Schliff": "Langschliff",
+            "VE / Karton": "40 x 100 Stück",
+            "Art.-Nr.": "9186166B",
+            "PZN": "18746409"
+          }
+        },
+        {
+          "article_no": "4657675B",
+          "label": "Sterican® 24 G x 1 \" · 0,55 mm x 25 mm",
+          "order_unit": "Packung",
+          "units_per_order_unit": 100,
+          "order_units_per_shipping_unit": 40,
+          "source_row": {
+            "Gauge x Länge (inch)": "Sterican® 24 G x 1 \"",
+            "AD x Länge (mm)": "0,55 mm x 25 mm",
+            "ø ID": "0,31 mm",
+            "Schliff": "Langschliff",
+            "VE / Karton": "40 x 100 Stück",
+            "Art.-Nr.": "4657675B",
+            "PZN": "18746415"
+          }
+        },
+        {
+          "article_no": "4657667B",
+          "label": "Sterican® 23 G x 1 \" · 0,60 mm x 25 mm",
+          "order_unit": "Packung",
+          "units_per_order_unit": 100,
+          "order_units_per_shipping_unit": 40,
+          "source_row": {
+            "Gauge x Länge (inch)": "Sterican® 23 G x 1 \"",
+            "AD x Länge (mm)": "0,60 mm x 25 mm",
+            "ø ID": "0,41 mm",
+            "Schliff": "Langschliff",
+            "VE / Karton": "40 x 100 Stück",
+            "Art.-Nr.": "4657667B",
+            "PZN": "18746421"
+          }
+        },
+        {
+          "article_no": "4657640B",
+          "label": "Sterican® 23 G x 1 ¼ \" · 0,60 mm x 30 mm",
+          "order_unit": "Packung",
+          "units_per_order_unit": 100,
+          "order_units_per_shipping_unit": 40,
+          "source_row": {
+            "Gauge x Länge (inch)": "Sterican® 23 G x 1 ¼ \"",
+            "AD x Länge (mm)": "0,60 mm x 30 mm",
+            "ø ID": "0,41 mm",
+            "Schliff": "Langschliff",
+            "VE / Karton": "40 x 100 Stück",
+            "Art.-Nr.": "4657640B",
+            "PZN": "18746438"
+          }
+        },
+        {
+          "article_no": "4666410B",
+          "label": "Sterican® 23 G x 1 ½ \" · 0,60 mm x 40 mm",
+          "order_unit": "Packung",
+          "units_per_order_unit": 100,
+          "order_units_per_shipping_unit": 40,
+          "source_row": {
+            "Gauge x Länge (inch)": "Sterican® 23 G x 1 ½ \"",
+            "AD x Länge (mm)": "0,60 mm x 40 mm",
+            "ø ID": "0,41 mm",
+            "Schliff": "Langschliff",
+            "VE / Karton": "40 x 100 Stück",
+            "Art.-Nr.": "4666410B",
+            "PZN": "18746444"
+          }
+        },
+        {
+          "article_no": "4665600B",
+          "label": "Sterican® 23 G x 2 ⅜ \" · 0,60 mm x 60 mm",
+          "order_unit": "Packung",
+          "units_per_order_unit": 100,
+          "order_units_per_shipping_unit": 30,
+          "source_row": {
+            "Gauge x Länge (inch)": "Sterican® 23 G x 2 ⅜ \"",
+            "AD x Länge (mm)": "0,60 mm x 60 mm",
+            "ø ID": "0,41 mm",
+            "Schliff": "Langschliff",
+            "VE / Karton": "30 x 100 Stück",
+            "Art.-Nr.": "4665600B",
+            "PZN": "18746450"
+          }
+        },
+        {
+          "article_no": "4657624B",
+          "label": "Sterican® 22 G x 1 ¼ \" · 0,70 mm x 30 mm",
+          "order_unit": "Packung",
+          "units_per_order_unit": 100,
+          "order_units_per_shipping_unit": 40,
+          "source_row": {
+            "Gauge x Länge (inch)": "Sterican® 22 G x 1 ¼ \"",
+            "AD x Länge (mm)": "0,70 mm x 30 mm",
+            "ø ID": "0,48 mm",
+            "Schliff": "Langschliff",
+            "VE / Karton": "40 x 100 Stück",
+            "Art.-Nr.": "4657624B",
+            "PZN": "18746473"
+          }
+        },
+        {
+          "article_no": "4660021B",
+          "label": "Sterican® 22 G x 1 ½ \" · 0,70 mm x 40 mm",
+          "order_unit": "Packung",
+          "units_per_order_unit": 100,
+          "order_units_per_shipping_unit": 40,
+          "source_row": {
+            "Gauge x Länge (inch)": "Sterican® 22 G x 1 ½ \"",
+            "AD x Länge (mm)": "0,70 mm x 40 mm",
+            "ø ID": "0,48 mm",
+            "Schliff": "Langschliff",
+            "VE / Karton": "40 x 100 Stück",
+            "Art.-Nr.": "4660021B",
+            "PZN": "18746496"
+          }
+        },
+        {
+          "article_no": "4650018B",
+          "label": "Sterican® 22 G x 2 \" · 0,70 mm x 50 mm",
+          "order_unit": "Packung",
+          "units_per_order_unit": 100,
+          "order_units_per_shipping_unit": 30,
+          "source_row": {
+            "Gauge x Länge (inch)": "Sterican® 22 G x 2 \"",
+            "AD x Länge (mm)": "0,70 mm x 50 mm",
+            "ø ID": "0,48 mm",
+            "Schliff": "Langschliff",
+            "VE / Karton": "30 x 100 Stück",
+            "Art.-Nr.": "4650018B",
+            "PZN": "18746504"
+          }
+        },
+        {
+          "article_no": "4657543B",
+          "label": "Sterican® 21 G x 1 \" · 0,80 mm x 25 mm",
+          "order_unit": "Packung",
+          "units_per_order_unit": 100,
+          "order_units_per_shipping_unit": 40,
+          "source_row": {
+            "Gauge x Länge (inch)": "Sterican® 21 G x 1 \"",
+            "AD x Länge (mm)": "0,80 mm x 25 mm",
+            "ø ID": "0,58 mm",
+            "Schliff": "Langschliff",
+            "VE / Karton": "40 x 100 Stück",
+            "Art.-Nr.": "4657543B",
+            "PZN": "18746510"
+          }
+        },
+        {
+          "article_no": "4657527B",
+          "label": "Sterican® 21 G x 1 ½ \" · 0,80 mm x 40 mm",
+          "order_unit": "Packung",
+          "units_per_order_unit": 100,
+          "order_units_per_shipping_unit": 40,
+          "source_row": {
+            "Gauge x Länge (inch)": "Sterican® 21 G x 1 ½ \"",
+            "AD x Länge (mm)": "0,80 mm x 40 mm",
+            "ø ID": "0,58 mm",
+            "Schliff": "Langschliff",
+            "VE / Karton": "40 x 100 Stück",
+            "Art.-Nr.": "4657527B",
+            "PZN": "18746527"
+          }
+        },
+        {
+          "article_no": "4665503B",
+          "label": "Sterican® 21 G x 2 \" · 0,80 mm x 50 mm",
+          "order_unit": "Packung",
+          "units_per_order_unit": 100,
+          "order_units_per_shipping_unit": 30,
+          "source_row": {
+            "Gauge x Länge (inch)": "Sterican® 21 G x 2 \"",
+            "AD x Länge (mm)": "0,80 mm x 50 mm",
+            "ø ID": "0,58 mm",
+            "Schliff": "Langschliff",
+            "VE / Karton": "30 x 100 Stück",
+            "Art.-Nr.": "4665503B",
+            "PZN": "18746533"
+          }
+        },
+        {
+          "article_no": "4657500B",
+          "label": "Sterican® 20 G x 1 \" · 0,90 mm x 25 mm",
+          "order_unit": "Packung",
+          "units_per_order_unit": 100,
+          "order_units_per_shipping_unit": 40,
+          "source_row": {
+            "Gauge x Länge (inch)": "Sterican® 20 G x 1 \"",
+            "AD x Länge (mm)": "0,90 mm x 25 mm",
+            "ø ID": "0,66 mm",
+            "Schliff": "Langschliff",
+            "VE / Karton": "40 x 100 Stück",
+            "Art.-Nr.": "4657500B",
+            "PZN": "18746585"
+          }
+        },
+        {
+          "article_no": "4657519B",
+          "label": "Sterican® 20 G x 1 ½ \" · 0,90 mm x 40 mm",
+          "order_unit": "Packung",
+          "units_per_order_unit": 100,
+          "order_units_per_shipping_unit": 40,
+          "source_row": {
+            "Gauge x Länge (inch)": "Sterican® 20 G x 1 ½ \"",
+            "AD x Länge (mm)": "0,90 mm x 40 mm",
+            "ø ID": "0,66 mm",
+            "Schliff": "Langschliff",
+            "VE / Karton": "40 x 100 Stück",
+            "Art.-Nr.": "4657519B",
+            "PZN": "18746591"
+          }
+        },
+        {
+          "article_no": "4667093B",
+          "label": "Sterican® 20 G x 2 \" · 0,90 mm x 50 mm",
+          "order_unit": "Packung",
+          "units_per_order_unit": 100,
+          "order_units_per_shipping_unit": 30,
+          "source_row": {
+            "Gauge x Länge (inch)": "Sterican® 20 G x 2 \"",
+            "AD x Länge (mm)": "0,90 mm x 50 mm",
+            "ø ID": "0,66 mm",
+            "Schliff": "Kurzschliff",
+            "VE / Karton": "30 x 100 Stück",
+            "Art.-Nr.": "4667093B",
+            "PZN": "18746616"
+          }
+        },
+        {
+          "article_no": "4665791B",
+          "label": "Sterican® 20 G x 2 ¾ \" · 0,90 mm x 70 mm",
+          "order_unit": "Packung",
+          "units_per_order_unit": 100,
+          "order_units_per_shipping_unit": 30,
+          "source_row": {
+            "Gauge x Länge (inch)": "Sterican® 20 G x 2 ¾ \"",
+            "AD x Länge (mm)": "0,90 mm x 70 mm",
+            "ø ID": "0,66 mm",
+            "Schliff": "Langschliff",
+            "VE / Karton": "30 x 100 Stück",
+            "Art.-Nr.": "4665791B",
+            "PZN": "18746622"
+          }
+        },
+        {
+          "article_no": "4665317B",
+          "label": "Sterican® 19 G x 1 ¼ \" · 1,10 mm x 30 mm",
+          "order_unit": "Packung",
+          "units_per_order_unit": 100,
+          "order_units_per_shipping_unit": 40,
+          "source_row": {
+            "Gauge x Länge (inch)": "Sterican® 19 G x 1 ¼ \"",
+            "AD x Länge (mm)": "1,10 mm x 30 mm",
+            "ø ID": "0,80 mm",
+            "Schliff": "Langschliff",
+            "VE / Karton": "40 x 100 Stück",
+            "Art.-Nr.": "4665317B",
+            "PZN": "18746639"
+          }
+        },
+        {
+          "article_no": "4657799B",
+          "label": "Sterican® 19 G x 1 ½ \" · 1,10 mm x 40 mm",
+          "order_unit": "Packung",
+          "units_per_order_unit": 100,
+          "order_units_per_shipping_unit": 40,
+          "source_row": {
+            "Gauge x Länge (inch)": "Sterican® 19 G x 1 ½ \"",
+            "AD x Länge (mm)": "1,10 mm x 40 mm",
+            "ø ID": "0,80 mm",
+            "Schliff": "Langschliff",
+            "VE / Karton": "40 x 100 Stück",
+            "Art.-Nr.": "4657799B",
+            "PZN": "18746645"
+          }
+        },
+        {
+          "article_no": "4665511B",
+          "label": "Sterican® 19 G x 2 \" · 1,10 mm x 50 mm",
+          "order_unit": "Packung",
+          "units_per_order_unit": 100,
+          "order_units_per_shipping_unit": 30,
+          "source_row": {
+            "Gauge x Länge (inch)": "Sterican® 19 G x 2 \"",
+            "AD x Länge (mm)": "1,10 mm x 50 mm",
+            "ø ID": "0,80 mm",
+            "Schliff": "Langschliff",
+            "VE / Karton": "30 x 100 Stück",
+            "Art.-Nr.": "4665511B",
+            "PZN": "18746668"
+          }
+        },
+        {
+          "article_no": "4650034B",
+          "label": "Sterican® 18 G x 1 ½ \" · 1,20 mm x 40 mm",
+          "order_unit": "Packung",
+          "units_per_order_unit": 100,
+          "order_units_per_shipping_unit": 40,
+          "source_row": {
+            "Gauge x Länge (inch)": "Sterican® 18 G x 1 ½ \"",
+            "AD x Länge (mm)": "1,20 mm x 40 mm",
+            "ø ID": "0,97 mm",
+            "Schliff": "Langschliff",
+            "VE / Karton": "40 x 100 Stück",
+            "Art.-Nr.": "4650034B",
+            "PZN": "18746674"
+          }
+        }
+      ]
+    }
+  ]
+}

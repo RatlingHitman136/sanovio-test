@@ -4,9 +4,10 @@ import base64
 import hashlib
 import json
 import os
+from collections.abc import Mapping
 from pathlib import Path
 
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
 from cryptography.hazmat.primitives.serialization import (
     Encoding,
     NoEncryption,
@@ -18,7 +19,13 @@ from cryptography.hazmat.primitives.serialization import (
 KEY_FILE_MODE = 0o600
 KEY_DIR_MODE = 0o700
 
+# A JWK as produced here or as stored by the hub; reading one only needs a mapping.
 type PublicJwk = dict[str, str]
+type ReadableJwk = Mapping[str, str]
+
+
+class JwkError(Exception):
+    """A stored JWK is not a usable Ed25519 public key."""
 
 
 class KeyFileError(Exception):
@@ -62,7 +69,18 @@ def public_jwk(key: Ed25519PrivateKey, kid: str) -> PublicJwk:
     return {"kty": "OKP", "crv": "Ed25519", "x": _b64url(raw), "kid": kid}
 
 
-def jwk_thumbprint(jwk: PublicJwk) -> str:
+def public_key_from_jwk(jwk: ReadableJwk) -> Ed25519PublicKey:
+    """The verifying key of a registered JWK (the hub stores public keys, not key objects)."""
+    if jwk.get("kty") != "OKP" or jwk.get("crv") != "Ed25519" or "d" in jwk:
+        raise JwkError("not an Ed25519 public JWK")
+    try:
+        raw = base64.urlsafe_b64decode(jwk["x"] + "=" * (-len(jwk["x"]) % 4))
+        return Ed25519PublicKey.from_public_bytes(raw)
+    except (KeyError, ValueError, TypeError) as exc:
+        raise JwkError("the JWK does not hold a usable Ed25519 public key") from exc
+
+
+def jwk_thumbprint(jwk: ReadableJwk) -> str:
     """RFC 7638 SHA-256 thumbprint as hex, used as the key fingerprint confirmed out of band."""
     required = {name: jwk[name] for name in ("crv", "kty", "x")}
     canonical = json.dumps(required, separators=(",", ":"), sort_keys=True)

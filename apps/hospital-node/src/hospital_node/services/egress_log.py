@@ -18,7 +18,7 @@ from equivalence_core.hashing import sha256_hex
 from hospital_node.core.settings import NodeSettings
 from hospital_node.models import EgressLog, User
 from hospital_node.models.exchange import EgressAlert, EgressKind
-from hospital_node.services.errors import RateLimited
+from service_kit.errors import RateLimited
 
 WINDOW = timedelta(hours=1)
 ALERT_SHARE = 0.8

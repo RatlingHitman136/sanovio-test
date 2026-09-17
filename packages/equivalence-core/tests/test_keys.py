@@ -5,11 +5,13 @@ from pathlib import Path
 import pytest
 
 from equivalence_core.exchange.keys import (
+    JwkError,
     KeyFileError,
     generate_private_key,
     jwk_thumbprint,
     load_private_key,
     public_jwk,
+    public_key_from_jwk,
     write_private_key,
 )
 
@@ -63,3 +65,35 @@ def test_thumbprint_matches_rfc_8037_example() -> None:
 
     assert jwk_thumbprint(jwk) == expected
     assert jwk_thumbprint({**jwk, "kid": "ignored"}) == expected
+
+
+def test_a_registered_jwk_becomes_a_verifying_key() -> None:
+    key = generate_private_key()
+    jwk = public_jwk(key, "ksp-2026-09")
+
+    public = public_key_from_jwk(jwk)
+
+    signature = key.sign(b"payload")
+    public.verify(signature, b"payload")  # raises if it is the wrong key
+
+
+@pytest.mark.parametrize(
+    "broken",
+    [
+        {"kty": "EC", "crv": "Ed25519", "x": "abc"},
+        {"kty": "OKP", "crv": "X25519", "x": "abc"},
+        {"kty": "OKP", "crv": "Ed25519"},
+        {"kty": "OKP", "crv": "Ed25519", "x": "not base64!!"},
+    ],
+)
+def test_unusable_jwks_are_refused(broken: dict[str, str]) -> None:
+    with pytest.raises(JwkError):
+        public_key_from_jwk(broken)
+
+
+def test_a_jwk_carrying_a_private_member_is_refused() -> None:
+    key = generate_private_key()
+    jwk = dict(public_jwk(key, "k")) | {"d": "private"}
+
+    with pytest.raises(JwkError):
+        public_key_from_jwk(jwk)

@@ -194,7 +194,7 @@ The former `assessment_links` table is gone (D49). Assessments, verdicts and ass
 `jobs` is gone from the node (D53): there is no queue and no worker thread. Normalization runs in a batch at ingestion and projection rebuilds run inside the writing transaction. The hub keeps its queue (H.18).
 
 ### N.10 `llm_calls` (node; append-only)
-Same columns as H.19, with `purpose` CHECK `NORMALIZE_ARTICLE` and no `assessment_id`. One row per `normalize_article` call — in the demo, **one row after `make seed`** covers all ten articles (D56). This is the hospital's audit trail for the only data that leaves the node other than requirements: the article names, sent to the hospital's **own** LLM account (D42). `request` never contains the API key; empty when `NORMALIZE_MODE=rules`. The node's table also carries `created_at`. A repair retry is logged as its own row, and every extracted fact names the call it came from (`llm_call_id`).
+Same columns as H.19, with `purpose` CHECK `NORMALIZE_ARTICLE` and no `assessment_id`. (At the hub, `assessment_id` gets its foreign key when the assessments table arrives in stage 5.) One row per `normalize_article` call — in the demo, **one row after `make seed`** covers all ten articles (D56). This is the hospital's audit trail for the only data that leaves the node other than requirements: the article names, sent to the hospital's **own** LLM account (D42). `request` never contains the API key; empty when `NORMALIZE_MODE=rules`. The node's table also carries `created_at`. A repair retry is logged as its own row, and every extracted fact names the call it came from (`llm_call_id`).
 
 | id | purpose | model | prompt_version | input_tokens | output_tokens | latency_ms | cost_usd |
 |---|---|---|---|---|---|---|---|
@@ -232,6 +232,7 @@ Node settings (not tables):
 | Column | Type | Null | Notes |
 |---|---|---|---|
 | id | uuid | NO | PK |
+| code | text | NO | unique, readable id (`ten_ksp`, `org_bd`): what a node signs as `iss` and what the operator CLI addresses. Internal references stay UUIDs |
 | name | text | NO | real name; for hospitals visible to operators only (unless disclosed) |
 | type | text | NO | CHECK `HOSPITAL`, `SUPPLIER`, `OPERATOR` |
 | supplier_facing_alias | text | YES | required for `HOSPITAL`; unique |
@@ -369,7 +370,7 @@ Node settings (not tables):
 | id | family_id | article_no | label | order_unit | units_per_order_unit | order_units_per_shipping_unit | source_page |
 |---|---|---|---|---|---|---|---|
 | var_plastipak_ll_10 | fam_bd_plastipak_ll | 300912 | 10 ml, zentrisch | Packung | 100 | 4 | 13 |
-| var_emerald_luer_10 | fam_bd_emerald | 307736 | 10 ml, zentrisch | Packung | 100 | 12 | 11 |
+| var_emerald_luer_10 | fam_bd_emerald | 307736 | 10 ml, zentrisch | Packung | 100 | 12 | 12 |
 | var_injekt_ll_10 | fam_bb_injekt_ll | 4606728V | 10 ml, nutzbar bis 12 ml | Packung | 100 | 12 | 6 |
 | var_sterican_21g_40 | fam_bb_sterican | 4657527B | 21 G × 1½" · 0,80 × 40 mm | Packung | 100 | 40 | 26 |
 | var_microlance_21g_40 | fam_bd_microlance | 304432 | 21 G 1½" · Nr. 2 | Packung | 100 | 50 | 6 |
@@ -439,6 +440,7 @@ Partial indexes `(variant_id, attribute_key)` and `(family_id, attribute_key)` `
 (After round 2 of scenario 1, prj_1's `unknown_attributes` becomes `[]` and its `record_hash` changes.)
 
 ### H.12 `requirements` (assessment requirements only; append-only)
+*Written from stage 5 on: a search validates a requirement, uses it and discards it (§15); only an assessment stores one.*
 | Column | Type | Null | Notes |
 |---|---|---|---|
 | id | uuid | NO | PK |

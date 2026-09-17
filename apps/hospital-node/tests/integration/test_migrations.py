@@ -3,8 +3,8 @@ from pathlib import Path
 from alembic import command
 from sqlalchemy import inspect
 
-from hospital_node.core.db import make_engine
 from hospital_node.core.migrations import alembic_config, upgrade_to_head
+from service_kit.db import make_engine
 
 
 def test_migrations_create_exactly_the_modelled_schema(tmp_path: Path) -> None:

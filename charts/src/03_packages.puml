@@ -17,6 +17,10 @@ frame "sanovio/ (uv workspace root: pyproject.toml, uv.lock)" {
     package "exchange\n(requirement, assertion, jws)" as core_exchange
   }
 
+  frame "packages/service-kit" #ECEFF1 {
+    package "db (base, UTC, UUIDv7),\nclock, security, errors" as service_kit
+  }
+
   frame "packages/llm-client" #F3E5F5 {
     package "client (LLMClient,\nStructuredRequest, CallRecord)" as llm_client
     package "anthropic_client,\nfake_client, pricing, prompts" as llm_client_impl
@@ -35,13 +39,13 @@ frame "sanovio/ (uv workspace root: pyproject.toml, uv.lock)" {
   frame "apps/supplier-hub" #E8F5E9 {
     package "main.py" as hub_main
     package "api/v1" as hub_api
-    package "core\n(settings, db, security,\nsecrets loader)" as hub_core
+    package "core\n(settings, db, migrations)" as hub_core
     package "models / schemas" as hub_models
-    package "services\n(tenants_keys, token_exchange,\nrequirement_intake, candidate_search,\nprojection, assessment, questions,\nenrichment, resolution,\nattribute_registry, templates)" as hub_services
+    package "services\n(auth, tenants_keys, token_exchange,\nrequirement_intake, candidate_search,\ncatalog, normalization, projection,\nattribute_registry, templates, seed,\nassessment, questions, enrichment,\nresolution)" as hub_services
     package "domain\n(state_machine,\nstop_conditions)" as hub_domain
     package "llm\n(client, pipelines, prompts)" as hub_llm
     package "jobs" as hub_jobs
-    package "alembic, seed, evals, tests" as hub_misc
+    package "alembic, seed data,\nevals, tests" as hub_misc
   }
 
   frame "tools/demo-client" {
@@ -60,6 +64,8 @@ node_services ..> node_models
 node_models ..> node_core
 node_services ..> node_llm
 node_llm ..> llm_client
+node_core ..> service_kit
+hub_core ..> service_kit
 hub_llm ..> llm_client
 llm_client_impl ..> llm_client
 node_services ..> core_exchange
@@ -113,7 +119,7 @@ note bottom of core_exchange
   - hospital_node and supplier_hub never import each other
   - equivalence_core imports neither app, no llm_client and no
     FastAPI / SQLAlchemy / anthropic
-  - llm_client imports no app and no equivalence_core
+  - llm_client and service_kit import no app and no domain code
   - the apps reach the Anthropic SDK only through llm_client
   - hospital_node imports no HTTP client (httpx, requests)
   - demo_client imports neither app

@@ -48,7 +48,7 @@ end note
 |Domain (core + hub)|
 :Validate output against schema\n(one repair retry);
 :Discard judgments for comparator-decided\nattributes; unknown citations -> UNKNOWN;
-:Apply verdict rules\n(critical MISMATCH -> NOT_EQUIVALENT,\ncritical/major UNKNOWN -> INSUFFICIENT_DATA,\nmajor MISMATCH or deviation -> WITH_DEVIATIONS,\nelse EQUIVALENT);
+:Apply verdict rules\n(critical MISMATCH -> NOT_EQUIVALENT,\ncritical/major UNKNOWN or UNAVAILABLE\n-> INSUFFICIENT_DATA,\nmajor MISMATCH or deviation -> WITH_DEVIATIONS,\nelse EQUIVALENT);
 if (Verdict decisive?) then (yes)
   :next status = PROPOSED_RESOLUTION;
 elseif (round cap reached\nor input_hash unchanged\nor all blocking gaps UNAVAILABLE?) then (yes)

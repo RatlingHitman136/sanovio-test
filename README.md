@@ -43,8 +43,10 @@ make test     # all unit tests
 ```
 
 ## Status
-Stages 0–2 of 7 done: workspace and tooling; the shared core the hospital node needs; and the
+Stages 0–3 of 7 done: workspace and tooling; the shared core (now including comparison: the
+deterministic comparators, the verdict rules and identifier evidence); and the
 **hospital node**, which runs standalone — accounts and tokens, the 10 demo articles with their
 facts and projections, normalization (parsers plus one `normalize_article` call at ingestion), the
 current-product link, the requirement allowlist with its egress log and rate limits, and signed hub
-assertions. Next: stage 3 (comparison in the core). See ARCHITECTURE §22 for the stage plan.
+assertions. Next: stage 4 (hub foundation: tenants, catalog, search). See ARCHITECTURE §22 for
+the stage plan.

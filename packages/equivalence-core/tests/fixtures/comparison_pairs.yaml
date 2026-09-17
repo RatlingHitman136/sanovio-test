@@ -1,0 +1,171 @@
+# The pairs the design argues about (ARCHITECTURE §21, scenarios 1–4), as the two sides would
+# reach the comparison: the hospital side is a requirement, the supplier side catalog facts.
+# Attributes left out are unknown; `unavailable` is a "cannot provide" answer.
+
+hospital:
+  # CSV #3 "Einmalspritze 10 ml Luer-Lock steril", before any current product is marked.
+  art_03_thin:
+    template: syringe_single_use
+    attributes:
+      mdr_class: {value: IIA, origin: MASTER}
+      sterile: {value: true, origin: EXTRACTED}
+      nominal_volume_ml: {value: 10, origin: EXTRACTED}
+      connector: {value: LUER_LOCK, origin: EXTRACTED}
+
+  # The same article after marking Injekt® Luer Lock Solo as the current product (§8.2).
+  art_03_linked:
+    template: syringe_single_use
+    attributes:
+      mdr_class: {value: IIA, origin: MASTER}
+      sterile: {value: true, origin: EXTRACTED}
+      single_use: {value: true, origin: REFERENCE}
+      latex_free: {value: true, origin: REFERENCE}
+      dehp_free: {value: true, origin: REFERENCE}
+      standards: {value: [ISO 7886-1], origin: REFERENCE}
+      nominal_volume_ml: {value: 10, origin: EXTRACTED}
+      usable_volume_ml: {value: 12, origin: REFERENCE}
+      connector: {value: LUER_LOCK, origin: EXTRACTED}
+      cone_position: {value: CENTRIC, origin: REFERENCE}
+      design: {value: TWO_PART, origin: REFERENCE}
+      graduation_step_ml: {value: 0.5, origin: REFERENCE}
+      special_scale: {value: none, origin: REFERENCE}
+      needle_included: {value: false, origin: REFERENCE}
+      safety_mechanism: {value: false, origin: REFERENCE}
+      pump_compatible: {value: false, origin: REFERENCE}
+      light_protected: {value: false, origin: REFERENCE}
+      iso_7886_1_compliant: {value: true, origin: REFERENCE}
+
+  # CSV #6 "Kanüle Sterican 0,8 × 40 mm"; the purchaser answered wall_type (§21 scenario 3).
+  art_06:
+    template: hypodermic_needle
+    attributes:
+      mdr_class: {value: IIA, origin: MASTER}
+      sterile: {value: true, origin: REFERENCE}
+      single_use: {value: true, origin: REFERENCE}
+      latex_free: {value: true, origin: REFERENCE}
+      dehp_free: {value: true, origin: REFERENCE}
+      standards: {value: [ISO 7864], origin: REFERENCE}
+      gauge: {value: 21, origin: EXTRACTED}
+      outer_diameter_mm: {value: 0.8, origin: EXTRACTED}
+      length_mm: {value: 40, origin: EXTRACTED}
+      wall_type: {value: REGULAR, origin: PURCHASER}
+      bevel: {value: LONG, origin: REFERENCE}
+      purpose: {value: INJECTION, origin: REFERENCE}
+      filter_um: {value: 0, origin: REFERENCE}
+      safety_mechanism: {value: false, origin: REFERENCE}
+      connector: {value: LUER_LOCK, origin: REFERENCE}
+      iso_7864_compliant: {value: true, origin: REFERENCE}
+
+supplier:
+  # B. Braun Injekt® Luer Lock Solo 10 ml (4606728V) — the hospital's own current product.
+  injekt:
+    template: syringe_single_use
+    manufacturer: B. Braun
+    identifiers:
+      - {scheme: GTIN, value: "04040456781234", checksum_valid: true}
+      - {scheme: SUPPLIER_ARTICLE_NO, value: 4606728V}
+    facts:
+      mdr_class: {value: IIA, scope: FAMILY}
+      sterile: {value: true, scope: FAMILY}
+      single_use: {value: true, scope: FAMILY}
+      latex_free: {value: true, scope: FAMILY}
+      dehp_free: {value: true, scope: FAMILY}
+      standards: {value: [ISO 7886-1], scope: FAMILY}
+      nominal_volume_ml: {value: 10, scope: VARIANT}
+      usable_volume_ml: {value: 12, scope: VARIANT}
+      connector: {value: LUER_LOCK, scope: VARIANT}
+      cone_position: {value: CENTRIC, scope: VARIANT}
+      design: {value: TWO_PART, scope: FAMILY}
+      graduation_step_ml: {value: 0.5, scope: VARIANT}
+      special_scale: {value: none, scope: VARIANT}
+      needle_included: {value: false, scope: VARIANT}
+      safety_mechanism: {value: false, scope: FAMILY}
+      pump_compatible: {value: false, scope: FAMILY}
+      light_protected: {value: false, scope: FAMILY}
+      iso_7886_1_compliant: {value: true, scope: FAMILY}
+
+  # BD Plastipak™ Luer-Lok™ 10 ml (300912) before the supplier answered any question.
+  plastipak_round_1:
+    template: syringe_single_use
+    manufacturer: BD
+    identifiers:
+      - {scheme: SUPPLIER_ARTICLE_NO, value: "300912"}
+    facts:
+      sterile: {value: true, scope: FAMILY}
+      single_use: {value: true, scope: FAMILY}
+      latex_free: {value: true, scope: FAMILY}
+      standards: {value: [ISO 7886-1], scope: FAMILY}
+      nominal_volume_ml: {value: 10, scope: VARIANT}
+      usable_volume_ml: {value: 12, scope: VARIANT}
+      connector: {value: LUER_LOCK, scope: VARIANT}
+      cone_position: {value: CENTRIC, scope: VARIANT}
+      design: {value: THREE_PART, scope: FAMILY}
+      graduation_step_ml: {value: 0.2, scope: VARIANT}
+      special_scale: {value: none, scope: VARIANT}
+      needle_included: {value: false, scope: VARIANT}
+      safety_mechanism: {value: false, scope: FAMILY}
+      pump_compatible: {value: false, scope: FAMILY}
+      light_protected: {value: false, scope: FAMILY}
+
+  # The same variant after round 1's answers (MDR class, DEHP, ISO 7886-1).
+  plastipak_round_2:
+    template: syringe_single_use
+    manufacturer: BD
+    identifiers:
+      - {scheme: SUPPLIER_ARTICLE_NO, value: "300912"}
+    facts:
+      mdr_class: {value: IIA, scope: FAMILY, source: SUPPLIER_ANSWER}
+      dehp_free: {value: true, scope: FAMILY, source: SUPPLIER_ANSWER}
+      iso_7886_1_compliant: {value: true, scope: FAMILY, source: SUPPLIER_ANSWER}
+      sterile: {value: true, scope: FAMILY}
+      single_use: {value: true, scope: FAMILY}
+      latex_free: {value: true, scope: FAMILY}
+      standards: {value: [ISO 7886-1], scope: FAMILY}
+      nominal_volume_ml: {value: 10, scope: VARIANT}
+      usable_volume_ml: {value: 12, scope: VARIANT}
+      connector: {value: LUER_LOCK, scope: VARIANT}
+      cone_position: {value: CENTRIC, scope: VARIANT}
+      design: {value: THREE_PART, scope: FAMILY}
+      graduation_step_ml: {value: 0.2, scope: VARIANT}
+      special_scale: {value: none, scope: VARIANT}
+      needle_included: {value: false, scope: VARIANT}
+      safety_mechanism: {value: false, scope: FAMILY}
+      pump_compatible: {value: false, scope: FAMILY}
+      light_protected: {value: false, scope: FAMILY}
+
+  # BD Emerald™ Luer 10 ml (307736): the same size, but a Luer cone (§21 scenario 2).
+  emerald:
+    template: syringe_single_use
+    manufacturer: BD
+    identifiers:
+      - {scheme: SUPPLIER_ARTICLE_NO, value: "307736"}
+    facts:
+      nominal_volume_ml: {value: 10, scope: VARIANT}
+      connector: {value: LUER, scope: VARIANT}
+      cone_position: {value: CENTRIC, scope: VARIANT}
+      graduation_step_ml: {value: 0.2, scope: VARIANT}
+
+  # BD Microlance™ 21 G 1½" (304432): thin wall, and no inner diameter to give (scenario 3).
+  microlance:
+    template: hypodermic_needle
+    manufacturer: BD
+    identifiers:
+      - {scheme: SUPPLIER_ARTICLE_NO, value: "304432"}
+    unavailable: [inner_diameter_mm]
+    facts:
+      mdr_class: {value: IIA, scope: FAMILY, source: SUPPLIER_ANSWER}
+      sterile: {value: true, scope: FAMILY}
+      single_use: {value: true, scope: FAMILY}
+      latex_free: {value: true, scope: FAMILY}
+      dehp_free: {value: true, scope: FAMILY}
+      standards: {value: [ISO 7864], scope: FAMILY}
+      gauge: {value: 21, scope: VARIANT}
+      outer_diameter_mm: {value: 0.8, scope: VARIANT}
+      length_mm: {value: 40, scope: VARIANT}
+      wall_type: {value: THIN, scope: VARIANT}
+      bevel: {value: LONG, scope: FAMILY}
+      purpose: {value: INJECTION, scope: FAMILY}
+      filter_um: {value: 0, scope: FAMILY}
+      safety_mechanism: {value: false, scope: FAMILY}
+      connector: {value: LUER_LOCK, scope: FAMILY}
+      iso_7864_compliant: {value: true, scope: FAMILY}

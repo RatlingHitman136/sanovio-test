@@ -386,8 +386,13 @@ Articles in uncovered categories (gloves, masks…) use `generic_consumable` alo
 4. **Comparison (hub, on the requirement):**
    - The hospital side of every comparison is the **requirement's attribute values**; the supplier side is the variant's effective record.
    - **`identifier_evidence` runs first (D51).** If a check-digit-valid GTIN — or manufacturer article no. together with the manufacturer — matches on both sides, the result is `SAME_TRADE_ITEM`: the round stops there with verdict EQUIVALENT, no comparators and no judge call. Otherwise the result is `NO_INFORMATION` and identifier facts are dropped from the comparison entirely. They can never yield MISMATCH, an unknown or a question. The hospital side is present only when the hospital sends product hints (D47); with hints off the same check runs in the client, which holds both sides, and nothing about it reaches the hub.
-   - **Deterministic comparators run next and are final:** exact enums, booleans, pint numbers with tolerances, same-or-finer / same-or-more, gauge ↔ diameter.
-   - **The LLM judge handles only attributes the comparators left undecided** (e.g. "nicht hergestellt mit Latex" vs "latexfreier Stopfen"). For each: `MATCH | ACCEPTABLE_DEVIATION | MISMATCH | UNKNOWN`, confidence, rationale, cited supplier fact IDs and requirement attributes. Judgments for comparator-decided attributes are discarded.
+   - **Deterministic comparators run next and are final** (`equivalence_core/comparators.py`): exact enums, booleans and numbers, tolerances, same-or-finer / same-or-more, list inclusion, required-if-the-hospital-needs-it. Every template attribute gets one judgment, which is what the round stores (data-model H.14).
+   - **Statuses.** `MATCH`, `ACCEPTABLE_DEVIATION`, `MISMATCH` and `UNKNOWN` are the four the judge may also return. Three more come only from the comparators:
+     - `UNAVAILABLE` — a side answered "cannot provide". It blocks like an unknown, but §11's stop condition 4 has to tell the two apart.
+     - `INFO` — `info_only` and `derived` attributes (`units_per_order_unit`, `outer_diameter_mm`, `colour_code`). Shown, never counted, never asked: the outer diameter is a cross-check of the gauge, not a comparison of its own (§7.1).
+     - `NEEDS_JUDGE` — deliberately left undecided: `semantic` rules, and any pair whose value types don't line up (an enum against free text), so a spelling variant can never become a false critical mismatch.
+   - Each judgment also records **which side is missing** and whether the gap **may be asked**: attributes the hospital withheld (`EGRESS_DENY_ATTRIBUTES`, §16) are judged `UNKNOWN` and never turned into a question.
+   - **The LLM judge handles only attributes the comparators left undecided** (e.g. "nicht hergestellt mit Latex" vs "latexfreier Stopfen"). For each: `MATCH | ACCEPTABLE_DEVIATION | MISMATCH | UNKNOWN`, confidence, rationale, cited supplier fact IDs and requirement attributes. `verdict_rules.apply_judgments` merges them: it fills only `NEEDS_JUDGE` entries and reports the discarded ones, so a judgment for an attribute the comparators already decided can never change a verdict.
 5. **The verdict comes from rules in code (core):**
 
    | Condition (checked in order) | Verdict |
@@ -397,6 +402,8 @@ Articles in uncovered categories (gloves, masks…) use `generic_consumable` alo
    | Any critical/major UNKNOWN | **INSUFFICIENT_DATA** |
    | Any major MISMATCH, or a deviation on a critical/major attribute | **EQUIVALENT_WITH_DEVIATIONS** |
    | Otherwise | **EQUIVALENT** (minor unknowns listed but don't block) |
+
+   "UNKNOWN" above means any gap: `UNKNOWN`, `UNAVAILABLE`, or an attribute that was left to the judge and never judged (a failed or skipped judge call degrades to INSUFFICIENT_DATA rather than to a verdict). `verdict_rules.decide` returns the verdict together with the mismatches, the accepted deviations, the blocking gaps and — separately — those the other side already declared unavailable, which is what §11's stop conditions and the question builder read.
 
    The LLM's own overall verdict is kept as a cross-check; disagreement is flagged.
 6. **Missing data and who gets asked:**

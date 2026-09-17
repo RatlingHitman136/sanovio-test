@@ -86,6 +86,8 @@ class ResolvedValue(BaseModel):
     value: AttributeValue
     fact_id: str
     source: str
+    # Supplier facts only: whether the winning fact belongs to the variant or to its family.
+    scope: Scope | None = None
 
 
 class IdentifierEntry(BaseModel):
@@ -169,7 +171,10 @@ def _resolve[F: HospitalFact | SupplierFact](
             unavailable.append(key)
         elif not isinstance(winner.value, IdentifierValue):
             attributes[key] = ResolvedValue(
-                value=winner.value, fact_id=winner.id, source=winner.source
+                value=winner.value,
+                fact_id=winner.id,
+                source=winner.source,
+                scope=getattr(winner, "scope", None),
             )
     resolved = attributes.keys() | set(unavailable)
     return ResolvedRecord(

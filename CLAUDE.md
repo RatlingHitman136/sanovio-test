@@ -32,7 +32,7 @@ Working rules and project map for the Article Equivalence Loop prototype. The de
 
 ## Project structure
 
-Status: ✅ exists (stages 0–2 done) · ⏳ filled by the stage in brackets.
+Status: ✅ exists (stages 0–3 done) · ⏳ filled by the stage in brackets.
 
 ```
 sanovio/
@@ -60,9 +60,9 @@ sanovio/
 │           ├── parsers/          ✅ numbers, units, gauge, dimensions, packaging, synonyms, text
 │           ├── facts.py          ✅ precedence, resolver, record_hash
 │           ├── exchange/         ✅ keys, requirement, assertion, jws
-│           ├── comparators.py    ⏳ [3]
-│           ├── verdict_rules.py  ⏳ [3]
-│           └── identifier_evidence.py  ⏳ [3]
+│           ├── comparators.py    ✅ per-attribute judgments; comparator decisions are final
+│           ├── verdict_rules.py  ✅ the §8.5 verdict table + the judge-merge rule
+│           └── identifier_evidence.py  ✅ SAME_TRADE_ITEM | NO_INFORMATION (never a mismatch)
 ├── apps/
 │   ├── hospital-node/            one per hospital, port 8001
 │   │   └── src/hospital_node/

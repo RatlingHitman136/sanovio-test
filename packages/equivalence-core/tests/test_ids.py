@@ -7,6 +7,7 @@ from equivalence_core.ids import (
     CROCKFORD_ALPHABET,
     SUBJECT_ID_PATTERN,
     new_article_ref,
+    new_subject_id,
 )
 
 
@@ -32,3 +33,10 @@ def test_new_article_refs_are_well_formed_and_random() -> None:
     assert all(re.fullmatch(ARTICLE_REF_PATTERN, ref) for ref in refs)
     # 2,400 random characters cover the whole 32-symbol alphabet with overwhelming probability.
     assert set("".join(ref[3:] for ref in refs)) == set(CROCKFORD_ALPHABET)
+
+
+def test_new_subject_ids_are_well_formed_and_random() -> None:
+    subjects = {new_subject_id() for _ in range(200)}
+
+    assert len(subjects) == 200
+    assert all(re.fullmatch(SUBJECT_ID_PATTERN, subject) for subject in subjects)

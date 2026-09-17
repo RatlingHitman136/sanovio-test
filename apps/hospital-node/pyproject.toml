@@ -7,9 +7,13 @@ authors = [
 ]
 requires-python = ">=3.14"
 dependencies = [
+    "alembic>=1.20.0",
     "equivalence-core",
     "fastapi>=0.141.1",
+    "llm-client",
+    "pwdlib[argon2]>=0.3.1",
     "pydantic-settings>=2.15.0",
+    "sqlalchemy>=2.0.54",
     "typer>=0.27.2",
     "uvicorn[standard]>=0.53.0",
 ]
@@ -23,3 +27,4 @@ build-backend = "uv_build"
 
 [tool.uv.sources]
 equivalence-core = { workspace = true }
+llm-client = { workspace = true }

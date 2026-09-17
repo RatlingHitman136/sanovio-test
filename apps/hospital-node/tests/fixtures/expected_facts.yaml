@@ -1,0 +1,23 @@
+# The projection of every demo_ksp article after seeding with the fake LLM above.
+"1": {category: generic_consumable, source: LLM_SUGGESTED,
+      attributes: {mdr_class: I, units_per_order_unit: 200, latex_free: true}}
+"2": {category: generic_consumable, source: LLM_SUGGESTED,
+      attributes: {mdr_class: IIA, units_per_order_unit: 1, sterile: true}}
+"3": {category: syringe_single_use, source: LLM_SUGGESTED,
+      attributes: {mdr_class: IIA, units_per_order_unit: 100, sterile: true,
+                   nominal_volume_ml: 10, connector: LUER_LOCK, single_use: true}}
+"4": {category: generic_consumable, source: LLM_SUGGESTED,
+      attributes: {mdr_class: IIA, units_per_order_unit: 1}}
+"5": {category: generic_consumable, source: LLM_SUGGESTED,
+      attributes: {mdr_class: I, units_per_order_unit: 50}}
+"6": {category: hypodermic_needle, source: LLM_SUGGESTED,
+      attributes: {mdr_class: IIA, units_per_order_unit: 100, gauge: 21,
+                   outer_diameter_mm: 0.8, length_mm: 40}}
+"7": {category: generic_consumable, source: RULES,
+      attributes: {mdr_class: IIA, units_per_order_unit: 100}}
+"8": {category: generic_consumable, source: LLM_SUGGESTED,
+      attributes: {mdr_class: I, units_per_order_unit: 100, latex_free: false}}
+"9": {category: generic_consumable, source: LLM_SUGGESTED,
+      attributes: {mdr_class: I, units_per_order_unit: 1, sterile: true}}
+"10": {category: generic_consumable, source: LLM_SUGGESTED,
+       attributes: {mdr_class: I, units_per_order_unit: 1}}

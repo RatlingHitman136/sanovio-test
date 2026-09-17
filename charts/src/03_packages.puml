@@ -9,6 +9,7 @@ frame "sanovio/ (uv workspace root: pyproject.toml, uv.lock)" {
     package "templates" as core_templates
     package "parsers" as core_parsers
     package "identifiers" as core_identifiers
+    package "validation\n(value vs definition)" as core_validation
     package "comparators" as core_comparators
     package "facts\n(precedence, record_hash)" as core_facts
     package "verdict_rules" as core_verdict_rules
@@ -16,14 +17,19 @@ frame "sanovio/ (uv workspace root: pyproject.toml, uv.lock)" {
     package "exchange\n(requirement, assertion, jws)" as core_exchange
   }
 
+  frame "packages/llm-client" #F3E5F5 {
+    package "client (LLMClient,\nStructuredRequest, CallRecord)" as llm_client
+    package "anthropic_client,\nfake_client, pricing, prompts" as llm_client_impl
+  }
+
   frame "apps/hospital-node" #E3F2FD {
     package "main.py" as node_main
     package "api/v1" as node_api
-    package "core\n(settings, db, security,\nsecrets loader)" as node_core
+    package "core\n(settings, db, clock, security,\nsecrets loader, migrations)" as node_core
     package "models / schemas" as node_models
-    package "services\n(articles, normalization,\nprojection, requirement_builder,\nassertion_signer, reference_link,\negress_log, rate_limits,\nuser_directory, template_sync)" as node_services
+    package "services\n(articles, facts, normalization,\nprojection, requirement_builder,\nassertion_signer, reference_link,\negress_log, llm_calls, seed,\nauth, user_directory, template_sync)" as node_services
     package "llm\n(normalize_article,\ningestion only)" as node_llm
-    package "alembic, seed, tests" as node_misc
+    package "alembic, seed data, tests" as node_misc
   }
 
   frame "apps/supplier-hub" #E8F5E9 {
@@ -53,10 +59,14 @@ node_api ..> node_core
 node_services ..> node_models
 node_models ..> node_core
 node_services ..> node_llm
+node_llm ..> llm_client
+hub_llm ..> llm_client
+llm_client_impl ..> llm_client
 node_services ..> core_exchange
 node_services ..> core_facts
 node_services ..> core_parsers
 node_services ..> core_identifiers
+node_services ..> core_validation
 
 hub_main ..> hub_api
 hub_main ..> hub_jobs
@@ -79,6 +89,8 @@ core_facts ..> core_templates
 core_parsers ..> core_templates
 core_verdict_rules ..> core_templates
 core_identifier_evidence ..> core_identifiers
+core_validation ..> core_templates
+core_validation ..> core_parsers
 core_facts ..> core_identifiers
 core_exchange ..> core_identifiers
 core_templates ..> core_primitives
@@ -99,8 +111,10 @@ hub_services -[#C62828,dashed]-> node_services : <<forbidden>>
 note bottom of core_exchange
   import-linter contracts:
   - hospital_node and supplier_hub never import each other
-  - equivalence_core imports neither app and no
+  - equivalence_core imports neither app, no llm_client and no
     FastAPI / SQLAlchemy / anthropic
+  - llm_client imports no app and no equivalence_core
+  - the apps reach the Anthropic SDK only through llm_client
   - hospital_node imports no HTTP client (httpx, requests)
   - demo_client imports neither app
 end note

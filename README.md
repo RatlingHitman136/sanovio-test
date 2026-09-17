@@ -22,6 +22,20 @@ uv run --package demo-client demo-client health   # both services should be "up"
 
 API docs: http://127.0.0.1:8001/docs (node) and http://127.0.0.1:8000/docs (hub).
 
+## The hospital node on its own
+Fill in `apps/hospital-node/.env` first: `NODE_SEED_PASSWORD` (the password the demo accounts get)
+and the hospital's own `ANTHROPIC_API_KEY`. Without a key, set `NORMALIZE_MODE=rules` — then the
+parsers alone read the article names and nothing leaves the machine.
+
+```bash
+make seed       # migrate, load the 10 demo articles, normalize them (one LLM call in llm mode)
+make dev-node   # node on :8001
+make demo-node  # in another terminal: login, articles, a requirement, an assertion, the egress log
+```
+
+The demo prints exactly what would leave the hospital, and keeps asking for requirements until the
+node answers 429 — the per-user rate limit and its alert in the egress log.
+
 ## Checks
 ```bash
 make lint     # ruff, format check, mypy strict, import boundaries
@@ -29,4 +43,8 @@ make test     # all unit tests
 ```
 
 ## Status
-Stages 0–1 of 7 done: workspace and tooling; the shared core the hospital node needs (values, templates, parsers, identifiers, facts, requirement, assertion signing). See ARCHITECTURE §22 for the stage plan.
+Stages 0–2 of 7 done: workspace and tooling; the shared core the hospital node needs; and the
+**hospital node**, which runs standalone — accounts and tokens, the 10 demo articles with their
+facts and projections, normalization (parsers plus one `normalize_article` call at ingestion), the
+current-product link, the requirement allowlist with its egress log and rate limits, and signed hub
+assertions. Next: stage 3 (comparison in the core). See ARCHITECTURE §22 for the stage plan.

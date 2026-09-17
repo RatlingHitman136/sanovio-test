@@ -1,0 +1,12 @@
+[
+  {
+    "email": "anna.meier@demo-ksp.example",
+    "display_name": "Anna Meier",
+    "role": "PURCHASER"
+  },
+  {
+    "email": "it-admin@demo-ksp.example",
+    "display_name": "KSP IT",
+    "role": "NODE_ADMIN"
+  }
+]

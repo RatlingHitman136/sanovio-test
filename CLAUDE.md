@@ -16,7 +16,8 @@ Working rules and project map for the Article Equivalence Loop prototype. The de
 
 6. **Service boundaries are hard.**
    - `hospital_node` and `supplier_hub` never import each other and never call each other over the network; the purchaser client is the only bridge.
-   - `equivalence_core` imports neither app and no web, database or LLM library.
+   - `equivalence_core` imports neither app, no `llm_client`, and no web, database or LLM library.
+   - Both apps reach the Anthropic SDK only through `packages/llm-client`; `llm_client` imports no app and no domain code.
    - `hospital_node` imports no HTTP client.
    - `make lint` enforces these with import-linter; never weaken a contract to make a change pass.
 
@@ -31,13 +32,13 @@ Working rules and project map for the Article Equivalence Loop prototype. The de
 
 ## Project structure
 
-Status: ✅ exists (stages 0–1 done) · ⏳ filled by the stage in brackets.
+Status: ✅ exists (stages 0–2 done) · ⏳ filled by the stage in brackets.
 
 ```
 sanovio/
 ├── CLAUDE.md                     ✅ this file
 ├── README.md                     ✅ what the project is, how to run it
-├── Makefile                      ✅ setup, keys, dev, dev-node, dev-hub, lint, format, test, charts
+├── Makefile                      ✅ setup, keys, seed, dev, dev-node, dev-hub, demo-node, lint, format, test, charts
 ├── pyproject.toml                ✅ uv workspace root, dev tools, ruff / mypy / pytest / import-linter config
 ├── uv.lock  .python-version      ✅
 ├── architecture/                 ✅ ARCHITECTURE.md (design), data-model.md (tables),
@@ -45,6 +46,7 @@ sanovio/
 ├── charts/                       ✅ PlantUML sources (src/), renders (svg/, png/), render.sh
 ├── data_examples/                ✅ client sample files (never committed)
 ├── packages/
+│   ├── llm-client/               ✅ LLMClient protocol, Anthropic adapter, FakeLLM, prompts, prices
 │   └── equivalence-core/         shared library, plain Python
 │       └── src/equivalence_core/
 │           ├── values.py         ✅ typed value shapes (AttributeValue excludes identifiers)
@@ -52,6 +54,7 @@ sanovio/
 │           ├── ids.py            ✅ article_ref / subject id patterns (Crockford base32)
 │           ├── quality.py        ✅ DataQualityIssue flags
 │           ├── identifiers.py    ✅ scheme lists per side, GS1 check digit, identifier problems
+│           ├── validation.py     ✅ a typed value checked against its attribute definition
 │           ├── service_info.py   ✅ health response shared by both services and the demo client
 │           ├── templates/        ✅ model, loader, seed/*.yaml (definitions + 3 templates)
 │           ├── parsers/          ✅ numbers, units, gauge, dimensions, packaging, synonyms, text
@@ -63,16 +66,17 @@ sanovio/
 ├── apps/
 │   ├── hospital-node/            one per hospital, port 8001
 │   │   └── src/hospital_node/
-│   │       ├── main.py           ✅ app factory + lifespan
-│   │       ├── cli.py            ✅ keygen · ⏳ seed, create-user [2]
-│   │       ├── core/             ✅ settings, secrets · ⏳ db, security [2]
-│   │       ├── api/v1/           ✅ health · ⏳ auth, articles, users, requirements,
-│   │       │                        hub_assertions, reference, egress, templates, admin [2]
-│   │       ├── models/ schemas/  ⏳ [2]
-│   │       ├── services/         ⏳ [2] articles, normalization, projection, requirement_builder,
-│   │       │                        egress_log, assertion_signer, reference_link, user_directory,
-│   │       │                        template_sync
-│   │       └── llm/              ⏳ [2] normalize_article (ingestion only)
+│   │       ├── main.py           ✅ app factory + lifespan (loads secrets, normalizes changed articles)
+│   │       ├── cli.py            ✅ keygen, migrate, seed, create-user
+│   │       ├── alembic/ seed/    ✅ migrations and the demo datasets, shipped in the package
+│   │       ├── core/             ✅ settings, secrets, db, clock, security, migrations
+│   │       ├── api/v1/           ✅ health, auth, users, articles, reference, requirements,
+│   │       │                        hub_assertions, egress, templates, admin, dev
+│   │       ├── models/ schemas/  ✅ node tables N.1–N.11 and the API bodies
+│   │       ├── services/         ✅ articles, facts, normalization, projection, requirement_builder,
+│   │       │                        egress_log, llm_calls, assertion_signer, reference_link, auth,
+│   │       │                        user_directory, template_sync, seed
+│   │       └── llm/              ✅ normalize_article pipeline + prompt (ingestion only)
 │   └── supplier-hub/             central, port 8000
 │       └── src/supplier_hub/
 │           ├── main.py           ✅ app factory
@@ -85,7 +89,7 @@ sanovio/
 │           ├── llm/              ⏳ [4, 5] client, pipelines, prompts
 │           └── jobs/             ⏳ [4, 5] queue, worker, handlers
 ├── tools/
-│   └── demo-client/              ✅ health · ⏳ scenario scripts [6]
+│   └── demo-client/              ✅ health, node-demo · ⏳ hub scenario scripts [6]
 ├── tests/e2e/                    ⏳ [6]
 ├── .secrets/                     created by `make keys` (git-ignored)
 └── var/                          SQLite files (git-ignored)
@@ -99,6 +103,8 @@ Each workspace member keeps its tests in its own `tests/` directory.
 |---|---|
 | `make setup` | `uv sync --all-packages` (a plain `uv sync` at the root would drop the members); creates each app's `.env` from `.env.example` if missing |
 | `make keys` | node signing keys for `ten_ksp` and `ten_spital2` in `.secrets/` (never overwrites) |
+| `make seed` | migrate the node database and load `demo_ksp` (needs `NODE_SEED_PASSWORD`, and the hospital's `ANTHROPIC_API_KEY` unless `NORMALIZE_MODE=rules`) |
+| `make demo-node` | walk through the standalone node (needs `make dev-node` running) |
 | `make dev` | hub on :8000 and node on :8001 (`make dev-hub`, `make dev-node` for one) |
 | `make lint` | ruff, format check, mypy strict, import contracts |
 | `make format` | ruff format + auto-fixable lint |

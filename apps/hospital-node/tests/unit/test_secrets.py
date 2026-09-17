@@ -16,8 +16,8 @@ def test_secrets_load_and_hide_the_key(settings: NodeSettings) -> None:
     assert "signing_key" not in repr(secrets)
 
 
-def test_app_refuses_to_start_without_a_key(tmp_path: Path) -> None:
-    settings = NodeSettings(node_signing_key_file=tmp_path / "absent.pem", node_signing_kid="k")
+def test_app_refuses_to_start_without_a_key(tmp_path: Path, settings: NodeSettings) -> None:
+    settings = settings.model_copy(update={"node_signing_key_file": tmp_path / "absent.pem"})
 
     with pytest.raises(KeyFileError, match="not found"), TestClient(create_app(settings)):
         pass

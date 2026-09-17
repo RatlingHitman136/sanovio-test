@@ -12,7 +12,7 @@ Companion to the prototype plan ([design-plan.md](design-plan.md), see §4.6 for
 - **Enums** are `text` + `CHECK`; Python `StrEnum` in code.
 - **Money:** `numeric(12,4)` (node only).
 - **Timestamps:** every table has `created_at timestamptz NOT NULL`; mutable tables add `updated_at`.
-- **Append-only tables:** facts (except `superseded_by_id`), `egress_log`, `requirements`, `assessment_rounds`, `events`, `llm_calls`, submitted `answers`.
+- **Append-only tables:** facts (except `superseded_by_id` and `retracted_at`), `egress_log`, `requirements`, `assessment_rounds`, `events`, `llm_calls`, submitted `answers`.
 - **Hashes** are `char(64)` SHA-256 hex (shortened in examples).
 - **Typed `value` shapes** (both sides):
 
@@ -125,9 +125,13 @@ More columns for these rows:
 | parser_version | text | YES | core version for `RULES` |
 | llm_call_id | uuid | YES | FK llm_calls |
 | model_id / prompt_version | text | YES | |
-| superseded_by_id | uuid | YES | FK article_facts; the only column ever updated |
+| created_at | timestamptz | NO | when the fact was written; the resolver's tie-breaker |
+| superseded_by_id | uuid | YES | FK article_facts: the fact that replaced this one |
+| retracted_at | timestamptz | YES | withdrawn with no replacement: a re-normalization that no longer finds the value, or an undone current product |
 
-Partial index `(article_id, attribute_key) WHERE superseded_by_id IS NULL`.
+`superseded_by_id` and `retracted_at` are the only columns ever updated; a fact is current while both are NULL.
+
+Partial index `(article_id, attribute_key) WHERE superseded_by_id IS NULL AND retracted_at IS NULL`.
 
 | id | article | attribute_key | value | raw_value | source | method | evidence_quote | hub_* | created_by |
 |---|---|---|---|---|---|---|---|---|---|
@@ -168,11 +172,13 @@ Records what the node **issued** to the client for the hub (requirements, hub as
 | kind | text | NO | CHECK `ASSERTION`, `REQUIREMENT` |
 | article_id | uuid | YES | FK hospital_articles; NULL for assertions |
 | user_id | uuid | NO | FK users: who requested it |
-| content | jsonb | NO | exact requirement issued; for assertions the claims only (never the token) |
-| content_sha256 | char(64) | NO | |
+| content | jsonb | YES | exact requirement issued; for assertions the claims only (never the token). NULL only on an alert-only row: a request refused with 429 issued nothing, but the attempt must stay visible |
+| content_sha256 | char(64) | YES | NULL exactly when `content` is |
 | jti / kid | text | YES | assertions only |
 | alert | text | YES | CHECK `RATE_80_PERCENT`, `RATE_EXCEEDED`, `UNUSUAL_DAILY_VOLUME` |
 | created_at | timestamptz | NO | index (user_id, created_at) for rate limits |
+
+CHECK: `content` and `content_sha256` are set unless `alert = RATE_EXCEEDED`. Only rows with content count towards a rate limit.
 
 | id | kind | article_id | user_id | content (excerpt) | jti | alert | created_at |
 |---|---|---|---|---|---|---|---|
@@ -188,7 +194,7 @@ The former `assessment_links` table is gone (D49). Assessments, verdicts and ass
 `jobs` is gone from the node (D53): there is no queue and no worker thread. Normalization runs in a batch at ingestion and projection rebuilds run inside the writing transaction. The hub keeps its queue (H.18).
 
 ### N.10 `llm_calls` (node; append-only)
-Same columns as H.19, with `purpose` CHECK `NORMALIZE_ARTICLE` and no `assessment_id`. One row per `normalize_article` call — in the demo, **one row after `make seed`** covers all ten articles (D56). This is the hospital's audit trail for the only data that leaves the node other than requirements: the article names, sent to the hospital's **own** LLM account (D42). `request` never contains the API key; empty when `NORMALIZE_MODE=rules`.
+Same columns as H.19, with `purpose` CHECK `NORMALIZE_ARTICLE` and no `assessment_id`. One row per `normalize_article` call — in the demo, **one row after `make seed`** covers all ten articles (D56). This is the hospital's audit trail for the only data that leaves the node other than requirements: the article names, sent to the hospital's **own** LLM account (D42). `request` never contains the API key; empty when `NORMALIZE_MODE=rules`. The node's table also carries `created_at`. A repair retry is logged as its own row, and every extracted fact names the call it came from (`llm_call_id`).
 
 | id | purpose | model | prompt_version | input_tokens | output_tokens | latency_ms | cost_usd |
 |---|---|---|---|---|---|---|---|
@@ -213,6 +219,8 @@ Same columns as H.19, with `purpose` CHECK `NORMALIZE_ARTICLE` and no `assessmen
 Node settings (not tables):
 - `EGRESS_DENY_ATTRIBUTES`: attribute keys never sent
 - `SHARE_PRODUCT_HINTS`: default `false`
+- `EGRESS_DAILY_ALERT_PER_USER`: issued objects per user and day that raise `UNUSUAL_DAILY_VOLUME` (default 300)
+- `NODE_SEED_PASSWORD`: the password `hospital-node seed` gives the demo accounts
 - `REQUIREMENT_RATE_LIMIT_PER_HOUR`: default 120
 - `ASSERTION_RATE_LIMIT_PER_HOUR`: default 30
 

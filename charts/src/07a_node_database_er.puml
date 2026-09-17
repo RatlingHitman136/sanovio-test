@@ -14,8 +14,6 @@ entity users {
   * display_name : text
   * hub_subject_id : text <<UNIQUE>>
   * is_active : boolean
-  * created_at : timestamptz
-  * updated_at : timestamptz
 }
 
 entity api_tokens {
@@ -26,7 +24,6 @@ entity api_tokens {
   * expires_at : timestamptz
   revoked_at : timestamptz
   last_used_at : timestamptz
-  * created_at : timestamptz
 }
 
 entity hospital_articles {
@@ -55,8 +52,6 @@ entity hospital_articles {
   normalized_hash : char(64)
   * data_quality_issues : jsonb
   * raw : jsonb
-  * created_at : timestamptz
-  * updated_at : timestamptz
 }
 
 entity article_facts {
@@ -79,10 +74,12 @@ entity article_facts {
   model_id : text
   prompt_version : text
   superseded_by_id : uuid <<FK article_facts>>
+  retracted_at : timestamptz
   * created_at : timestamptz
   ..
   PARTIAL INDEX (article_id, attribute_key)
     WHERE superseded_by_id IS NULL
+      AND retracted_at IS NULL
 }
 
 entity article_projection {
@@ -108,14 +105,16 @@ entity egress_log {
   * kind : text <<CHECK ASSERTION|REQUIREMENT>>
   article_id : uuid <<FK hospital_articles>>
   * user_id : uuid <<FK users>>
-  * content : jsonb
-  * content_sha256 : char(64)
+  content : jsonb
+  content_sha256 : char(64)
   jti : text
   kid : text
   alert : text <<CHECK RATE_80_PERCENT|RATE_EXCEEDED|\nUNUSUAL_DAILY_VOLUME>>
   * created_at : timestamptz
   ..
   INDEX (user_id, created_at)
+  CHECK content IS NOT NULL
+    OR alert = RATE_EXCEEDED
 }
 
 entity llm_calls {
@@ -168,6 +167,11 @@ note as N_cross
   runs in one batch at ingestion (D56) and
   projection rebuilds run inside the writing
   transaction. llm_calls logs that one call.
+  A fact is current while superseded_by_id and
+  retracted_at are both NULL; retracted_at is for
+  withdrawals with no replacement (undoing the
+  current product). A refused issuance writes an
+  egress row with an alert and no content.
   No assessment table: the client lists
   assessments from the hub and joins them by
   article_ref and users.hub_subject_id.

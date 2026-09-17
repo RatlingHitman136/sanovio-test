@@ -1,0 +1,32 @@
+[
+  {
+    "internal_id": "S2-100",
+    "Artikelbezeichnung": "Einmalspritze 10 ml Luer-Lock steril",
+    "Marke": "BD",
+    "Artikelnummer": "",
+    "Jahresmenge": "6000",
+    "Bestellmengeneinheit": "Box",
+    "Basismengeneinheiten pro BME": "100",
+    "Basismengeneinheit": "Stück",
+    "GTIN": "",
+    "EAN": "",
+    "MDR-Klasse": "IIa",
+    "Netto-Zielpreis": "0.10",
+    "Währung": "CHF"
+  },
+  {
+    "internal_id": "S2-200",
+    "Artikelbezeichnung": "Kanüle 0,6 × 30 mm",
+    "Marke": "Terumo",
+    "Artikelnummer": "",
+    "Jahresmenge": "9000",
+    "Bestellmengeneinheit": "Box",
+    "Basismengeneinheiten pro BME": "100",
+    "Basismengeneinheit": "Stück",
+    "GTIN": "",
+    "EAN": "",
+    "MDR-Klasse": "IIa",
+    "Netto-Zielpreis": "0.05",
+    "Währung": "CHF"
+  }
+]

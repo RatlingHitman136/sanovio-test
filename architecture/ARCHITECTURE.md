@@ -138,7 +138,7 @@ Only **syringes** (CSV row 3) and **hypodermic needles** (CSV row 6) appear in b
 | Database layer | **SQLAlchemy 2.0** (typed ORM, synchronous sessions) + **Alembic**, one migration history per service |
 | Databases | **SQLite** (WAL) per service: `var/node_ksp.db`, `var/hub.db`; Postgres by changing `DATABASE_URL`. **Never shared** between services. |
 | Background jobs | **Hub only:** job table + worker thread (normalization, judging, extraction, projection). The node has no queue (D53): its one LLM pass runs at seed/startup, and everything after that is synchronous (D56). |
-| LLM | **`anthropic` SDK** behind an `LLMClient` interface (Anthropic adapter + `FakeLLM`) in **both** services. Hub: judge, normalize_item, extract, propose, simulate (our key). Node: `normalize_article` only, **run once at initialization**, with the hospital's own key (D42, D56). |
+| LLM | **`anthropic` SDK** behind an `LLMClient` interface (Anthropic adapter + `FakeLLM`) in the shared workspace package **`packages/llm-client`**, used by **both** services (the core stays LLM-free). Hub: judge, normalize_item, extract, propose, simulate (our key). Node: `normalize_article` only, **run once at initialization**, with the hospital's own key (D42, D56). |
 | LLM output | Structured outputs (`messages.parse`) using Pydantic models, validated on return, one repair retry |
 | Prompts | Versioned **Jinja2** files; the prompt version is stored with every result |
 | Units and parsing | **pint**; own parsers for German decimal commas, "×" dimensions, inch fractions (½, ¼, ⅜), gauge ↔ outer diameter (ISO 6009), synonym dictionaries. **In the core**, so node and hub parse identically. |
@@ -146,15 +146,15 @@ Only **syringes** (CSV row 3) and **hypodermic needles** (CSV row 6) appear in b
 | Category templates | **Hub registry** (database tables; §7.2). Seeded from YAML (`pyyaml`) in the core. The core holds the Pydantic `TemplateDefinition` model and loader. The client syncs the current definition per category to each node as plain JSON (D52). |
 | Signatures and tokens | **PyJWT[crypto]** (uses `cryptography`) for Ed25519 JWS, used for **hub assertions only** (node key; D52 removed the hub-signed bundles). Algorithm pinned to `EdDSA` with the key type fixed to Ed25519 (PyJWT 2.14 does not know the RFC 9864 name `Ed25519`); `none` and HMAC never accepted. Requirements are plain JSON validated by a strict schema. |
 | Auth | **Node:** local accounts (`pwdlib[argon2]`), opaque bearer tokens hashed in the node DB. **Hub:** supplier and operator accounts the same way; purchasers only via **token exchange** (§17). `HTTPBearer` dependencies check role and tenant. |
-| Architecture checks | **import-linter** contracts: `hospital_node` ⟂ `supplier_hub`; `equivalence_core` imports neither and no FastAPI/SQLAlchemy/anthropic; the demo client imports neither app. |
+| Architecture checks | **import-linter** contracts: `hospital_node` ⟂ `supplier_hub`; `equivalence_core` imports no app, no `llm_client` and no FastAPI/SQLAlchemy/anthropic; `llm_client` imports no app and no domain code; both apps reach the Anthropic SDK only through `llm_client`; the demo client imports neither app. |
 | API clients | Swagger UI on each service (`:8001/docs` node, `:8000/docs` hub). **`tools/demo-client`**: typer + httpx + rich CLI that plays purchaser (node + hub) and supplier (hub), bridging the two services exactly as the SPA will. |
 | Dev dependencies (root) | `pytest`, `httpx`, `ruff`, `mypy`, `import-linter` |
 
 **Tooling**
 
-- **Makefile:** `setup`, `keys` (dev signing keys), `seed`, `dev` (hub :8000 + node :8001 together), `dev-hub`, `dev-node`, `test`, `lint` (ruff, mypy, import-linter), `eval`, `demo`. Every Python target runs through `uv run`.
+- **Makefile:** `setup`, `keys` (dev signing keys), `seed`, `dev` (hub :8000 + node :8001 together), `dev-hub`, `dev-node`, `demo-node`, `test`, `lint` (ruff, mypy, import-linter), `eval`, `demo`. Every Python target runs through `uv run`.
 - **Per-service `.env.example`:**
-  - `apps/hospital-node/.env.example`: `NODE_TENANT_ID`, `NODE_SIGNING_KEY_FILE`, `NODE_SIGNING_KID`, `HUB_AUDIENCE`, `ANTHROPIC_API_KEY` (the hospital's own), `NORMALIZE_MODE=llm|rules`, `NORMALIZE_BATCH_SIZE`, `EGRESS_DENY_ATTRIBUTES`, `SHARE_PRODUCT_HINTS`, rate limits, `DATABASE_URL`, `APP_ENV`.
+  - `apps/hospital-node/.env.example`: `NODE_TENANT_ID`, `NODE_SIGNING_KEY_FILE`, `NODE_SIGNING_KID`, `HUB_AUDIENCE`, `ANTHROPIC_API_KEY` (the hospital's own), `NORMALIZE_MODE=llm|rules`, `NORMALIZE_BATCH_SIZE`, `EGRESS_DENY_ATTRIBUTES`, `SHARE_PRODUCT_HINTS`, rate limits, `EGRESS_DAILY_ALERT_PER_USER`, `NODE_SEED_PASSWORD`, `DATABASE_URL`, `APP_ENV`.
   - `apps/supplier-hub/.env.example`: `ANTHROPIC_API_KEY`, `LLM_MODE=anthropic|fake`, model and effort per pipeline, `MAX_ROUNDS`, `HUB_AUDIENCE`, `CORS_ORIGINS`, `DATABASE_URL`, `APP_ENV`.
 - `.gitignore`: `data_examples/`, `.secrets/`, `var/`, `.env`, `charts/.tools/`.
 - `architecture/ARCHITECTURE.md` (this document) and a README with the demo script.
@@ -167,10 +167,12 @@ sanovio/
   uv.lock  .python-version  Makefile  README.md  .gitignore
   architecture/               # ARCHITECTURE.md (the design), data-model.md (all tables), charts.md (diagram inventory)
   packages/
+    llm-client/src/llm_client/    # LLMClient interface, Anthropic adapter, FakeLLM, prompts, pricing
     equivalence-core/src/equivalence_core/
       templates/              # TemplateDefinition model + loader; seed/*.yaml (the three starting templates)
       parsers/                # numbers (German), dimensions, inch fractions, gauge, packaging, synonyms
       identifiers.py          # GS1 mod-10, data-quality checks
+      validation.py           # a typed value checked against its attribute definition
       comparators.py          # exact, tolerance, same_or_finer, same_or_more, gauge_diameter
       facts.py                # precedence per side, family → variant merge, canonical JSON, record_hash
       verdict_rules.py
@@ -181,18 +183,19 @@ sanovio/
         jws.py                # sign(claims, private_key, kid, typ) / verify(token, key_lookup, typ, aud) (Ed25519 only)
   apps/
     hospital-node/
-      pyproject.toml  alembic.ini  alembic/  .env.example
+      pyproject.toml  alembic.ini  .env.example
       src/hospital_node/
-        main.py               # app factory; lifespan loads secrets, starts worker
-        core/                 # settings, db, security (node tokens), secrets loader (node private key)
+        main.py               # app factory; lifespan loads secrets and normalizes changed articles (D56)
+        alembic/  seed/       # migrations and the demo datasets, shipped inside the package
+        core/                 # settings, db, clock, security (node tokens), secrets loader, migrations
         models/  schemas/
         api/v1/               # auth, articles, users, requirements, hub_assertions, reference, egress, templates, admin
-        services/             # articles (facts, category), normalization (rules | llm), projection,
-                              # requirement_builder, assertion_signer, reference_link (preview + set), egress_log, rate_limits, user_directory,
-                              # template_sync (install the hub's current definition)
+        services/             # articles (category, corrections), facts (the one write path), normalization
+                              # (rules | llm), projection, requirement_builder, assertion_signer,
+                              # reference_link (preview / set / undo), egress_log (also the rate limits),
+                              # llm_calls, seed, auth, user_directory, template_sync
         llm/                  # normalize_article pipeline + prompt (runs at seed/startup only)
-        cli.py                # keygen, seed, create-user
-      seed/                   # demo_ksp/: users, the 10 CSV articles; demo_spital2/: 2 articles (isolation tests)
+        cli.py                # keygen, migrate, seed, create-user
       tests/                  # unit/, integration/
     supplier-hub/
       pyproject.toml  alembic.ini  alembic/  .env.example
@@ -235,6 +238,7 @@ sanovio/
 | `templates/` | `TemplateDefinition` model, YAML seed loader (attribute definitions kept separate from per-template settings, as in the hub registry), `definition_hash`, category keywords |
 | `parsers/` | German decimals, units (pint), `×` dimensions, inch fractions, gauge ↔ outer diameter, packaging, synonym matching, and `extract_attributes` for a whole article name |
 | `identifiers.py` | fixed identifier-scheme lists per side; GS1 check digit; problems between identifiers (`GTIN_EAN_MISMATCH` …) |
+| `validation.py` | `validate_value`: a typed value checked against its attribute definition (enum spellings become codes, numbers the canonical unit), used for everything the parsers did not produce |
 | `facts.py` | source precedence per side, family → variant merge, identifier facts kept as a set, `record_hash` |
 | `comparators.py` | exact, tolerance, same-or-finer, same-or-more, gauge ↔ diameter |
 | `verdict_rules.py` | per-attribute results → verdict |
@@ -248,12 +252,12 @@ sanovio/
 
 | Layer | Modules |
 |---|---|
-| `core/` | settings, database, node-token security, secrets loader (node private key, hospital Anthropic key) |
+| `core/` | settings, database (SQLAlchemy + Alembic), injected clock, node-token security, secrets loader (node private key; the hospital's Anthropic key comes from settings) |
 | `models/` + Alembic | `users`, `api_tokens`, `hospital_articles`, `article_facts`, `article_projection`, `egress_log`, `llm_calls`, `template_versions` |
-| `llm/` | `normalize_article` pipeline + prompt, `LLMClient` + FakeLLM — used only at ingestion |
-| `services/` | `articles` · `normalization` (batch at ingestion, re-run at startup for changed articles, parser/LLM merge) · `projection` · `requirement_builder` · `egress_log` (also the per-user rate limits) · `assertion_signer` · `reference_link` (preview / set / undo) · `user_directory` · `template_sync` |
+| `llm/` | `normalize_article` pipeline, prompt and output schema; the client itself comes from `packages/llm-client` — used only at ingestion |
+| `services/` | `articles` · `facts` (the single fact write path) · `normalization` (batch at ingestion, re-run at startup for changed articles, parser/LLM merge) · `projection` · `requirement_builder` · `egress_log` (also the per-user rate limits) · `llm_calls` · `assertion_signer` · `reference_link` (preview / set / undo) · `auth` · `user_directory` · `template_sync` · `seed` |
 | `api/v1/` | `auth`, `articles`, `users`, `requirements`, `hub_assertions`, `reference`, `egress`, `templates`, `admin` |
-| `cli.py` | `keygen`, `seed`, `create-user` |
+| `cli.py` | `keygen`, `migrate`, `seed`, `create-user` |
 
 The node has **no job queue** (D53). Until the hub exists, `template_sync` loads definitions from the core YAML; afterwards the client pushes the hub's definitions through the same `PUT /templates`.
 
@@ -269,6 +273,8 @@ The node has **no job queue** (D53). Until the hub exists, `template_sync` loads
 | `jobs/` | queue + worker; handlers `NORMALIZE_ITEM`, `REBUILD_PROJECTION`, `ASSESS`, `EXTRACT_ANSWERS`, `PROPOSE_ATTRIBUTE`, `SIMULATE_SUPPLIER` |
 | `api/v1/` | `auth`, `token_exchange`, `admin`, `catalog`, `search`, `templates`, `assessments`, `supplier`, `dev` |
 | `cli.py` | `seed`, `create-operator`, `register-tenant` |
+
+**`packages/llm-client`** — the `LLMClient` protocol with its typed request and call record, the Anthropic adapter (adaptive thinking, effort, structured outputs, prompt caching, one repair retry), `FakeLLM`, per-model prices and the Jinja2 prompt loader. Each service keeps its own prompts and writes the returned call record to its own `llm_calls` table.
 
 **`tools/demo-client`** — one session holding both tokens, silent re-exchange on 401, template sync, one script per scenario. **`tests/e2e`** — hub and node in-process, with a second tenant at the hub.
 
@@ -337,7 +343,7 @@ Articles in uncovered categories (gloves, masks…) use `generic_consumable` alo
 - **Sync:**
   1. After the token exchange, the client compares `GET /templates` at the hub and at the node (per category, by `updated_at`).
   2. If the hub's is newer, it fetches the definition and calls `PUT /templates` at the node.
-  3. The node validates the definition against the core model, replaces the stored definition for that category and rebuilds its projections (D52: unsigned, no version history). Requirements for those articles are refused with 409 `TEMPLATE_REBUILD_PENDING` until the rebuild finishes — a different guard from `NOT_NORMALIZED`, which compares `normalized_hash` with `content_hash` and would not fire here because the article content did not change.
+  3. The node validates the definition against the core model, replaces the stored definition for that category and rebuilds its projections (D52: unsigned, no version history). The rebuild runs in the same transaction as the install (ten articles, no LLM call), so there is no pending state and no extra error code; attributes the new definition adds simply start out unknown. Installing a definition never re-reads article names: only a content change does that (D56).
 - **Hospital control over egress:** the node setting `EGRESS_DENY_ATTRIBUTES` withholds attributes even when the template marks them `shareable: true`. They are listed in the requirement's `withheld_attributes`, judged UNKNOWN, and never turned into purchaser questions.
 - **Limit:** a hospital can't record its own value for a provisional attribute until the curator approves it into the category definition.
 
@@ -572,7 +578,7 @@ The random `article_ref` is a reference, not an anonymization measure: the attri
 - **Node chains:**
   - **The node has no queue (D53).** Articles are normalized in a batch at seed/import and at startup when stale (D56): parsers + one LLM call per batch → facts → projection. A single article created or edited later is normalized inline in that request.
   - Fact correction, purchaser answer, reference link → projection rebuild in the same transaction.
-  - Template definition installed → rebuild every article of that category in the request; requirements for that category answer 409 `TEMPLATE_REBUILD_PENDING` only if the rebuild is still running (it is a loop over ten articles).
+  - Template definition installed → rebuild every article of that category inside the installing transaction (a loop over ten articles), so a requirement either sees the old definition or the new one.
   - **Requirement building** reads the projection and refuses with 429 above the per-user rate limit.
 - **Hub chains:**
   - family/variant seeded or changed → NORMALIZE_ITEM → REBUILD_PROJECTION
@@ -619,12 +625,12 @@ The random `article_ref` is a reference, not an anonymization measure: the attri
 - **Exchange:**
   - `POST /articles/{id}/requirement {answered_question_ids?}` → `{requirement, egress_id}`. Plain JSON: shown to the purchaser as "what leaves the hospital" and passed to the hub unchanged. Rate-limited per user (429).
   - `POST /hub-assertions` → `{assertion, expires_at}` (scope `purchaser`; rate-limited)
-  - `GET /egress?from=&to=&article_id=&user_id=` (node admin): the egress log with per-user counts and alerts
+  - `GET /egress?from_=&to=&article_id=&user_id=` (node admin): the egress log with per-user counts of issued objects and the number of alerts
 - **Lookups for the client** (to show hub assessments with local names):
   - `GET /users?include_inactive=true` → display name, role and `hub_subject_id` of this hospital's users (authenticated node users only). Deactivated users and retired `hub_subject_id`s are kept and returned, so the creator, resolver or assignee of an old assessment stays resolvable; a subject the node no longer knows is shown as the raw `sub_…`.
 - **Admin:** `GET /admin/signing-key` (public JWK + fingerprint for registration at the hub)
-- **Templates:** `GET /templates` (current definition per category with `updated_at`), `PUT /templates {definition}` (validates against the core model, stores, rebuilds that category; PURCHASER or NODE_ADMIN)
-- **Dev:** `POST /dev/reset-seed`
+- **Templates:** `GET /templates` (current definition per category with `updated_at`), `PUT /templates {definition, updated_at?}` (validates against the core model, stores, rebuilds that category's projections in the same transaction; `updated_at` is the hub's, so the client can tell when to sync again; PURCHASER or NODE_ADMIN)
+- **Dev** (`APP_ENV=dev`): `POST /dev/reset-seed {dataset?}` (NODE_ADMIN; replaces all node data, so every session ends)
 
 **Supplier hub** (`:8000`, internet-facing)
 - **Auth:**
@@ -662,7 +668,7 @@ The random `article_ref` is a reference, not an anonymization measure: the attri
 **Access control:**
 - Hub: purchaser tokens are bound to one tenant; every assessment query filters by `hospital_tenant_id`, and the hospital of a requirement is always taken from the token, never from the body. Suppliers see only their organization's requests and never requirements. Operators administer tenants but have no purchaser endpoints.
 - Node: single hospital; roles `PURCHASER`, `NODE_ADMIN`.
-- Errors: **401** bad/expired token or signature; **403** wrong role or tenant mismatch; **404** resource of another tenant; **409** version conflict, invalid transition, open purchaser questions, `ATTRIBUTE_PROPOSAL_PENDING`, `TEMPLATE_REBUILD_PENDING` (node); **422** validation (including unknown requirement fields), incomplete batch, unresolved current-product conflicts; **429** rate limit (node).
+- Errors: **401** bad/expired token or signature; **403** wrong role or tenant mismatch; **404** resource of another tenant; **409** version conflict, invalid transition, open purchaser questions, `ATTRIBUTE_PROPOSAL_PENDING` (hub), `NOT_NORMALIZED` for an article without a projection (node); **422** validation (including unknown requirement fields), incomplete batch, unresolved current-product conflicts; **429** rate limit (node).
 
 ## 15. Candidate search: one `POST /search` at the hub, run twice around "current product"
 
@@ -732,7 +738,7 @@ Deterministic, read-only, no LLM call, **nothing stored at the hub**. The same e
 
 **Rate limits and alerts (node, D48):**
 - Per user: `REQUIREMENT_RATE_LIMIT_PER_HOUR` (default 120) and `ASSERTION_RATE_LIMIT_PER_HOUR` (default 30); above the limit → 429.
-- Reaching 80% of a limit, or an unusual daily volume, writes an alert visible in `GET /egress`.
+- Reaching 80% of a limit writes `RATE_80_PERCENT` on that row; crossing `EGRESS_DAILY_ALERT_PER_USER` issued objects in a day (default 300) writes `UNUSUAL_DAILY_VOLUME`. A refused request writes an alert-only row (`RATE_EXCEEDED`, no content), committed even though the request fails, so bulk extraction stays visible in `GET /egress`.
 - Signatures can't stop a compromised purchaser app, because injected script has the app's privileges. Limits bound what it can extract and make it visible.
 
 **At the hub:**
@@ -876,7 +882,7 @@ If the hub token expires mid-flow (401), the client repeats step 0's assertion +
 
 ## 21. Demo data and scenarios
 
-**Seed** (hand-written canonical JSON; no importer):
+**Seed** (hand-written canonical JSON inside each service's package; no importer; the demo accounts get `NODE_SEED_PASSWORD` from the node's `.env`):
 - **Hub:**
   - **Tenants:** `ten_ksp` ("Demo Kantonsspital", alias "Hospital H-7F3A") and `ten_spital2` ("Demo Spital Zwei", alias "Hospital H-2C91"), each with a registered dev public key; an operator user.
   - **Suppliers:** **B. Braun** and **BD**, one user each.
@@ -933,7 +939,7 @@ Each stage is implemented and tested on its own. The hospital node is complete a
 |---|---|---|---|---|
 | 0 | Workspace and tooling | ½ | — | `make dev` serves both `/docs`; `make lint` passes; `make keys` writes node key pairs |
 | 1 | Core: what the node needs | ½ | 0 | core unit tests pass on the real German strings and the 10 CSV identifiers |
-| 2 | Hospital node, standalone | 1 | 1 | `make demo node`: login, 10 normalized articles, a clean requirement, the egress log |
+| 2 | Hospital node, standalone | 1 | 1 | `make seed` then `make demo-node`: login, 10 normalized articles, a clean requirement, an assertion, the egress log and a 429 |
 | 3 | Core: comparison | ¼ | 1 | the verdict table (§8) reproduced by tests |
 | 4 | Hub foundation: tenants, catalog, search | 1 | 1, 3 | a real node assertion exchanged; a real node requirement searched; Emerald excluded by connector |
 | 5 | Hub loop: assessment, questions, answers | 1¼ | 4 | scenarios 1–3 complete under FakeLLM; a `SAME_TRADE_ITEM` round makes no judge call |

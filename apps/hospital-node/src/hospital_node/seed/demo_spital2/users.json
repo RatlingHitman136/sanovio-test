@@ -1,0 +1,12 @@
+[
+  {
+    "email": "lea.keller@demo-spital2.example",
+    "display_name": "Lea Keller",
+    "role": "PURCHASER"
+  },
+  {
+    "email": "it-admin@demo-spital2.example",
+    "display_name": "Spital2 IT",
+    "role": "NODE_ADMIN"
+  }
+]

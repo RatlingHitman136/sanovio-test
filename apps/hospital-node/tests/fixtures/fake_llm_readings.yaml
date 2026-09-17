@@ -1,0 +1,52 @@
+# What the fake `normalize_article` answers per article name. Some answers are deliberately
+# wrong, so the tests can show that the node's checks and the parsers catch them.
+"Nitrilhandschuh Sensicare Ice blau L":
+  category_code: generic_consumable
+  facts:
+    # Implied by the material: something only the model can add.
+    - {attribute_key: latex_free, value: true, unit: null, quote: Nitrilhandschuh, confidence: 0.9}
+"Verbandstoff-Wundversorgung-Set steril":
+  category_code: generic_consumable
+  facts: []
+"Einmalspritze 10 ml Luer-Lock steril":
+  category_code: syringe_single_use
+  facts:
+    # Wrong number: the parser's 10 ml must win.
+    - {attribute_key: nominal_volume_ml, value: 12, unit: ml, quote: 10 ml, confidence: 0.6}
+    - {attribute_key: single_use, value: true, unit: null, quote: Einmalspritze, confidence: 0.95}
+"Infusionsbesteck Intrafix Safe":
+  category_code: generic_consumable
+  facts:
+    # The quote is not in the name, so the fact is dropped.
+    - {attribute_key: sterile, value: true, unit: null, quote: steril, confidence: 0.5}
+"OP-Maske mit Bindebändern":
+  category_code: generic_consumable
+  facts:
+    # Not an option of mdr_class, so the fact is dropped.
+    - {attribute_key: mdr_class, value: IV, unit: null, quote: OP-Maske, confidence: 0.3}
+"Kanüle Sterican 0,8 × 40 mm":
+  category_code: hypodermic_needle
+  facts:
+    - {attribute_key: length_mm, value: 38, unit: mm, quote: 40 mm, confidence: 0.5}
+    # Not an attribute of the needle template, so the fact is dropped.
+    - {attribute_key: nominal_volume_ml, value: 1, unit: ml, quote: Kanüle, confidence: 0.2}
+"Desinfektionstücher Mikrozid AF":
+  # Not an installed category: the rules category is used instead.
+  category_code: disinfectant_wipes
+  facts: []
+"Einmalhandschuh Latex puderfrei M":
+  category_code: generic_consumable
+  facts:
+    - {attribute_key: latex_free, value: false, unit: null, quote: Latex, confidence: 0.9}
+"Urinbecher 100 ml steril":
+  category_code: generic_consumable
+  facts:
+    - {attribute_key: sterile, value: true, unit: null, quote: steril, confidence: 0.9}
+"Wundpflaster elastic 6 cm × 5 m":
+  category_code: generic_consumable
+  facts: []
+
+# demo_spital2 (its syringe has the same name as demo_ksp's)
+"Kanüle 0,6 × 30 mm":
+  category_code: hypodermic_needle
+  facts: []

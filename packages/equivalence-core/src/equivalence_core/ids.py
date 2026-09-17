@@ -21,6 +21,11 @@ def new_article_ref() -> str:
     return f"ar_{_random_code(ARTICLE_REF_LENGTH)}"
 
 
+def new_subject_id() -> str:
+    """A pseudonymous purchaser id for the hub; reveals nothing about the node user."""
+    return f"sub_{_random_code(SUBJECT_ID_LENGTH)}"
+
+
 def _random_code(length: int) -> str:
     bits = secrets.randbits(length * _BITS_PER_CHARACTER)
     return "".join(

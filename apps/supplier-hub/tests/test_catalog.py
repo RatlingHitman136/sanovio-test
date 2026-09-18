@@ -10,7 +10,7 @@ from equivalence_core.facts import SupplierSource
 from hub_fixtures import FakeClock, seed_hub_demo
 from service_kit.security import PasswordHasher
 from supplier_hub.core.settings import HubSettings
-from supplier_hub.llm.fake_readings import fake_normalizer
+from supplier_hub.llm.fakes import fake_normalizer
 from supplier_hub.models import ItemFact, ItemSearchProjection, LlmCall, ProductVariant
 from supplier_hub.services import normalization, templates
 from supplier_hub.services.seed import SeedReport

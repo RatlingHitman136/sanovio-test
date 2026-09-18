@@ -1,5 +1,6 @@
 """Category templates: one current definition per category, served to nodes (H.21, D52)."""
 
+import uuid
 from collections.abc import Mapping, Sequence
 from datetime import datetime
 from typing import Any
@@ -13,7 +14,7 @@ from equivalence_core.templates import (
     TemplateDefinition,
     load_seed_templates,
 )
-from service_kit.errors import NotFound
+from service_kit.errors import Conflict, NotFound
 from supplier_hub.models import CategoryTemplate
 from supplier_hub.services import attribute_registry
 
@@ -48,6 +49,30 @@ def definitions(session: Session) -> dict[str, TemplateDefinition]:
     return {row.code: _definition_of(session, row) for row in rows(session)}
 
 
+def add_attribute(
+    session: Session,
+    code: str,
+    key: str,
+    settings: RuleSettings,
+    *,
+    now: datetime,
+    change_note: str,
+    updated_by: uuid.UUID,
+) -> TemplateDefinition:
+    """Curation: an approved attribute joins the category (D52: a new hash, no version bump)."""
+    row = row_for(session, code)
+    if any(entry["key"] == key for entry in row.attributes):
+        raise Conflict("ATTRIBUTE_IN_TEMPLATE", f"{key!r} is already part of {code}")
+    row.attributes = [*row.attributes, {"key": key, **settings.model_dump(mode="json")}]
+    updated = _definition_of(session, row)
+    row.definition_hash = updated.definition_hash
+    row.change_note = change_note
+    row.updated_by = updated_by
+    row.updated_at = now
+    session.flush()
+    return updated
+
+
 def _definition_of(session: Session, row: CategoryTemplate) -> TemplateDefinition:
     entries = {entry["key"]: entry for entry in row.attributes}
     known = {
@@ -80,7 +105,6 @@ def _store(
     *,
     now: datetime,
     change_note: str,
-    updated_by: object = None,
 ) -> CategoryTemplate:
     row = session.scalar(select(CategoryTemplate).where(CategoryTemplate.code == definition.code))
     if row is None:

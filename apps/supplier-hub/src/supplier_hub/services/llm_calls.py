@@ -10,8 +10,15 @@ from llm_client import CallRecord
 from supplier_hub.models import LlmCall
 
 
-def record_call(session: Session, record: CallRecord, *, now: datetime) -> uuid.UUID:
+def record_call(
+    session: Session,
+    record: CallRecord,
+    *,
+    now: datetime,
+    assessment_id: uuid.UUID | None = None,
+) -> uuid.UUID:
     row = LlmCall(
+        assessment_id=assessment_id,
         purpose=record.purpose,
         model=record.model,
         effort=record.effort,

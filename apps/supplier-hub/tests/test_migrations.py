@@ -43,3 +43,17 @@ def test_the_node_schema_is_not_part_of_the_hub_schema(tmp_path: Path) -> None:
     engine.dispose()
     assert "hospital_articles" not in tables
     assert "egress_log" not in tables
+
+
+def test_downgrade_to_the_first_revision_and_back(tmp_path: Path) -> None:
+    url = f"sqlite:///{tmp_path / 'hub.db'}"
+    upgrade_to_head(url)
+
+    command.downgrade(alembic_config(url), "0001")
+    engine = make_engine(url)
+    tables = set(inspect(engine).get_table_names())
+    engine.dispose()
+    assert "assessments" not in tables and "organizations" in tables
+
+    upgrade_to_head(url)
+    command.check(alembic_config(url))

@@ -143,3 +143,24 @@ def test_an_api_error_is_recorded_not_raised() -> None:
     assert result.output is None
     assert result.records[0].error == "AuthenticationError"
     assert result.records[0].cost_usd == 0.0
+
+
+def test_a_request_without_effort_sends_no_thinking() -> None:
+    """Haiku 4.5 has no adaptive thinking; extraction runs without it (ARCHITECTURE §13)."""
+    recorder = Recorder(_message('{"colour": "blue"}'))
+    plain = StructuredRequest(
+        purpose="TEST",
+        model="claude-haiku-4-5",
+        effort=None,
+        prompt_version="test_v1",
+        system="You name colours.",
+        user="Sky?",
+        output_type=Answer,
+    )
+
+    _client(recorder).parse(plain)
+
+    body = recorder.body(0)
+    assert "thinking" not in body
+    assert "effort" not in body.get("output_config", {})
+    assert body["output_config"]["format"]["type"] == "json_schema"

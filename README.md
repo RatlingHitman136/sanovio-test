@@ -34,11 +34,17 @@ make seed         # both databases: 10 articles at the node, 6 families / 54 var
 make dev          # hub on :8000, node on :8001
 make demo-node    # in another terminal: login, articles, a requirement, an assertion, the egress log
 make demo-search  # node + hub: a requirement, the token exchange, the candidate search
+make demo-assessment  # scenario 1 end to end: assessment, questions, supplier answers, resolution
 ```
 
 `demo-node` prints exactly what would leave the hospital and keeps asking for requirements until the
 node answers 429. `demo-search` shows the other half: the assertion exchanged for a hub token, then
 BD Plastipak™ and B. Braun Injekt® as candidates while BD Emerald™ is excluded by its Luer cone.
+`demo-assessment` runs the whole loop over HTTP: Injekt® marked as the current product, an assessment
+against Plastipak™, the purchaser's answers returned as a new requirement, BD's answers from the
+development simulator (synthetic datasheets, operators only), round 2 and the resolution; it ends by
+checking that no requirement carried the article's name, brand, price or identifiers. The hub worker
+runs inside `make dev`; `supplier-hub worker` runs it on its own.
 
 ## Checks
 ```bash
@@ -47,11 +53,15 @@ make test     # all unit tests
 ```
 
 ## Status
-Stages 0–4 of 7 done: workspace and tooling; the shared core (values, templates, parsers, facts,
+Stages 0–5 of 7 done: workspace and tooling; the shared core (values, templates, parsers, facts,
 requirement, assertions and comparison); the **hospital node**, which runs standalone — accounts and tokens, the 10 demo articles with their
 facts and projections, normalization (parsers plus one `normalize_article` call at ingestion), the
 current-product link, the requirement allowlist with its egress log and rate limits, and signed hub
 assertions; and the **supplier hub** foundation — supplier and operator logins, tenants with their
 registered node keys and the token exchange, the attribute registry, both catalogs read from the
-client's PDFs, and candidate search. Next: stage 5 (the assessment loop: questions, judge, answers).
+client's PDFs, and candidate search; and the **assessment loop** at the hub — the job queue, judgment
+rounds (identifier evidence, comparators, the Opus 5 judge, verdict rules, stop conditions), question
+review, purchaser answers through new requirements, the supplier inbox, answer extraction, resolution,
+and new attributes from free questions (proposal → provisional → operator approval).
+Next: stage 6 (demo scenarios, e2e suite, evals).
 See ARCHITECTURE §22 for the stage plan.

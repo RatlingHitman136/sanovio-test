@@ -469,7 +469,7 @@ Partial indexes `(variant_id, attribute_key)` and `(family_id, attribute_key)` `
 | supplier_id | uuid | NO | FK organizations |
 | article_ref | text | NO | opaque; no FK |
 | variant_id | uuid | NO | FK product_variants |
-| current_requirement_id | uuid | NO | FK requirements |
+| current_requirement_id | uuid | YES | FK requirements; set in the transaction that creates the assessment. Nullable only because `assessments` and `requirements` reference each other (created with `use_alter`); a reset clears it before deleting rows |
 | template_code | text | NO | the category being assessed; no version pinning (D52) |
 | status | text | NO | CHECK `ASSESSING`, `NEEDS_QUESTION_REVIEW`, `AWAITING_ANSWERS`, `PROPOSED_RESOLUTION`, `NEEDS_MANUAL_DECISION`, `FAILED`, `RESOLVED`, `CANCELLED` |
 | current_round / max_rounds | smallint | NO | default max 3 |
@@ -482,6 +482,7 @@ Partial indexes `(variant_id, attribute_key)` and `(family_id, attribute_key)` `
 | created_by_principal_id / resolved_by_principal_id | uuid | NO / YES | FK hospital_principals |
 | assigned_to_principal_id | uuid | YES | FK hospital_principals; responsible purchaser (pseudonymous); does not restrict access |
 | resolved_at | timestamptz | YES | |
+| created_at | timestamptz | NO | list order |
 
 Partial unique index: `(hospital_tenant_id, article_ref, variant_id) WHERE status NOT IN ('RESOLVED','CANCELLED')`. Index `(hospital_tenant_id, assigned_to_principal_id, status)` for "my assessments".
 
@@ -512,6 +513,7 @@ Partial unique index: `(hospital_tenant_id, article_ref, variant_id) WHERE statu
 | outcome_status | text | NO | |
 | definition_hash / prompt_version / model_id | text | NO | `definition_hash` records exactly which template definition this round judged (D52) |
 | llm_call_id | uuid | YES | FK llm_calls |
+| created_at | timestamptz | NO | |
 
 | id | assessment_id | round_no | requirement_id | input_hash | rule_verdict | llm_verdict | llm_confidence | disagreement | rationale | outcome_status |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -527,7 +529,8 @@ Partial unique index: `(hospital_tenant_id, article_ref, variant_id) WHERE statu
 | Column | Type | Null | Notes |
 |---|---|---|---|
 | id | uuid | NO | PK |
-| assessment_id / round_id | uuid | NO | FK |
+| assessment_id | uuid | NO | FK |
+| round_id | uuid | YES | FK assessment_rounds; NULL for a question the purchaser adds during review |
 | addressee | text | NO | CHECK `SUPPLIER`, `PURCHASER` |
 | attribute_key | text | YES | NULL while an attribute proposal for a free question / extra concern is pending; then an existing key or a new PROVISIONAL key |
 | text | text | NO | supplier questions never contain requirement values or hospital identity |
@@ -539,6 +542,7 @@ Partial unique index: `(hospital_tenant_id, article_ref, variant_id) WHERE statu
 | edited_by_purchaser | boolean | NO | |
 | answered_in_requirement_id | uuid | YES | FK requirements; PURCHASER questions only |
 | sent_at | timestamptz | YES | |
+| created_at | timestamptz | NO | |
 
 | id | assessment_id | round_id | addressee | attribute_key | text | expected_answer | origin | status | answered_in_requirement_id |
 |---|---|---|---|---|---|---|---|---|---|
@@ -600,7 +604,7 @@ Partial unique index: `(hospital_tenant_id, article_ref, variant_id) WHERE statu
 | Column | Type | Null | Notes |
 |---|---|---|---|
 | id | uuid | NO | PK |
-| kind | text | NO | CHECK `NORMALIZE_ITEM`, `ASSESS`, `EXTRACT_ANSWERS`, `PROPOSE_ATTRIBUTE`, `SIMULATE_SUPPLIER`, `REBUILD_PROJECTION` |
+| kind | text | NO | CHECK `NORMALIZE_ITEM`, `ASSESS`, `EXTRACT_ANSWERS`, `PROPOSE_ATTRIBUTE`, `REBUILD_PROJECTION` (the dev simulator runs inside its request) |
 | payload | jsonb | NO | IDs only, no foreign keys |
 | dedupe_key | text | YES | unique |
 | status | text | NO | CHECK `QUEUED`, `RUNNING`, `SUCCEEDED`, `FAILED` |
@@ -691,9 +695,9 @@ Partial unique index: `(hospital_tenant_id, article_ref, variant_id) WHERE statu
 | question_id | uuid | NO | FK questions; unique |
 | assessment_id | uuid | NO | FK assessments |
 | category_code | text | NO | category of the assessment |
-| result | text | YES | CHECK `EXISTING`, `NEW`, `IDENTIFIER`; NULL while the job runs |
+| result | text | YES | CHECK `EXISTING`, `NEW`, `IDENTIFIER`; NULL while the job runs, and when the validator rejected the model's proposal (status `REJECTED`, reason in `review_note`; the question is still sent, its answer becomes no fact) |
 | matched_attribute_id | uuid | YES | FK attribute_definitions (result EXISTING) |
-| proposal | jsonb | YES | `{key, value_type, unit?, options?, labels, rationale}` (result NEW) |
+| proposal | jsonb | YES | `{key, type, unit, options, labels, rationale}` (result NEW) |
 | attribute_id | uuid | YES | FK attribute_definitions: the PROVISIONAL attribute created on send |
 | status | text | NO | CHECK `PENDING`, `MATCHED`, `PROVISIONAL`, `APPROVED`, `MERGED`, `REJECTED`, `ROUTED` (identifier question: the scheme went to the question and no attribute was created) |
 | identifier_key | text | YES | set with result `IDENTIFIER`: the identifier definition the question takes as its `attribute_key` |

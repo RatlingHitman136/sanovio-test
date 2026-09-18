@@ -10,6 +10,11 @@ title ASSESS job at the hub: one judgment round on the current requirement
 |Hub worker|
 start
 :Claim ASSESS job\n(assessment_id, round_no);
+note right
+  A stale family was normalized first:
+  creation queues NORMALIZE_ITEM
+  ahead of this job
+end note
 |hub.db|
 :Load assessment, current requirement,\nvariant projection;
 |Domain (core + hub)|
@@ -24,20 +29,15 @@ else (NO_INFORMATION)
   |Domain (core + hub)|
   :Identifier facts dropped from the comparison:\nnever MISMATCH, never an unknown,\nnever in the judge prompt;
 endif
-|hub.db|
-if (Family facts stale?) then (yes)
-  |LLM|
-  :normalize_item (Sonnet 5);
-  |hub.db|
-  :Insert EXTRACTION facts;\nrebuild projection;
-else (no)
-endif
 |Domain (core + hub)|
 :Hospital side = requirement attributes\n(+ unknown / unavailable lists);\nsupplier side = variant effective record;
 :input_hash = hash(requirement_hash\n+ supplier record_hash + definition_hash);\nstore snapshot (incl. the definition judged);
 :Run comparators where both sides\nhave structured values\n(results are final);
+if (critical MISMATCH already, or nothing\nleft to judge or word?) then (yes)
+  :No judge call;\nrule verdict and template question texts;
+else (no)
 |LLM|
-:judge (Opus 5)\nundecided attributes only;
+:judge (Opus 5)\nundecided attributes, question wording,\nup to 3 extra concerns;
 note right
   Prompt gets requirement values and
   supplier facts only: no tenant name,
@@ -47,14 +47,16 @@ note right
 end note
 |Domain (core + hub)|
 :Validate output against schema\n(one repair retry);
-:Discard judgments for comparator-decided\nattributes; unknown citations -> UNKNOWN;
+:Discard judgments for comparator-decided\nattributes; unknown citations -> UNKNOWN;\nquestions only for askable gaps;
+endif
 :Apply verdict rules\n(critical MISMATCH -> NOT_EQUIVALENT,\ncritical/major UNKNOWN or UNAVAILABLE\n-> INSUFFICIENT_DATA,\nmajor MISMATCH or deviation -> WITH_DEVIATIONS,\nelse EQUIVALENT);
 if (Verdict decisive?) then (yes)
   :next status = PROPOSED_RESOLUTION;
-elseif (round cap reached\nor input_hash unchanged\nor all blocking gaps UNAVAILABLE?) then (yes)
+elseif (round cap reached\nor input_hash unchanged\nor all blocking gaps UNAVAILABLE\nor none left that can be asked?) then (yes)
   :next status = NEEDS_MANUAL_DECISION\n(manual_reason set);
 else (no)
-  :Create DRAFT questions\n(SUPPLIER for supplier-side gaps,\nPURCHASER for requirement unknowns;\nsupplier text never includes hospital values);
+  :Create DRAFT questions\n(SUPPLIER for supplier-side gaps,\nPURCHASER for requirement unknowns;\nsupplier text never includes hospital values;\nnone for a gap already asked);
+:Each extra concern -> SUPPLIER question\nwithout a key + PROPOSE_ATTRIBUTE job;
   :next status = NEEDS_QUESTION_REVIEW;
 endif
 |hub.db|

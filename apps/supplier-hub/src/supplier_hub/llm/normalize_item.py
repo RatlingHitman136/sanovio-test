@@ -8,23 +8,11 @@ import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
-from equivalence_core.templates import (
-    GENERIC_CODE,
-    AttributeDefinition,
-    TemplateDefinition,
-    ValueType,
-)
-from equivalence_core.validation import InvalidValue, validate_value
-from equivalence_core.values import (
-    AttributeValue,
-    BoolValue,
-    EnumValue,
-    ListValue,
-    NumberValue,
-    TextValue,
-)
+from equivalence_core.templates import GENERIC_CODE, TemplateDefinition
+from equivalence_core.values import AttributeValue
 from llm_client import CallRecord, Effort, LLMClient, StructuredRequest, render
-from supplier_hub.llm.outputs import NormalizedItem, NormalizeItems, ProposedFact
+from supplier_hub.llm.outputs import NormalizedItem, NormalizeItems
+from supplier_hub.llm.values import typed_value
 
 PURPOSE = "NORMALIZE_ITEM"
 PROMPT_VERSION = "normalize_item_v1"
@@ -115,30 +103,8 @@ def _check(
             continue
         if not proposed.quote.strip() or proposed.quote.casefold() not in haystack:
             continue
-        definition = template.attribute(key)
-        typed = _typed(definition, proposed)
-        if typed is None:
-            continue
-        try:
-            value = validate_value(definition, typed)
-        except InvalidValue:
+        value = typed_value(template.attribute(key), proposed.value, proposed.unit)
+        if value is None:
             continue
         facts[key] = CheckedFact(key, value, proposed.quote, proposed.confidence)
     return ItemReading(category_code=template.code, facts=tuple(facts.values()))
-
-
-def _typed(definition: AttributeDefinition, proposed: ProposedFact) -> AttributeValue | None:
-    """The plain JSON value in the shape the definition asks for, or None if it cannot be."""
-    raw = proposed.value
-    match definition.type:
-        case ValueType.NUMBER if isinstance(raw, int | float) and not isinstance(raw, bool):
-            return NumberValue(value=raw, unit=proposed.unit or definition.unit or "")
-        case ValueType.BOOL if isinstance(raw, bool):
-            return BoolValue(value=raw)
-        case ValueType.ENUM if isinstance(raw, str):
-            return EnumValue(value=raw)
-        case ValueType.TEXT if isinstance(raw, str) and raw.strip():
-            return TextValue(value=raw.strip())
-        case ValueType.LIST if isinstance(raw, list):
-            return ListValue(value=tuple(raw))
-    return None

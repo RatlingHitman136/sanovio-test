@@ -28,10 +28,15 @@ if (Open PURCHASER questions?) then (yes)
   :Issue new requirement with\nanswered_question_ids; egress row;
   |Hub API|
   :POST /assessments/{id}/requirements:\nvalidate; current_requirement_id;\nquestions ANSWERED / UNAVAILABLE\n(answered_in_requirement_id);
+  if (Supplier questions open?) then (no)
+    :Status ASSESSING; enqueue ASSESS;
+    stop
+  else (yes)
+  endif
 else (no)
 endif
 |Hub API|
-:POST send-questions {version}\n(409 while PURCHASER questions open);
+:POST send-questions {version}\n(409 while PURCHASER questions open\nor attribute proposals pending);\nnew definitions -> PROVISIONAL attributes;
 if (SUPPLIER questions to send?) then (no)
   :Status ASSESSING; enqueue ASSESS;
   stop
@@ -39,7 +44,7 @@ else (yes)
   :Questions SENT; status AWAITING_ANSWERS;
 endif
 |Supplier user|
-:PUT /supplier/requests/{id}/answers\n(save drafts, repeatable);
+:PUT /supplier/requests/{id}/answers\n(save drafts, repeatable; in dev an operator's\nsimulate-supplier call answers from\na synthetic datasheet instead);
 :POST /supplier/requests/{id}/submit;
 |Hub API|
 if (Every SENT question has a value,\na comment or cannot_provide?) then (no)
@@ -76,7 +81,7 @@ while (Pending comments?) is (yes)
     :SUPPLIER_ANSWER fact with quote;\nextraction_status EXTRACTED;
   endif
 endwhile (no)
-:REBUILD_PROJECTION\n(family fact -> all variants of the family);
+:Rebuild the family's projection in the same job\n(family fact -> all variants; values of\nPROVISIONAL attributes -> additional information);
 :Enqueue ASSESS for the next round;
 stop
 

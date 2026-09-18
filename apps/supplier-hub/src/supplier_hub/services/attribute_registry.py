@@ -6,6 +6,7 @@ hold synced copies of the definitions it serves (D52).
 
 from collections.abc import Sequence
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -81,6 +82,40 @@ def by_key(session: Session, key: str) -> AttributeDefinition:
     if definition is None:
         raise NotFound(f"no attribute definition {key!r}")
     return definition
+
+
+def definition_for(
+    session: Session, template: TemplateDefinition, key: str
+) -> CoreAttribute | None:
+    """What an answer for `key` must look like: the category's attribute, or a registry
+    attribute outside the category (a provisional one from a free question, §7.2)."""
+    if key in template.keys:
+        return template.attribute(key)
+    row = session.scalar(select(AttributeDefinition).where(AttributeDefinition.key == key))
+    if row is None or row.kind != AttributeKind.ATTRIBUTE:
+        return None
+    if row.status == AttributeStatus.DEPRECATED:
+        return None
+    return as_core_attribute(row)
+
+
+def expected_answer(definition: CoreAttribute) -> dict[str, Any]:
+    """The typed shape a question asks for, so an answer form can offer the right input."""
+    expected: dict[str, Any] = {"type": definition.type}
+    if definition.unit:
+        expected["unit"] = definition.unit
+    if definition.options:
+        expected["options"] = list(definition.options)
+    return expected
+
+
+def provisional_keys(session: Session) -> set[str]:
+    rows = session.scalars(
+        select(AttributeDefinition.key).where(
+            AttributeDefinition.status == AttributeStatus.PROVISIONAL
+        )
+    )
+    return set(rows)
 
 
 def as_core_attribute(row: AttributeDefinition) -> CoreAttribute:

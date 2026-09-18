@@ -20,13 +20,14 @@ state "Open (not final)" as OPEN {
   ASSESSING --> FAILED : retries exhausted
   FAILED --> ASSESSING : retry
 
-  NEEDS_QUESTION_REVIEW --> NEEDS_QUESTION_REVIEW : POST /assessments/{id}/requirements\n(new requirement; PURCHASER questions\nANSWERED / UNAVAILABLE)
+  NEEDS_QUESTION_REVIEW --> NEEDS_QUESTION_REVIEW : POST /assessments/{id}/requirements\n(new requirement; PURCHASER questions\nANSWERED / UNAVAILABLE)\n[supplier questions open]
+  NEEDS_QUESTION_REVIEW --> ASSESSING : POST /assessments/{id}/requirements\n[no supplier questions open]
   NEEDS_QUESTION_REVIEW --> AWAITING_ANSWERS : send-questions\n[no open PURCHASER questions,\nno pending attribute proposals,\nsupplier questions exist]\n/ new attributes become PROVISIONAL
   NEEDS_QUESTION_REVIEW --> ASSESSING : send-questions\n[no open PURCHASER questions,\nno pending attribute proposals,\nno supplier questions]
   AWAITING_ANSWERS --> ASSESSING : supplier submits complete batch\n(extract, rebuild projection, re-judge)
 
   PROPOSED_RESOLUTION --> NEEDS_QUESTION_REVIEW : request more info\n[+ new requirement]
-  NEEDS_MANUAL_DECISION --> AWAITING_ANSWERS : extra round\n[+ new requirement]
+  NEEDS_MANUAL_DECISION --> NEEDS_QUESTION_REVIEW : extra round\n(max_rounds + 1)
 }
 
 PROPOSED_RESOLUTION --> RESOLVED : confirm (CONFIRMED)\nor override with note (OVERRIDDEN)
@@ -54,7 +55,10 @@ note bottom of OPEN
   Every transition goes through the state machine table, writes an events row,
   and increments assessments.version (optimistic locking, 409 on conflict).
   Stop conditions: decisive verdict | round_no >= max_rounds (3) |
-  input_hash unchanged (requirement_hash + supplier record_hash + definition_hash) | all blocking gaps UNAVAILABLE.
+  input_hash unchanged (requirement_hash + supplier record_hash + definition_hash) |
+  all blocking gaps UNAVAILABLE or none left that can be asked (BLOCKING_UNAVAILABLE).
+  The judge is not called when a critical attribute already mismatches.
+  retry is allowed only from FAILED; extra round raises max_rounds by one.
 end note
 
 @enduml

@@ -1,9 +1,9 @@
 """The Anthropic adapter (ARCHITECTURE §13).
 
-Adaptive thinking with an effort level, structured outputs through `messages.parse`, the stable
-system prefix cached, and no sampling parameters (Opus 5 and Sonnet 5 reject them). The stop
-reason is checked before the output is read, and an answer that fails validation gets exactly
-one repair attempt.
+Adaptive thinking with an effort level (or none, for models without it), structured outputs
+through `messages.parse`, the stable system prefix cached, and no sampling parameters (Opus 5
+and Sonnet 5 reject them). The stop reason is checked before the output is read, and an answer
+that fails validation gets exactly one repair attempt.
 """
 
 import time
@@ -33,6 +33,13 @@ class _Tokens:
 _NO_TOKENS = _Tokens()
 
 
+def _reasoning(request: StructuredRequest[Any]) -> dict[str, Any]:
+    """Adaptive thinking with an effort level, or nothing for models that have neither."""
+    if request.effort is None:
+        return {}
+    return {"thinking": {"type": "adaptive"}, "output_config": {"effort": request.effort}}
+
+
 class AnthropicClient:
     def __init__(self, api_key: SecretStr, *, sdk: anthropic.Anthropic | None = None) -> None:
         # The SDK can be injected so tests run against a mocked transport.
@@ -55,8 +62,7 @@ class AnthropicClient:
             message = self._sdk.messages.parse(
                 model=request.model,
                 max_tokens=request.max_tokens,
-                thinking={"type": "adaptive"},
-                output_config={"effort": request.effort},
+                **_reasoning(request),
                 system=[
                     {
                         "type": "text",

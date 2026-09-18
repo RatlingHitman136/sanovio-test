@@ -16,15 +16,20 @@ SUCCEEDED --> [*]
 FAILED --> [*]
 
 note right of FAILED
-  Hub ASSESS jobs: the assessment
-  moves to FAILED; POST /retry
-  enqueues a new job.
+  A job carrying an assessment_id
+  (ASSESS, EXTRACT_ANSWERS): event
+  JOB_FAILED and the assessment moves
+  to FAILED; POST /retry enqueues
+  a new ASSESS.
 end note
 
 note bottom of QUEUED
 The queue exists only at the hub (no node <-> hub link).
   Hub kinds: NORMALIZE_ITEM | ASSESS | EXTRACT_ANSWERS |
-  PROPOSE_ATTRIBUTE | SIMULATE_SUPPLIER | REBUILD_PROJECTION
+  PROPOSE_ATTRIBUTE | REBUILD_PROJECTION
+  Runs in a thread of the API process, or alone:
+  `supplier-hub worker` (API with WORKER_ENABLED=false).
+  Tests drain the queue inline instead.
   The node normalizes and rebuilds synchronously (D53).
 end note
 

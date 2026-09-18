@@ -32,13 +32,14 @@ Working rules and project map for the Article Equivalence Loop prototype. The de
 
 ## Project structure
 
-Status: ✅ exists (stages 0–4 done) · ⏳ filled by the stage in brackets.
+Status: ✅ exists (stages 0–5 done) · ⏳ filled by the stage in brackets.
 
 ```
 sanovio/
 ├── CLAUDE.md                     ✅ this file
 ├── README.md                     ✅ what the project is, how to run it
-├── Makefile                      ✅ setup, keys, seed, dev, dev-node, dev-hub, demo-node, lint, format, test, charts
+├── Makefile                      ✅ setup, keys, seed, dev, dev-node, dev-hub, demo-node, demo-search,
+│                                    demo-assessment, lint, format, test, charts
 ├── pyproject.toml                ✅ uv workspace root, dev tools, ruff / mypy / pytest / import-linter config
 ├── uv.lock  .python-version      ✅
 ├── architecture/                 ✅ ARCHITECTURE.md (design), data-model.md (tables),
@@ -81,21 +82,24 @@ sanovio/
 │   └── supplier-hub/             central, port 8000
 │       └── src/supplier_hub/
 │           ├── main.py           ✅ app factory
-│           ├── cli.py            ✅ migrate, seed, create-operator, register-tenant
-│           ├── alembic/ seed/    ✅ migrations, both catalogs, scripted fake readings
+│           ├── cli.py            ✅ migrate, seed, create-operator, register-tenant, worker
+│           ├── alembic/ seed/    ✅ migrations, both catalogs, scripted fake readings,
+│           │                        synthetic hidden datasheets (dev simulator)
 │           ├── core/             ✅ settings, db, migrations
-│           ├── api/v1/           ✅ health, auth, admin, templates, catalog, search
-│           │                        ⏳ assessments, supplier, dev [5]
-│           ├── models/ schemas/  ✅ H.1–H.11, H.19–H.21 · ⏳ assessments, questions, jobs [5]
+│           ├── api/v1/           ✅ health, auth, admin (+ attribute proposals), templates, catalog,
+│           │                        search, assessments, supplier, dev
+│           ├── models/ schemas/  ✅ H.1–H.22
 │           ├── services/         ✅ auth, tenants_keys, token_exchange, attribute_registry,
 │           │                        templates, catalog, normalization, projection,
-│           │                        requirement_intake, candidate_search, seed
-│           │                        ⏳ assessment, questions, enrichment, resolution [5]
-│           ├── domain/           ⏳ [5] state_machine, stop_conditions
-│           ├── llm/              ✅ normalize_item + prompt · ⏳ judge, extract, propose [5]
-│           └── jobs/             ⏳ [5] queue, worker, handlers
+│           │                        requirement_intake, candidate_search, seed, assessment, assess,
+│           │                        questions, supplier_inbox, enrichment, resolution,
+│           │                        attribute_proposals, supplier_simulator
+│           ├── domain/           ✅ state_machine, stop_conditions
+│           ├── llm/              ✅ normalize_item, judge, extract_answer, propose_attribute,
+│           │                        simulate_supplier + prompts; fakes (scripted, all purposes)
+│           └── jobs/             ✅ queue, worker, handlers
 ├── tools/
-│   └── demo-client/              ✅ health, node-demo, demo-search · ⏳ scenario scripts [6]
+│   └── demo-client/              ✅ health, node-demo, demo-search, demo-assessment · ⏳ scenario scripts [6]
 ├── tests/e2e/                    ⏳ [6]
 ├── .secrets/                     created by `make keys` (git-ignored)
 └── var/                          SQLite files (git-ignored)
@@ -112,6 +116,7 @@ Each workspace member keeps its tests in its own `tests/` directory.
 | `make seed` | seed node and hub and register the node keys (`make seed-node` / `make seed-hub` for one); needs `NODE_SEED_PASSWORD` and `HUB_SEED_PASSWORD` |
 | `make demo-node` | walk through the standalone node (needs `make dev-node` running) |
 | `make demo-search` | node + hub: requirement, token exchange, candidate search (needs `make dev`) |
+| `make demo-assessment` | scenario 1 over HTTP: current product, assessment, questions, simulated supplier answers, resolution, leak check (needs `make dev`; `NODE_SEED_PASSWORD` and `HUB_SEED_PASSWORD`) |
 | `make dev` | hub on :8000 and node on :8001 (`make dev-hub`, `make dev-node` for one) |
 | `make lint` | ruff, format check, mypy strict, import contracts |
 | `make format` | ruff format + auto-fixable lint |

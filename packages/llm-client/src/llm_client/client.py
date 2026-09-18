@@ -18,7 +18,8 @@ class StructuredRequest[T: BaseModel]:
 
     purpose: str
     model: str
-    effort: Effort
+    # None: no thinking and no effort parameter, for models without adaptive thinking.
+    effort: Effort | None
     prompt_version: str
     system: str
     user: str
@@ -32,7 +33,7 @@ class CallRecord:
 
     purpose: str
     model: str
-    effort: str
+    effort: str | None
     prompt_version: str
     request: dict[str, Any]
     response: dict[str, Any] | None = None

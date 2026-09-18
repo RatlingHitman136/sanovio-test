@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -35,3 +36,17 @@ class SigningKeyView(BaseModel):
     not_before: datetime
     not_after: datetime | None
     revoked_at: datetime | None
+
+
+class AttributeProposalView(BaseModel):
+    id: uuid.UUID
+    question_id: uuid.UUID
+    question_text: str
+    category_code: str
+    result: str | None
+    status: str
+    proposal: dict[str, Any] | None
+    attribute_key: str | None
+    identifier_key: str | None
+    review_note: str | None
+    created_at: datetime

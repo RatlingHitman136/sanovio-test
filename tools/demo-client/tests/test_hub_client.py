@@ -54,3 +54,48 @@ def test_a_refusal_is_raised_with_its_status() -> None:
 
     with pytest.raises(NodeError, match="401"):
         hub.exchange("bad")
+
+
+def test_settled_polls_until_the_round_is_done() -> None:
+    statuses = iter(["ASSESSING", "ASSESSING", "NEEDS_QUESTION_REVIEW"])
+    naps: list[float] = []
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"id": "a1", "status": next(statuses)})
+
+    settled = _hub(handle).settled("a1", sleep=naps.append, interval_s=0.1)
+
+    assert settled["status"] == "NEEDS_QUESTION_REVIEW"
+    assert naps == [0.1, 0.1]
+
+
+def test_settled_gives_up_when_no_worker_runs() -> None:
+    hub = _hub(lambda request: httpx.Response(200, json={"status": "ASSESSING"}))
+
+    with pytest.raises(NodeError, match="worker"):
+        hub.settled("a1", sleep=lambda _: None, attempts=3)
+
+
+def test_state_changes_carry_the_version() -> None:
+    import json
+
+    seen: list[tuple[str, str, dict[str, object]]] = []
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        seen.append((request.method, request.url.path, json.loads(request.content or b"{}")))
+        return httpx.Response(200, json={"status": "AWAITING_ANSWERS"})
+
+    hub = _hub(handle)
+    hub.send_questions("a1", 4)
+    hub.withdraw_question("a1", "q1", 5)
+    hub.resolve("a1", "EQUIVALENT", 6)
+
+    assert seen == [
+        ("POST", "/api/v1/assessments/a1/send-questions", {"version": 4}),
+        ("PATCH", "/api/v1/assessments/a1/questions/q1", {"version": 5, "withdraw": True}),
+        (
+            "POST",
+            "/api/v1/assessments/a1/resolve",
+            {"verdict": "EQUIVALENT", "version": 6, "note": None},
+        ),
+    ]

@@ -1,0 +1,37 @@
+{
+  "_note": "SYNTHETIC test data for the development simulator (APP_ENV=dev only). Invented to stand in for a supplier's answers; not taken from any real datasheet and never shown to any user.",
+  "sheets": [
+    {
+      "family": "BD Plastipak™ Luer-Lok™",
+      "attributes": {
+        "mdr_class": {"value": "IIA", "family": true},
+        "sterile": {"value": true, "family": true},
+        "single_use": {"value": true, "family": true},
+        "latex_free": {"value": true, "family": true},
+        "dehp_free": {"value": null, "comment": "Zylinder und Stopfen enthalten kein DEHP.", "family": true},
+        "standards": {"value": ["ISO 7886-1"], "family": true},
+        "iso_7886_1_compliant": {"value": true, "family": true},
+        "safety_mechanism": {"value": false, "family": true},
+        "pump_compatible": {"value": false, "family": true},
+        "light_protected": {"value": false, "family": true},
+        "needle_included": {"value": false, "family": true},
+        "special_scale": {"value": "keine", "family": true},
+        "peel_off_label": {"value": true, "family": true}
+      }
+    },
+    {
+      "family": "BD Microlance™ Injektionskanülen",
+      "attributes": {
+        "mdr_class": {"value": "IIA", "family": true},
+        "sterile": {"value": true, "family": true},
+        "single_use": {"value": true, "family": true},
+        "latex_free": {"value": true, "family": true},
+        "dehp_free": {"value": true, "family": true},
+        "standards": {"value": ["ISO 7864"], "family": true},
+        "iso_7864_compliant": {"value": true, "family": true},
+        "safety_mechanism": {"value": false, "family": true},
+        "filter_um": {"value": 0, "unit": "µm", "family": true}
+      }
+    }
+  ]
+}

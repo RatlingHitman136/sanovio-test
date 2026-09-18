@@ -6,14 +6,14 @@ from datetime import datetime
 from importlib import resources
 from typing import Any
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session
 
 from llm_client import LLMClient
 from service_kit.security import PasswordHasher
 from supplier_hub.core.db import Base
 from supplier_hub.core.settings import HubSettings
-from supplier_hub.models import Organization, User
+from supplier_hub.models import Assessment, Organization, User
 from supplier_hub.models.identity import UserRole
 from supplier_hub.models.organizations import OrganizationType
 from supplier_hub.services import catalog, normalization, templates
@@ -163,6 +163,8 @@ def _load(name: str) -> Any:
 
 
 def _wipe(session: Session) -> None:
+    # Assessments and requirements point at each other; no delete order satisfies both.
+    session.execute(update(Assessment).values(current_requirement_id=None))
     for table in reversed(Base.metadata.sorted_tables):
         session.execute(delete(table))
     session.flush()

@@ -30,8 +30,11 @@ class HubSettings(BaseSettings):
     judge_effort: Effort = "high"
     extract_answer_model: str = "claude-haiku-4-5"
     propose_attribute_model: str = "claude-sonnet-5"
-    # The assessment loop uses this from stage 5 on.
+    propose_attribute_effort: Effort = "medium"
+    simulate_supplier_model: str = "claude-haiku-4-5"
     max_rounds: int = Field(default=3, ge=1)
+    # The background job worker; tests switch it off and run jobs inline instead.
+    worker_enabled: bool = True
 
     hub_seed_password: SecretStr | None = None
 

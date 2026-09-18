@@ -1,6 +1,8 @@
 """Command line entry point: `supplier-hub <command>`."""
 
+import contextlib
 import json
+import threading
 from pathlib import Path
 from typing import Annotated, NoReturn
 
@@ -14,11 +16,13 @@ from service_kit.errors import Conflict, ServiceError
 from service_kit.security import PasswordHasher
 from supplier_hub.core.migrations import upgrade_to_head
 from supplier_hub.core.settings import HubSettings
+from supplier_hub.jobs import handlers
+from supplier_hub.jobs.worker import Worker
 from supplier_hub.llm.factory import make_llm
 from supplier_hub.models import Organization, User
 from supplier_hub.models.identity import UserRole
 from supplier_hub.models.organizations import OrganizationType
-from supplier_hub.services import tenants_keys
+from supplier_hub.services import assessment, tenants_keys
 from supplier_hub.services.normalization import NormalizationUnavailable
 from supplier_hub.services.seed import SeedError
 from supplier_hub.services.seed import seed as seed_hub
@@ -71,6 +75,33 @@ def seed(
         f"seeded hub: {report.tenants} tenants, {report.suppliers} suppliers, "
         f"{report.families} families, {report.variants} variants"
     )
+
+
+@app.command()
+def worker() -> None:
+    """Run the job queue on its own, next to API processes started with WORKER_ENABLED=false."""
+    settings = HubSettings()
+    upgrade_to_head(settings.database_url)
+    engine = make_engine(settings.database_url)
+    running = Worker(
+        make_session_factory(engine),
+        handlers.build(llm=llm_factory(settings), settings=settings),
+        clock=utc_now,
+        on_give_up=assessment.give_up,
+    )
+    running.start()
+    typer.echo("worker running; Ctrl+C stops it")
+    try:
+        _wait_until_interrupted()
+    finally:
+        running.stop()
+        engine.dispose()
+    typer.echo("worker stopped")
+
+
+def _wait_until_interrupted() -> None:
+    with contextlib.suppress(KeyboardInterrupt):
+        threading.Event().wait()
 
 
 @app.command("register-tenant")

@@ -556,7 +556,7 @@ The random `article_ref` is a reference, not an anonymization measure: the attri
  NEEDS_QUESTION_REVIEW ── send-questions (no open PURCHASER questions) ──► AWAITING_ANSWERS ──┘
  PROPOSED_RESOLUTION ── confirm / override (reason) ──► RESOLVED
  PROPOSED_RESOLUTION ── request more info ──► NEEDS_QUESTION_REVIEW
- NEEDS_MANUAL_DECISION ── extra round ──► AWAITING_ANSWERS      NEEDS_MANUAL_DECISION ── manual verdict ──► RESOLVED
+ NEEDS_MANUAL_DECISION ── extra round ──► NEEDS_QUESTION_REVIEW NEEDS_MANUAL_DECISION ── manual verdict ──► RESOLVED
  any non-final state ── cancel ──► CANCELLED
 ```
 (Rendered as a state diagram: [08](../charts/png/08_assessment_states.png).)
@@ -573,9 +573,11 @@ The random `article_ref` is a reference, not an anonymization measure: the attri
   1. Decisive verdict → PROPOSED_RESOLUTION.
   2. `round_no ≥ MAX_ROUNDS` (3) → NEEDS_MANUAL_DECISION.
   3. **No progress:** `input_hash` = SHA-256(`requirement_hash` + supplier `record_hash` + **template definition hash**). Unchanged from the previous round → NEEDS_MANUAL_DECISION. (D52 replaced the version string with a hash of the definition itself, so a curator's change still counts as progress.)
-  4. Every blocking gap UNAVAILABLE (on either side) → NEEDS_MANUAL_DECISION.
+  4. Every blocking gap UNAVAILABLE (on either side), or no remaining gap can be asked (all withheld) → NEEDS_MANUAL_DECISION (`BLOCKING_UNAVAILABLE`).
   5. Manual resolve, from any state except ASSESSING.
 - **Cancel** from any non-final state.
+- **Extra round** (from NEEDS_MANUAL_DECISION) raises `max_rounds` by one and reopens question review, so the purchaser decides what to ask before anything is sent. **Retry** is only for FAILED and schedules a fresh ASSESS.
+- **Free questions** (no `attribute_key`) are addressed to the supplier only: a purchaser answer travels as a requirement, and a requirement carries template attributes only. The judge's extra concerns become such questions too (§7.2).
 - **Template definition:** the current one is used each round and the round records it in `input_snapshot` (D52). `send-questions` answers 409 while attribute proposals are pending.
 - **Final verdicts:** EQUIVALENT, EQUIVALENT_WITH_DEVIATIONS, NOT_EQUIVALENT, UNDETERMINED. Resolution kind: `CONFIRMED | OVERRIDDEN | MANUAL`.
 - **After resolve:** nothing is written to the node. The hub is the only record of assessments and verdicts, visible to every purchaser of the hospital; a hospital-side export of resolved decisions is a later feature (D49).
@@ -595,20 +597,20 @@ The random `article_ref` is a reference, not an anonymization measure: the attri
   - supplier fact change (typed answer) → REBUILD_PROJECTION
   - assessment created → NORMALIZE_ITEM only if the family is stale → ASSESS (a `SAME_TRADE_ITEM` result ends the job before any LLM call)
   - new requirement accepted and no supplier questions open → ASSESS
-  - supplier answers complete → EXTRACT_ANSWERS → REBUILD_PROJECTION → ASSESS
+  - supplier answers complete → EXTRACT_ANSWERS (facts, then the family's projection rebuilt in the same job) → ASSESS
   - question created without `attribute_key` (purchaser free question or judge extra concern) → PROPOSE_ATTRIBUTE
-  - attribute merged or rejected → REBUILD_PROJECTION for the affected variants
-- **Separate process:** `uv run --package supplier-hub python -m supplier_hub.jobs.worker` for Postgres deployments.
+  - attribute approved → every family of its category re-projected in the approving request; merge and reject come later (D55)
+- **Separate process:** `uv run --package supplier-hub supplier-hub worker` for Postgres deployments, with `WORKER_ENABLED=false` on the API processes. Tests never start the thread; they drain the queue inline.
 
 ## 13. LLM pipelines (tiered models) and who pays
 
 | Pipeline | Service | Model | Settings | Key | Input → output |
 |---|---|---|---|---|---|
-| `judge` | hub | **claude-opus-5** | adaptive thinking, effort `high` | ours | template + requirement values + variant facts + final comparator results + past Q&A → judgments for undecided attributes, overall verdict + reasoning, question wording (addressee, language), extra concerns |
+| `judge` | hub | **claude-opus-5** | adaptive thinking, effort `high` | ours | template + requirement values + variant facts + final comparator results + past Q&A → judgments for undecided attributes, overall verdict + reasoning, question wording (addressee, language), up to three extra concerns. Not called when a critical attribute already mismatches, or when nothing is left to judge or word |
 | `normalize_item` | hub | **claude-sonnet-5** | adaptive thinking, effort `medium` | ours | family description / properties text + template → facts with quotes + category suggestion |
 | `extract_answer` | hub | **claude-haiku-4-5** | no thinking | ours | question + attribute definition + supplier comment → typed value or "unclear" |
 | `propose_attribute` | hub | **claude-sonnet-5** | adaptive thinking, effort `medium` | ours | question text + category template + registry keys and labels → existing key, or a new definition (key, type, unit, options, neutral DE/EN labels, rationale) |
-| `simulate_supplier` (dev) | hub | **claude-haiku-4-5** | no thinking | ours | questions + hidden datasheet → answers |
+| `simulate_supplier` (dev) | hub | **claude-haiku-4-5** | no thinking | ours | questions + hidden datasheet (synthetic, `supplier_hub/seed/hidden_datasheets.json`) → answers, submitted as the supplier's user. `POST /dev/assessments/{id}/simulate-supplier`, operators only, mounted only with `APP_ENV=dev` |
 | `normalize_article` | node | **claude-sonnet-5** | adaptive thinking, effort `medium` | **hospital's** | a batch of German article names + the category template → per article: facts with quotes + category suggestion. Runs only at seed/import and at a stale startup (D56); never while serving a request |
 
 **Adapter rules (both services):**
@@ -618,7 +620,8 @@ The random `article_ref` is a reference, not an anonymization measure: the attri
 - Opus 5 requests enable server-side refusal fallbacks; `stop_reason` checked before reading output.
 - Prompt caching on the unchanging system prompt + template prefix.
 - Every call logged to that service's `llm_calls` (never the key).
-- `LLM_MODE=fake` runs deterministically offline: the hub answers `normalize_item` from scripted readings shipped with the seed, so an offline seed produces the same facts a real run would.
+- "No thinking" means the request carries neither `thinking` nor `effort` (`effort=None` in `llm-client`): Haiku 4.5 accepts neither.
+- `LLM_MODE=fake` runs deterministically offline: the hub answers `normalize_item` from scripted readings shipped with the seed, so an offline seed produces the same facts a real run would, and answers the other four pipelines with small rules (`supplier_hub/llm/fakes.py`).
 - **The judge prompt never receives hospital identity or identifiers**: only requirement attributes (without `article_ref` or product hints) and the supplier's *attribute* facts. Identifier facts are filtered out before the prompt is built.
 
 ## 14. API (both `/api/v1`, REST, typed through OpenAPI)
@@ -649,8 +652,8 @@ The random `article_ref` is a reference, not an anonymization measure: the attri
 - **Operator admin:**
   - `POST /admin/tenants {code, name, supplier_facing_alias, …}`, `GET /admin/tenants` (`code` is the readable tenant id a node signs as `iss`)
   - `POST /admin/tenants/{id}/signing-keys {public_jwk, not_before?}` → the fingerprint to confirm out of band, `GET /admin/tenants/{id}/signing-keys`, `POST /admin/tenants/{id}/signing-keys/{kid}/revoke`
-  - `GET /admin/attribute-proposals?status=`, `POST /admin/attribute-proposals/{id}/approve {key, labels, type, unit, options, category_code, criticality, comparison_rule, shareable, synonyms}` (adds the attribute to the category's DRAFT version), `POST .../merge {attribute_key}`, `POST .../reject {note}`
-  - `PATCH /admin/templates/{code}` (edit the current definition; used by approve)
+  - `GET /admin/attribute-proposals?status=`, `POST /admin/attribute-proposals/{id}/approve {criticality, rule, tolerance?, shareable}` (a PROVISIONAL attribute joins its proposal's category as proposed; the definition hash changes, so nodes pick it up at their next sync)
+  - later (D55): `POST .../merge {attribute_key}`, `POST .../reject {note}`, editing key, labels or synonyms on approval, and `PATCH /admin/templates/{code}`
 - **Any authenticated hub user (purchaser, supplier, operator):**
   - `GET /templates` (current definition per category with `updated_at`), `GET /templates/{code}`
   - `GET /attributes?category=&status=` (registry, including provisional attributes)
@@ -673,11 +676,12 @@ The random `article_ref` is a reference, not an anonymization measure: the attri
   - `GET /supplier/requests`, `GET /supplier/requests/{assessment_id}` (supplier questions, own variant/family, hospital **alias** only)
   - `PUT /supplier/requests/{assessment_id}/answers` (drafts), `POST /supplier/requests/{assessment_id}/submit`
   - `GET /supplier/catalog`, `GET /supplier/catalog/families/{id}`
-- **Dev** (`APP_ENV=dev`): `POST /dev/assessments/{id}/simulate-supplier`, `POST /dev/reset-seed`
+- **Dev** (`APP_ENV=dev`): `POST /dev/assessments/{id}/simulate-supplier` (operators). The hub is reset from the command line (`supplier-hub seed --reset`), not over HTTP
 
 **Access control:**
 - Hub: purchaser tokens are bound to one tenant; every assessment query filters by `hospital_tenant_id`, and the hospital of a requirement is always taken from the token, never from the body. Suppliers see only their organization's requests and never requirements. Operators administer tenants but have no purchaser endpoints.
 - Node: single hospital; roles `PURCHASER`, `NODE_ADMIN`.
+- Error bodies are `{detail, code?, …}`: a 409 names its `code` (`VERSION_CONFLICT`, `INVALID_TRANSITION`, `ASSESSMENT_OPEN`, `OPEN_PURCHASER_QUESTIONS`, `ATTRIBUTE_PROPOSAL_PENDING`, …) and may add details such as `assessment_id` or `question_ids`.
 - Errors: **401** bad/expired token or signature; **403** wrong role or tenant mismatch; **404** resource of another tenant; **409** version conflict, invalid transition, open purchaser questions, `ATTRIBUTE_PROPOSAL_PENDING` (hub), `NOT_NORMALIZED` for an article without a projection (node); **422** validation (including unknown requirement fields), incomplete batch, unresolved current-product conflicts; **429** rate limit (node).
 
 ## 15. Candidate search: one `POST /search` at the hub, run twice around "current product"
@@ -899,7 +903,7 @@ If the hub token expires mid-flow (401), the client repeats step 0's assertion +
   - **Catalogs** transcribed from the example PDFs — 6 families and 54 variants, each row as printed, with `source_document` and page (B. Braun: Injekt® p. 6, Sterican® p. 26; BD: Microlance™ p. 6, Emerald™ p. 12, Plastipak™ Luer-Lok™ and Luer p. 13). Examples:
     - B. Braun: Injekt® Luer Lock Solo (4606728V, 10 ml, usable to 12 ml, centric, 0.5 ml step, 12 × 100), Sterican® (4657527B, 21 G × 1½", 0.80 × 40 mm, ID 0.58 mm, 40 × 100)
     - BD: Plastipak™ Luer-Lok™ (300912, 10 ml, centric, 0.2 ml step, 100/400), Emerald™ Luer (307736, 10 ml, centric, 0.2 ml step, 100/1.200), Microlance™ (304432, 21 G 1½", 0.8 × 40 mm, thin wall, green, 100/5.000)
-  - **Hidden datasheets** (simulator ground truth only, marked synthetic): MDR class, GTIN, DEHP status, inner diameter.
+  - **Hidden datasheets** (`supplier_hub/seed/hidden_datasheets.json`, simulator ground truth only, marked synthetic): per family, the answers BD would give — MDR class, DEHP status (as German free text for Plastipak), standards and the other syringe flags. Microlance has no inner diameter, so the simulator answers "cannot provide" (scenario 3).
 - **Node `ten_ksp`:** the **10 articles from the example CSV**, all fields as given (including invalid identifiers), one purchaser (Anna Meier) and one node admin. `make seed` normalizes all ten in **one** `normalize_article` call (FakeLLM offline, the hospital's key with `NORMALIZE_MODE=llm`).
 - **Node `ten_spital2`:** 2 articles and one purchaser, only for isolation tests.
 - **Keys:** `make keys` before `make seed`.
@@ -912,8 +916,9 @@ If the hub token expires mid-flow (401), the client repeats step 0's assertion +
    - The purchaser assigns the assessment to themselves (`PUT /assessments/{id}/assignee`, event `ASSIGNED`); the client shows "Anna Meier" by resolving the subject at the node.
    - The purchaser marks Injekt as the current product: the preview fills 8 unknowns without conflicts, and the automatic second search — now on the extended parameter set — re-ranks the list.
    - Round 1: volume, connector, cone and sterile match; graduation 0.2 vs 0.5 ml acceptable (finer); design 3-part vs 2-part is a major deviation.
-   - Unknown: MDR class (critical), DEHP-free (major), ISO 7886-1 (major) at the supplier → INSUFFICIENT_DATA → 3 supplier questions.
-   - The supplier (or simulator) answers: MDR class typed + "applies to whole family", DEHP as German free text, ISO yes/no. The supplier sees only "Hospital H-7F3A".
+   - Unknown: MDR class (critical), DEHP-free (major), ISO 7886-1 (major) at the supplier → INSUFFICIENT_DATA → supplier questions. As built, round 1 asks more, because BD's catalog page states less than the example assumed: also `standards`, `safety_mechanism`, `light_protected` and `special_scale` go to BD, and whatever the node still lacks after the current product (with offline `NORMALIZE_MODE=rules`: `single_use`, `standards`, `needle_included`, `safety_mechanism`, `pump_compatible`, `light_protected`, `special_scale`) goes to the purchaser. `special_scale` blocks as a major gap on both sides, because its "exact if present" meaning is not modelled.
+   - The purchaser answers at the node and forwards the new requirement; then the questions are sent.
+   - The supplier (or simulator) answers: MDR class typed + "applies to whole family", DEHP as German free text, ISO yes/no, the rest typed. The supplier sees only "Hospital H-7F3A".
    - Round 2 → EQUIVALENT_WITH_DEVIATIONS → confirm → RESOLVED, visible at the hub to every purchaser of the hospital.
    - Check: the node egress log holds the assertion and the requirements issued in this run (first search, re-search after marking the current product, assessment). None contains name, brand, GTIN, price or quantity (product hints off).
 2. **Early stop:** CSV #3 vs **BD Emerald™ Luer 10 ml (307736)** → connector Luer vs Luer-Lock critical mismatch → NOT_EQUIVALENT in round 1, no questions. (Also: the search excludes Emerald via `excluded_by.connector`.)
@@ -958,7 +963,7 @@ Each stage is implemented and tested on its own. The hospital node is complete a
 
 **Total ≈5½ days.** The one remaining cut that gets under five days is the attribute registry's runtime path (proposals → provisional → approve, and scenario 7), about ½ day.
 
-**Deferred** (documented, additive): template versioning and signed bundles · a job queue at the node · search paging and relaxation · curation merge/reject · extra concerns from the judge · `.http` collections · a second node process in e2e.
+**Deferred** (documented, additive): template versioning and signed bundles · a job queue at the node · search paging and relaxation · curation merge/reject · `.http` collections · a second node process in e2e.
 
 ## 23. Design decisions
 
@@ -1020,7 +1025,7 @@ Each decision lists the alternatives considered, why this one was chosen, and wh
 | D52 | **Prototype templates sync unsigned, one current definition per category; no version history, pinning or `upgrade_template`** | Signed `template+jwt` bundles with version pinning and current+previous acceptance (D45, previous design) | The registry requirement (D43: new attributes reach every hospital without a release) is met by syncing the *definition*; the version machinery was protecting against a risk a single-operator demo does not have — rules changing mid-loop — which the round's stored `input_snapshot` already records. Removes the hub signing key, the hub JWKS, `/.well-known/jwks.json`, node version history, two error codes and the `upgrade_template` branches. Saves ~1 day and leaves exactly one signed object type in the system. | Two hospitals run different template versions in production → reinstate D45's bundles and pinning (~1 day) |
 | D53 | **No job queue at the node: normalization and projection rebuild run synchronously on write** | Job table + worker thread mirroring the hub (D4, previous design) | Ten seeded articles, rules-based parsing in milliseconds. The queue added a table, a worker thread, retry logic and the `NOT_NORMALIZED` / `retry_after_s` round-trip that every demo script has to handle. The hub keeps its queue, where LLM calls make it necessary. | Node-side LLM normalization returns, or articles arrive in bulk imports → reinstate the queue (~½ day) |
 | D54 | **Search takes `supplier_id` and `limit` only; no `relax`, no cursor paging, no relaxation hints** | Full paging and relaxation surface | The seed catalog is ~50 variants across two suppliers. Paging and relaxation are real features for a real catalog and cost API surface, response fields and tests here for no demonstrable behaviour. `excluded_by` already explains an empty list. | Catalogs of realistic size → add cursor paging and `relax` (~¼ day) |
-| D55 | **The former cut list is the default scope:** curation is approve-only, no extra concerns, no `.http` files, one node in e2e (two tenants at the hub). (Node `llm` normalization was on this list and has been **restored** by D42/D56.) | Full scope with a fallback cut list | A cut list that is only used when time runs out is a plan for running out of time. Making these deferred by default is what brings the estimate inside the stated 3–5 day timebox, and every item remains a documented, additive feature. | More time than the timebox → restore in the listed order |
+| D55 | **The former cut list is the default scope:** curation is approve-only, no `.http` files, one node in e2e (two tenants at the hub). (Node `llm` normalization was on this list and has been **restored** by D42/D56; the judge's extra concerns were restored in stage 5, as its plan listed them.) | Full scope with a fallback cut list | A cut list that is only used when time runs out is a plan for running out of time. Making these deferred by default is what brings the estimate inside the stated 3–5 day timebox, and every item remains a documented, additive feature. | More time than the timebox → restore in the listed order |
 | D56 | **The node's LLM pass runs once at initialization, not per request and not on a queue** (user decision) | A job queue at the node; normalizing lazily on first search; re-normalizing on every boot | Ingestion is the only moment article text needs reading, and it is a batch of ten in the demo — so one cached-prefix call at seed covers everything, and `content_hash ≠ normalized_hash` makes a restart free. Serving a search or building a requirement then needs no key, no network and no waiting, which also keeps D53's "no queue at the node" intact. | Articles arrive continuously from an ERP feed → a small ingestion worker, still outside the request path (~½ day) |
 
 ## 24. Assumptions and open questions

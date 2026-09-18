@@ -32,6 +32,7 @@ def _handle(_: Request, error: ServiceError) -> JSONResponse:
     headers: dict[str, str] = {}
     if isinstance(error, Conflict):
         body["code"] = error.code
+        body |= error.details
     if isinstance(error, Unauthorized):
         headers["WWW-Authenticate"] = "Bearer"
     if isinstance(error, RateLimited):

@@ -1,5 +1,5 @@
 # Every Python command runs through uv (see CLAUDE.md).
-.PHONY: setup keys seed seed-node seed-hub dev dev-hub dev-node demo-node demo-search lint format test charts
+.PHONY: setup keys seed seed-node seed-hub dev dev-hub dev-node demo-node demo-search demo-assessment lint format test charts
 
 NODE_KEYS := .secrets/node_ksp_ed25519.pem .secrets/node_spital2_ed25519.pem
 
@@ -51,6 +51,11 @@ demo-node:
 # Node and hub together: a requirement, the token exchange and a candidate search (`make dev`).
 demo-search:
 	uv run --package demo-client --env-file apps/hospital-node/.env demo-client demo-search
+
+# Scenario 1 end to end over HTTP, supplier answers from the dev simulator (`make dev`).
+demo-assessment:
+	uv run --package demo-client --env-file apps/hospital-node/.env \
+		--env-file apps/supplier-hub/.env demo-client demo-assessment
 
 lint:
 	uv run ruff check .

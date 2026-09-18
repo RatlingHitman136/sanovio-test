@@ -6,7 +6,7 @@ from decimal import Decimal
 from enum import StrEnum
 from typing import Any
 
-from sqlalchemy import Numeric
+from sqlalchemy import ForeignKey, Numeric
 from sqlalchemy.orm import Mapped, mapped_column
 
 from service_kit.db import one_of
@@ -29,8 +29,7 @@ class LlmCall(Base):
     model: Mapped[str]
     effort: Mapped[str | None]
     prompt_version: Mapped[str]
-    # The foreign key to `assessments` arrives with that table in stage 5.
-    assessment_id: Mapped[uuid.UUID | None]
+    assessment_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("assessments.id"))
     request: Mapped[dict[str, Any]]
     response: Mapped[dict[str, Any] | None]
     stop_reason: Mapped[str | None]

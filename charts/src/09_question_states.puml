@@ -8,14 +8,15 @@ state DRAFT {
   state "attribute key set" as KEY_SET
   state "attribute key pending" as KEY_PENDING : attribute_key = NULL;\njob PROPOSE_ATTRIBUTE runs
   [*] --> KEY_SET : template attribute\n(judge origin LLM / TEMPLATE)
-  [*] --> KEY_PENDING : free question (origin PURCHASER)\nor judge extra concern
-  KEY_PENDING --> KEY_SET : proposal done:\nexisting key (MATCHED)\nor new definition (PENDING until send)
+  [*] --> KEY_PENDING : free question to the supplier\n(origin PURCHASER) or judge\nextra concern (origin LLM)
+  KEY_PENDING --> KEY_SET : proposal done:\nexisting key (MATCHED)\nor identifier (ROUTED)
 }
 
 [*] --> DRAFT : created
 
 DRAFT --> WITHDRAWN : withdraw (review step)\n(no attribute is created)
-KEY_SET --> SENT : send-questions\n[addressee SUPPLIER]\n/ new definition -> PROVISIONAL attribute
+KEY_SET --> SENT : send-questions\n[addressee SUPPLIER]
+KEY_PENDING --> SENT : send-questions [proposal done]\n/ new definition -> PROVISIONAL attribute,\nthe question takes its key;\nrejected proposal: sent without a key
 
 state "Purchaser branch (addressee PURCHASER)" as PB {
   state "answered at the node" as AT_NODE : PUT /articles/{id}/facts/{attribute}\n(hub_question_id; value or cannot_provide)\nthen node issues a new requirement

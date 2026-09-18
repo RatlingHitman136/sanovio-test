@@ -2,15 +2,18 @@ import uuid
 
 from fastapi import APIRouter
 
+from equivalence_core.templates import RuleSettings
 from supplier_hub.api.deps import Context, DbSession, Operator
-from supplier_hub.models import Organization, TenantSigningKey
+from supplier_hub.models import AttributeProposal, Organization, Question, TenantSigningKey
+from supplier_hub.models.registry import ProposalStatus
 from supplier_hub.schemas.admin import (
+    AttributeProposalView,
     SigningKeyCreate,
     SigningKeyView,
     TenantCreate,
     TenantView,
 )
-from supplier_hub.services import tenants_keys
+from supplier_hub.services import attribute_proposals, tenants_keys
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -92,4 +95,44 @@ def _key(key: TenantSigningKey) -> SigningKeyView:
         not_before=key.not_before,
         not_after=key.not_after,
         revoked_at=key.revoked_at,
+    )
+
+
+@router.get("/attribute-proposals")
+def list_attribute_proposals(
+    session: DbSession, _: Operator, status: ProposalStatus | None = None
+) -> list[AttributeProposalView]:
+    return [_proposal(session, row) for row in attribute_proposals.list_proposals(session, status)]
+
+
+@router.post("/attribute-proposals/{proposal_id}/approve")
+def approve_attribute_proposal(
+    proposal_id: uuid.UUID,
+    body: RuleSettings,
+    context: Context,
+    session: DbSession,
+    operator: Operator,
+) -> AttributeProposalView:
+    """Only an operator decides how much an attribute counts (§7.2 step 6)."""
+    proposal = attribute_proposals.approve(
+        session, proposal_id, body, operator=operator, now=context.clock()
+    )
+    return _proposal(session, proposal)
+
+
+def _proposal(session: DbSession, row: AttributeProposal) -> AttributeProposalView:
+    question = session.get(Question, row.question_id)
+    assert question is not None
+    return AttributeProposalView(
+        id=row.id,
+        question_id=row.question_id,
+        question_text=question.text,
+        category_code=row.category_code,
+        result=row.result,
+        status=row.status,
+        proposal=row.proposal,
+        attribute_key=question.attribute_key,
+        identifier_key=row.identifier_key,
+        review_note=row.review_note,
+        created_at=row.created_at,
     )

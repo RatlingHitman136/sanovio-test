@@ -1,6 +1,6 @@
 """Request-scoped dependencies: the hub context, a database session, the caller."""
 
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass, field
 from typing import Annotated
 
@@ -13,9 +13,11 @@ from service_kit.clock import Clock
 from service_kit.errors import Forbidden, Unauthorized
 from service_kit.security import PasswordHasher
 from supplier_hub.core.settings import HubSettings
+from supplier_hub.jobs.worker import Handler, run_pending
 from supplier_hub.models import HospitalPrincipal, Organization, User
 from supplier_hub.models.identity import UserRole
-from supplier_hub.services import auth
+from supplier_hub.models.jobs import JobKind
+from supplier_hub.services import assessment, auth
 
 
 @dataclass
@@ -25,6 +27,13 @@ class HubContext:
     clock: Clock
     llm: LLMClient | None = None
     hasher: PasswordHasher = field(default_factory=PasswordHasher)
+    handlers: Mapping[JobKind, Handler] = field(default_factory=dict)
+
+    def run_jobs(self) -> int:
+        """Runs every ready job now: how tests and inline setups drive the loop (§12)."""
+        return run_pending(
+            self.session_factory, self.handlers, clock=self.clock, on_give_up=assessment.give_up
+        )
 
 
 def get_context(request: Request) -> HubContext:

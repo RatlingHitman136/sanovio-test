@@ -112,6 +112,8 @@ class ItemFact(Base):
     source: Mapped[str]
     evidence_quote: Mapped[str | None]
     confidence: Mapped[Decimal | None] = mapped_column(Numeric(3, 2))
+    # The supplier answer this fact was read from (§9: every fact keeps its provenance).
+    answer_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("answers.id"))
     created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
     created_at: Mapped[datetime]
     llm_call_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("llm_calls.id"))

@@ -1,5 +1,5 @@
 # Every Python command runs through uv (see CLAUDE.md).
-.PHONY: setup keys seed seed-node seed-hub dev dev-hub dev-node demo-node demo-search demo-assessment lint format test charts
+.PHONY: setup keys seed seed-node seed-hub dev dev-hub dev-node demo-node demo-search demo eval lint format test charts
 
 NODE_KEYS := .secrets/node_ksp_ed25519.pem .secrets/node_spital2_ed25519.pem
 
@@ -52,10 +52,24 @@ demo-node:
 demo-search:
 	uv run --package demo-client --env-file apps/hospital-node/.env demo-client demo-search
 
-# Scenario 1 end to end over HTTP, supplier answers from the dev simulator (`make dev`).
-demo-assessment:
+# One §21 scenario over HTTP (`make demo SCENARIO=1..4`); supplier answers come from the
+# hub's dev simulator. Needs `make dev` running.
+SCENARIO ?= 1
+demo:
 	uv run --package demo-client --env-file apps/hospital-node/.env \
-		--env-file apps/supplier-hub/.env demo-client demo-assessment
+		--env-file apps/supplier-hub/.env demo-client scenario $(SCENARIO)
+
+# Model quality on hand-labelled data (§9), results in var/evals/. Needs the real API:
+# NORMALIZE_MODE=llm + key at the node, LLM_MODE=anthropic + key at the hub.
+# EVAL_LLM=fake runs the same harness offline (node rules only, hub scripted fake).
+eval:
+ifeq ($(EVAL_LLM),fake)
+	uv run --package hospital-node --env-file apps/hospital-node/.env hospital-node eval --mode rules
+	uv run --package supplier-hub --env-file apps/supplier-hub/.env supplier-hub eval --fake
+else
+	uv run --package hospital-node --env-file apps/hospital-node/.env hospital-node eval --mode both
+	uv run --package supplier-hub --env-file apps/supplier-hub/.env supplier-hub eval
+endif
 
 lint:
 	uv run ruff check .

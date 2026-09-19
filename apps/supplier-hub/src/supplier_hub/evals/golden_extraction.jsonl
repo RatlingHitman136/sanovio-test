@@ -1,0 +1,10 @@
+{"attribute_key": "dehp_free", "question": "Sind Zylinder und Stopfen frei von DEHP?", "comment": "Zylinder und Stopfen enthalten kein DEHP.", "expected": true}
+{"attribute_key": "dehp_free", "question": "Sind Zylinder und Stopfen frei von DEHP?", "comment": "Der Stopfen enthält DEHP als Weichmacher.", "expected": false}
+{"attribute_key": "dehp_free", "question": "Sind Zylinder und Stopfen frei von DEHP?", "comment": "Dazu liegen uns derzeit keine Angaben vor.", "expected": null}
+{"attribute_key": "mdr_class", "question": "Welche MDR-Risikoklasse hat das Produkt?", "comment": "Das Produkt ist nach MDR in Klasse IIa eingestuft.", "expected": "IIA"}
+{"attribute_key": "mdr_class", "question": "Welche MDR-Risikoklasse hat das Produkt?", "comment": "Klasse I, steril (Is).", "expected": "I_S"}
+{"attribute_key": "iso_7886_1_compliant", "question": "Wird die Spritze nach DIN EN ISO 7886-1 gefertigt?", "comment": "Ja, gemäss EN ISO 7886-1:2018.", "expected": true}
+{"attribute_key": "latex_free", "question": "Ist das Produkt latexfrei?", "comment": "Alle Komponenten sind ohne Naturkautschuklatex hergestellt.", "expected": true}
+{"attribute_key": "graduation_step_ml", "question": "Wie fein ist die Skalierung?", "comment": "Skalierung in Schritten von 0,2 ml.", "expected": 0.2}
+{"attribute_key": "connector", "question": "Welcher Konus?", "comment": "Luer-Lock-Ansatz, zentrisch.", "expected": "LUER_LOCK"}
+{"attribute_key": "safety_mechanism", "question": "Hat das Produkt einen Sicherheitsmechanismus?", "comment": "Kommt drauf an, welche Variante Sie meinen.", "expected": null}

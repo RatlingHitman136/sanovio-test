@@ -1,7 +1,8 @@
 import httpx
 import pytest
 
-from demo_client.node import NodeClient, NodeError
+from demo_client.api import ApiError
+from demo_client.node import NodeClient
 
 TOKEN = "node-token"
 
@@ -43,7 +44,7 @@ def test_the_rate_limit_status_is_returned_not_raised() -> None:
     node = _node(lambda request: httpx.Response(429, json={"detail": "too many"}))
 
     assert node.requirement_status("art-1") == 429
-    with pytest.raises(NodeError, match="429"):
+    with pytest.raises(ApiError, match="429"):
         node.requirement("art-1")
 
 

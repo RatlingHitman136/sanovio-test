@@ -1,8 +1,8 @@
 import httpx
 import pytest
 
-from demo_client.hub import HubClient
-from demo_client.node import NodeError
+from demo_client.api import ApiError
+from demo_client.hub import HubClient, NotSettled
 
 TOKEN = "hub-token"
 
@@ -52,7 +52,7 @@ def test_search_posts_the_requirement_unchanged() -> None:
 def test_a_refusal_is_raised_with_its_status() -> None:
     hub = _hub(lambda request: httpx.Response(401, json={"detail": "nope"}))
 
-    with pytest.raises(NodeError, match="401"):
+    with pytest.raises(ApiError, match="401"):
         hub.exchange("bad")
 
 
@@ -63,7 +63,9 @@ def test_settled_polls_until_the_round_is_done() -> None:
     def handle(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={"id": "a1", "status": next(statuses)})
 
-    settled = _hub(handle).settled("a1", sleep=naps.append, interval_s=0.1)
+    hub = _hub(handle)
+    hub.sleep = naps.append
+    settled = hub.settled("a1", interval_s=0.1)
 
     assert settled["status"] == "NEEDS_QUESTION_REVIEW"
     assert naps == [0.1, 0.1]
@@ -72,8 +74,9 @@ def test_settled_polls_until_the_round_is_done() -> None:
 def test_settled_gives_up_when_no_worker_runs() -> None:
     hub = _hub(lambda request: httpx.Response(200, json={"status": "ASSESSING"}))
 
-    with pytest.raises(NodeError, match="worker"):
-        hub.settled("a1", sleep=lambda _: None, attempts=3)
+    hub.sleep = lambda _: None
+    with pytest.raises(NotSettled, match="worker"):
+        hub.settled("a1", attempts=3)
 
 
 def test_state_changes_carry_the_version() -> None:

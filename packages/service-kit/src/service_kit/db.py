@@ -59,6 +59,9 @@ class UuidPrimaryKey:
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid7)
 
 
+SQLITE_BUSY_TIMEOUT_MS = 30_000
+
+
 def make_engine(url: str) -> Engine:
     engine = create_engine(url)
     if engine.dialect.name == "sqlite":
@@ -82,4 +85,6 @@ def _sqlite_pragmas(connection: DBAPIConnection, _: ConnectionPoolEntry) -> None
     cursor = connection.cursor()
     cursor.execute("PRAGMA foreign_keys=ON")
     cursor.execute("PRAGMA journal_mode=WAL")
+    # One writer at a time: a request waits for the hub's worker instead of failing at once.
+    cursor.execute(f"PRAGMA busy_timeout={SQLITE_BUSY_TIMEOUT_MS}")
     cursor.close()

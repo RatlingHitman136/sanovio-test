@@ -100,7 +100,8 @@ def run_proposal(
     question = session.get(Question, proposal.question_id)
     assert question is not None
     registry = attribute_registry.definitions(session)
-    proposal.updated_at = now
+    # Nothing is written before the call: on SQLite a pending write would hold the one
+    # write lock for as long as the model takes, and every request would wait for it.
     try:
         result = pipeline.propose_attribute(
             llm,
@@ -118,6 +119,7 @@ def run_proposal(
         )
     except pipeline.ProposalRejected as exc:
         # The question is still sent; its answer is kept as text but becomes no fact.
+        proposal.updated_at = now
         proposal.status = ProposalStatus.REJECTED
         proposal.review_note = f"rejected automatically: {exc}"
         return
@@ -126,6 +128,7 @@ def run_proposal(
             session, record, now=now, assessment_id=proposal.assessment_id
         )
     proposal.result = result.result
+    proposal.updated_at = now
     if result.result == ProposalResult.EXISTING:
         proposal.matched_attribute_id = attribute_registry.by_key(session, result.key).id
         proposal.status = ProposalStatus.MATCHED

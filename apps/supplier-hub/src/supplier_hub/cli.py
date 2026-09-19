@@ -2,7 +2,9 @@
 
 import contextlib
 import json
+import tempfile
 import threading
+from dataclasses import asdict
 from pathlib import Path
 from typing import Annotated, NoReturn
 
@@ -16,9 +18,13 @@ from service_kit.errors import Conflict, ServiceError
 from service_kit.security import PasswordHasher
 from supplier_hub.core.migrations import upgrade_to_head
 from supplier_hub.core.settings import HubSettings
+from supplier_hub.evals import answers, verdicts
 from supplier_hub.jobs import handlers
 from supplier_hub.jobs.worker import Worker
+from supplier_hub.llm.extract_answer import PROMPT_VERSION as EXTRACT_PROMPT
 from supplier_hub.llm.factory import make_llm
+from supplier_hub.llm.fakes import fake_llm
+from supplier_hub.llm.judge import PROMPT_VERSION as JUDGE_PROMPT
 from supplier_hub.models import Organization, User
 from supplier_hub.models.identity import UserRole
 from supplier_hub.models.organizations import OrganizationType
@@ -102,6 +108,57 @@ def worker() -> None:
 def _wait_until_interrupted() -> None:
     with contextlib.suppress(KeyboardInterrupt):
         threading.Event().wait()
+
+
+@app.command("eval")
+def run_eval(
+    fake: Annotated[
+        bool, typer.Option(help="Run the harness offline with the scripted fake LLM.")
+    ] = False,
+    out: Annotated[Path, typer.Option(help="Where the result file goes.")] = Path("var/evals"),
+) -> None:
+    """Score round-1 verdicts, critical-gap questions, judge calls and answer extraction (§9)."""
+    settings = HubSettings()
+    if not fake and settings.llm_mode != "anthropic":
+        _fail("set LLM_MODE=anthropic and ANTHROPIC_API_KEY in the hub's .env, or pass --fake")
+    llm = fake_llm() if fake else llm_factory(settings)
+    if llm is None:
+        _fail("no LLM client: set ANTHROPIC_API_KEY in the hub's .env")
+    now = utc_now()
+    with tempfile.TemporaryDirectory() as workdir:
+        scored = verdicts.run(llm=llm, settings=settings, workdir=Path(workdir), now=now)
+    extracted = answers.run(llm=llm, settings=settings)
+    report = {
+        "service": "supplier-hub",
+        "created_at": now.isoformat(),
+        "llm": "fake" if fake else "anthropic",
+        "models": {"judge": settings.judge_model, "extract_answer": settings.extract_answer_model},
+        "prompt_versions": {"judge": JUDGE_PROMPT, "extract_answer": EXTRACT_PROMPT},
+        "targets": {"verdict": verdicts.VERDICT_TARGET, "critical_gaps": verdicts.GAP_TARGET},
+        "verdict_accuracy": round(scored.verdict_accuracy, 4),
+        "critical_gap_recall": round(scored.gap_recall, 4),
+        "judge_accuracy": scored.judge_accuracy,
+        "extract_accuracy": round(extracted.accuracy, 4),
+        "passed": scored.passed,
+        "cases": [asdict(case) for case in scored.cases],
+        "answers": [asdict(answer) for answer in extracted.answers],
+        "usage": [asdict(u) for u in scored.usage + extracted.usage],
+    }
+    out.mkdir(parents=True, exist_ok=True)
+    path = out / f"{now:%Y%m%d-%H%M%S}-hub.json"
+    path.write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
+    wrong = {c.id: f"{c.verdict} ≠ {c.expected_verdict}" for c in scored.cases if not c.verdict_ok}
+    typer.echo(f"verdicts: {scored.verdict_accuracy:.0%} (target 85%) {wrong or ''}")
+    typer.echo(f"critical gaps asked: {scored.gap_recall:.0%} (target 100%)")
+    if scored.judge_accuracy is not None:
+        typer.echo(f"judge on semantic attributes: {scored.judge_accuracy:.0%}")
+    misread = [a.comment for a in extracted.answers if not a.ok]
+    typer.echo(f"answer extraction: {extracted.accuracy:.0%} {misread or ''}")
+    for u in scored.usage + extracted.usage:
+        typer.echo(f"  {u.model}: {u.calls} calls, ${u.cost_usd:.4f}, {u.mean_latency_ms} ms")
+    typer.echo(f"written to {path}")
+    if not scored.passed:
+        raise typer.Exit(code=1)
 
 
 @app.command("register-tenant")

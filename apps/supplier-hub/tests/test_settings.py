@@ -21,3 +21,13 @@ def test_key_is_never_shown_in_repr() -> None:
     settings = HubSettings(llm_mode="anthropic", anthropic_api_key=SecretStr("sk-secret"))
 
     assert "sk-secret" not in repr(settings)
+
+
+def test_cors_is_off_unless_origins_are_named(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("CORS_ORIGINS", raising=False)
+
+    assert HubSettings().cors_origins == ()
+    named = HubSettings(cors_origins="http://localhost:5173, https://app.example")  # type: ignore[arg-type]
+    assert named.cors_origins == ("http://localhost:5173", "https://app.example")
+    with pytest.raises(ValidationError, match="'\\*' is not allowed"):
+        HubSettings(cors_origins="*")  # type: ignore[arg-type]

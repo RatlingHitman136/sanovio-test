@@ -1,7 +1,10 @@
 """Maps service errors to HTTP responses."""
 
+from typing import Any
+
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel, ConfigDict, Field
 
 from service_kit.errors import (
     Conflict,
@@ -20,6 +23,30 @@ _STATUS: dict[type[ServiceError], int] = {
     Conflict: status.HTTP_409_CONFLICT,
     Unprocessable: status.HTTP_422_UNPROCESSABLE_CONTENT,
     RateLimited: status.HTTP_429_TOO_MANY_REQUESTS,
+}
+
+
+class ErrorBody(BaseModel):
+    """Every refusal has this shape; a 409 adds its `code` and may add ids to act on."""
+
+    model_config = ConfigDict(extra="allow")
+
+    detail: str
+    code: str | None = Field(
+        default=None, description="Why a 409 happened, e.g. VERSION_CONFLICT or ASSESSMENT_OPEN."
+    )
+
+
+def _documented(description: str) -> dict[str, Any]:
+    return {"model": ErrorBody, "description": description}
+
+
+# Attached to each service's API router, so OpenAPI shows what a client must handle.
+ERROR_RESPONSES: dict[int | str, dict[str, Any]] = {
+    status.HTTP_401_UNAUTHORIZED: _documented("Missing, expired or revoked token"),
+    status.HTTP_403_FORBIDDEN: _documented("The caller's role may not do this"),
+    status.HTTP_404_NOT_FOUND: _documented("Not found, or another tenant's"),
+    status.HTTP_409_CONFLICT: _documented("A state or version conflict; see `code`"),
 }
 
 

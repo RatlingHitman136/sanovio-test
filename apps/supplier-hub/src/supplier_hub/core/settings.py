@@ -44,6 +44,13 @@ class HubSettings(BaseSettings):
             raise ValueError("ANTHROPIC_API_KEY is required when LLM_MODE=anthropic")
         return self
 
+    @model_validator(mode="after")
+    def _named_origins_only(self) -> Self:
+        # The hub answers with credentials, and a wildcard origin would hand them to any site.
+        if "*" in self.cors_origins:
+            raise ValueError("CORS_ORIGINS must name origins; '*' is not allowed")
+        return self
+
     @model_validator(mode="before")
     @classmethod
     def _comma_list(cls, values: object) -> object:

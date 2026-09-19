@@ -1,5 +1,6 @@
 """The development supplier simulator (§21): operators only, dev only, datasheets never shown."""
 
+import json
 import uuid
 from typing import Any
 
@@ -11,17 +12,30 @@ from sqlalchemy.orm import Session
 from hub_fixtures import (
     ART_03_WITH_SCALE,
     FakeClock,
+    Orgs,
     fetch,
     login,
     open_assessment,
+    purchaser_headers,
     run_jobs,
     send_questions,
 )
+from llm_client import FakeLLM
 from supplier_hub.core.settings import HubSettings
+from supplier_hub.llm import extract_answer, judge, normalize_item, propose_attribute
+from supplier_hub.llm.fakes import fake_llm
+from supplier_hub.llm.simulate_supplier import PURPOSE as SIMULATE
 from supplier_hub.main import create_app
-from supplier_hub.models import Answer, User
+from supplier_hub.models import Answer, Question, User
 from supplier_hub.models.assessments import ExtractionStatus
 from supplier_hub.models.identity import UserRole
+
+PURPOSES = (
+    normalize_item.PURPOSE,
+    judge.PURPOSE,
+    extract_answer.PURPOSE,
+    propose_attribute.PURPOSE,
+)
 
 
 @pytest.fixture
@@ -91,3 +105,49 @@ def test_the_simulator_does_not_exist_outside_dev(
     with TestClient(create_app(production, clock=clock)) as client:
         response = _simulate(client, {}, str(uuid.uuid4()))
     assert response.status_code == 404
+
+
+def test_an_answer_in_words_is_kept_for_extraction(
+    settings: HubSettings, clock: FakeClock, orgs: Orgs, session: Session, seeded: Any
+) -> None:
+    """Found in the real-key run: Haiku wrote "normalwandig" instead of REGULAR, and the
+    simulator turned an answered question into "cannot provide"."""
+    base = fake_llm()
+    seen: list[Any] = []
+
+    def in_words(request: Any) -> Any:
+        seen.append(json.loads(request.user.split("<data>")[1].split("</data>")[0]))
+        output = base.parse(request).output
+        assert output is not None
+        for answer in output.answers:
+            if answer.value == "IIA":
+                answer.value = "Klasse IIa"
+        return output
+
+    llm = FakeLLM({purpose: _delegate(base) for purpose in PURPOSES} | {SIMULATE: in_words})
+    with TestClient(create_app(settings, clock=clock, llm=llm)) as client:
+        buyer = purchaser_headers(client, orgs, clock)
+        created = _awaiting(client, buyer, session)
+        operator = login(client, _operator_user(session))
+        assert _simulate(client, operator, created["id"]).status_code == 200
+
+    mdr = next(q for q in seen[0]["questions"] if q["attribute_key"] == "mdr_class")
+    assert "IIA" in mdr["expected_answer"]["options"]
+    answer = session.scalar(
+        select(Answer).join(Answer.question).where(Question.attribute_key == "mdr_class")
+    )
+    assert answer is not None
+    assert (answer.cannot_provide, answer.comment, answer.value) == (False, "Klasse IIa", None)
+
+
+def _delegate(base: FakeLLM) -> Any:
+    def answer(request: Any) -> Any:
+        return base.parse(request).output
+
+    return answer
+
+
+def _operator_user(session: Session) -> User:
+    user = session.scalar(select(User).where(User.role == UserRole.OPERATOR))
+    assert user is not None
+    return user

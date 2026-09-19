@@ -196,7 +196,8 @@ sanovio/
                               # reference_link (preview / set / undo), egress_log (also the rate limits),
                               # llm_calls, seed, auth, user_directory, template_sync
         llm/                  # normalize_article pipeline + prompt (runs at seed/startup only)
-        cli.py                # keygen, migrate, seed, create-user
+        evals/                # golden_extraction.yaml, extraction.py (rules vs llm + parsers)
+        cli.py                # keygen, migrate, seed, create-user, eval
       tests/                  # unit/, integration/
     supplier-hub/
       pyproject.toml  alembic.ini  .env.example
@@ -214,13 +215,13 @@ sanovio/
           client.py  anthropic_client.py  fake_client.py  outputs.py
           pipelines/          # normalize_family, judge, extract_answer, propose_attribute, simulate_supplier
           prompts/            # *_v1.j2
-        jobs/                 # NORMALIZE_ITEM, ASSESS, EXTRACT_ANSWERS, PROPOSE_ATTRIBUTE, SIMULATE_SUPPLIER, REBUILD_PROJECTION
-        cli.py                # seed, create-operator, register-tenant
-      evals/                  # golden.jsonl, run.py
+        jobs/                 # NORMALIZE_ITEM, ASSESS, EXTRACT_ANSWERS, PROPOSE_ATTRIBUTE, REBUILD_PROJECTION
+        evals/                # golden_verdicts.jsonl, golden_extraction.jsonl, verdicts.py, answers.py
+        cli.py                # migrate, seed, create-operator, register-tenant, worker, eval
       tests/
   tools/
-    demo-client/src/demo_client/   # typer + httpx + rich; scenario scripts driving node + hub
-  tests/e2e/                  # starts hub + node(s) in-process, runs scenarios through the demo client
+    demo-client/src/demo_client/   # typer + httpx + rich: node/hub clients, session, scenarios/ (1–4)
+  tests/e2e/                  # hub + node in-process; scenarios 1–4 through the demo client, 6 and 7
   charts/                     # PlantUML sources + rendered SVG/PNG
   .secrets/                   # dev keys from `make keys` (git-ignored)
   var/                        # SQLite files (git-ignored)
@@ -279,7 +280,7 @@ The node has **no job queue** (D53). Until the hub exists, `template_sync` loads
 
 **`packages/llm-client`** — the `LLMClient` protocol with its typed request and call record, the Anthropic adapter (adaptive thinking, effort, structured outputs, prompt caching, one repair retry), `FakeLLM`, per-model prices and the Jinja2 prompt loader. Each service keeps its own prompts and writes the returned call record to its own `llm_calls` table.
 
-**`tools/demo-client`** — one session holding both tokens, silent re-exchange on 401, template sync, one script per scenario. **`tests/e2e`** — hub and node in-process, with a second tenant at the hub.
+**`tools/demo-client`** — one session holding both tokens, silent re-exchange on 401, template sync, one script per scenario. Each scenario returns named checks; `make demo SCENARIO=n` runs it against the live services and `tests/e2e` runs the same code in-process, so the demo is tested. **`tests/e2e`** — hub and node in-process (no network, no threads: the client's wait drains the hub's queue), with a second tenant at the hub. **Evals** live inside each service package (`hospital_node/evals`, `supplier_hub/evals`) so they are typed and tested like the rest; `make eval` runs them against the real API and writes `var/evals/`.
 
 **Enforced boundaries** (import-linter): the node and the hub never import each other; the core imports neither; the node imports no HTTP client; the demo client imports neither app.
 
@@ -435,7 +436,7 @@ Articles in uncovered categories (gloves, masks…) use `generic_consumable` alo
   - A typed value becomes a fact directly.
   - Supplier comment only → `extract_answer` at the hub; unclear → stays UNKNOWN, follow-up next round.
   - Purchaser answers are typed only at the node (no LLM needed; the purchaser picks from the expected answer type).
-  - "Cannot provide" → `UNAVAILABLE` (never asked again).
+  - "Cannot provide" → `UNAVAILABLE` (never asked again) — but only while the supplier side has no value for that attribute. It never replaces one, from an earlier round or from the same batch: it may answer a narrower question about the same attribute (the judge asks whether the cone also meets ISO 80369-7; the supplier listed its standards and cannot say).
   - **Identifier answers** (question whose attribute is an identifier definition): the value is check-digit validated and stored as an identifier-typed fact with `source = SUPPLIER_ANSWER` and its `answer_id`. It feeds `identifier_evidence` and search matching only — never a comparator, an unknown or the judge prompt. An invalid check digit is kept with `checksum_valid = false` and never used. The node mirror is `PUT /articles/{id}/facts/{attribute_key}` with an identifier value (source `PURCHASER_ANSWER`). (D50, D51)
 - **Sources are visible everywhere:** every value returned by either service carries its fact ID, source, quote, author and time. `GET /supplier/catalog/families/{id}` (hub) returns the fact history of a family and its variants; `GET /articles/{id}` (node) the article's.
 
@@ -929,7 +930,7 @@ If the hub token expires mid-flow (401), the client repeats step 0's assertion +
    - Thin vs regular wall (major deviation) + inner diameter UNAVAILABLE → NEEDS_MANUAL_DECISION → manual verdict.
 4. **Unreliable identifiers (node-local):** CSV #6 vs **B. Braun Sterican® 21 G × 1½" (4657527B)**.
    - Article number 4657689 ≠ 4657527B and the GTIN check digit fails → warnings and `data_quality_issues` at the node.
-   - Run twice. With product hints off, nothing identifier-related reaches the hub. With `SHARE_PRODUCT_HINTS=true`, the invalid GTIN is still withheld and the manufacturer article number is sent but matches nothing, so Sterican is found by attributes alone.
+   - Run twice. With product hints off, nothing identifier-related reaches the hub. With `SHARE_PRODUCT_HINTS=true`, the invalid GTIN is still withheld and the manufacturer article number is sent but matches nothing, so Sterican is found by attributes alone. (The hints-on run needs a node restart; `tests/e2e` does it in-process, by hand it is a change in the node's `.env`.)
    - All attributes match; MDR class asked → round 2 EQUIVALENT.
    - The purchaser also asks B. Braun for the **GTIN** (question on the `gtin` identifier definition, origin PURCHASER). The answer is check-digit validated into an identifier fact (`SUPPLIER_ANSWER`); it enters no comparison and changes no verdict, and the proposal row records result `IDENTIFIER`, status `ROUTED`.
    - Re-run with `SHARE_PRODUCT_HINTS=true` **after** that answer: the hospital's own GTIN for art_06 is invalid, so `identifier_evidence` stays `NO_INFORMATION` and the verdict is unchanged — the asymmetry in action. Scenario 1's art_03 (valid GTIN) is used to exercise the `SAME_TRADE_ITEM` short circuit against its own current product: verdict EQUIVALENT with zero judge calls.
@@ -944,7 +945,7 @@ If the hub token expires mid-flow (401), the client repeats step 0's assertion +
    - BD answers "yes" for the whole family.
    - A `ten_spital2` purchaser searches with its own syringe article: Plastipak shows `additional_information.peel_off_label = true`, and its verdicts don't change.
    - The operator approves the attribute as **major** in `syringe_single_use`.
-   - The client syncs the `ten_spital2` node, whose projection now lists `peel_off_label` as unknown. A new `ten_spital2` assessment against Plastipak asks the purchaser, not BD.
+   - The client syncs the `ten_spital2` node, whose projection now lists `peel_off_label` as unknown. A new `ten_spital2` assessment against Plastipak asks the purchaser, not BD. (With one node in e2e, D55, these two checks run on the `ten_ksp` node: after the sync art_03 lists `peel_off_label` as unknown, and a new assessment against Plastipak asks the purchaser, not BD.)
    - The open `ten_ksp` assessment picks the attribute up in its next round; the rounds already judged keep their stored definition (D52).
 
 ## 22. Implementation stages

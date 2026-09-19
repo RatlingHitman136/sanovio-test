@@ -24,44 +24,86 @@ API docs: http://127.0.0.1:8001/docs (node) and http://127.0.0.1:8000/docs (hub)
 
 ## Running the demo
 Fill in the two `.env` files first: `NODE_SEED_PASSWORD` and `HUB_SEED_PASSWORD` (the passwords the
-demo accounts get), plus the hospital's own `ANTHROPIC_API_KEY` in `apps/hospital-node/.env`.
-Without a key set `NORMALIZE_MODE=rules` — the parsers alone then read the article names and
-nothing leaves the machine. The hub runs offline with `LLM_MODE=fake`.
+demo accounts get). Offline, the node reads article names with its parsers (`NORMALIZE_MODE=rules`)
+and the hub answers every model call from scripted fakes (`LLM_MODE=fake`); nothing leaves the
+machine. With keys, see "Running with real models" below.
 
 ```bash
-make seed         # both databases: 10 articles at the node, 6 families / 54 variants at the hub,
-                  # and the node's public keys registered at the hub
-make dev          # hub on :8000, node on :8001
-make demo-node    # in another terminal: login, articles, a requirement, an assertion, the egress log
-make demo-search  # node + hub: a requirement, the token exchange, the candidate search
-make demo-assessment  # scenario 1 end to end: assessment, questions, supplier answers, resolution
+make seed               # both databases: 10 articles at the node, 6 families / 54 variants at
+                        # the hub, and the node's public keys registered at the hub
+make dev                # hub on :8000, node on :8001 (the hub's job worker runs inside it)
+make demo-node          # the standalone node: articles, a requirement, an assertion, egress, 429
+make demo-search        # node + hub: a requirement, the token exchange, the candidate search
+make demo SCENARIO=1    # then 2, 3 and 4: the §21 scenarios, each ending with its checks
 ```
 
-`demo-node` prints exactly what would leave the hospital and keeps asking for requirements until the
-node answers 429. `demo-search` shows the other half: the assertion exchanged for a hub token, then
-BD Plastipak™ and B. Braun Injekt® as candidates while BD Emerald™ is excluded by its Luer cone.
-`demo-assessment` runs the whole loop over HTTP: Injekt® marked as the current product, an assessment
-against Plastipak™, the purchaser's answers returned as a new requirement, BD's answers from the
-development simulator (synthetic datasheets, operators only), round 2 and the resolution; it ends by
-checking that no requirement carried the article's name, brand, price or identifiers. The hub worker
-runs inside `make dev`; `supplier-hub worker` runs it on its own.
+| Scenario | What happens |
+|---|---|
+| 1 · full loop | art_03 (10 ml Luer-Lock syringe): search, Injekt® marked as the current product, second search, assessment against BD Plastipak™, the purchaser's answers returned as a new requirement, BD's answers, round 2 EQUIVALENT_WITH_DEVIATIONS, resolved; the egress log and a leak check prove no name, brand, price or identifier left the node |
+| 2 · early stop | the search leaves BD Emerald™ out (Luer, not Luer-Lock); an assessment opened anyway is NOT_EQUIVALENT in round 1 with no questions |
+| 3 · manual decision | art_06 (21 G needle) against BD Microlance™: the purchaser answers the wall type, BD cannot give the inner diameter, the loop stops (BLOCKING_UNAVAILABLE) and the purchaser decides |
+| 4 · unreliable identifiers | art_06 against B. Braun Sterican®: the node flags the article's broken GTIN/EAN, nothing identifier-like leaves it, the purchaser asks for B. Braun's GTIN (stored as an identifier, not compared), round 2 EQUIVALENT |
+
+Supplier answers come from the hub's development simulator (`POST /dev/assessments/{id}/simulate-supplier`,
+operators only, synthetic datasheets). The scenarios tell a first encounter: run them after
+`make seed`, in order; a replay on the same data asks less, because both services remember.
+
+## Running with real models
+Put `ANTHROPIC_API_KEY` in both `.env` files (the hospital's key at the node, Sanovio's at the hub),
+set `NORMALIZE_MODE=llm` at the node and `LLM_MODE=anthropic` at the hub, then `make seed`, `make dev`
+and `make demo SCENARIO=1..4` as above. Every call is logged with tokens and cost in each service's
+`llm_calls` table; the key itself is never stored or logged.
+
+## Evals
+```bash
+make eval                 # real API: model quality on hand-labelled data, results in var/evals/
+EVAL_LLM=fake make eval   # the same harness offline (node parsers only, hub scripted fakes)
+```
+- **Node:** normalization of the 10 demo names against `hospital_node/evals/golden_extraction.yaml`,
+  once with the parsers alone and once with the model plus parsers (target ≥90%).
+- **Hub:** round-1 verdicts on 13 labelled article/variant pairs (target ≥85%), every critical gap
+  turned into a question (100%), the judge on semantic attributes, and `extract_answer` on 10 German
+  supplier comments. Cost and latency per model are reported for every run.
+
+## Thresholds
+| Setting | Default | Where |
+|---|---|---|
+| Hub assertion lifetime | 300 s, ±60 s clock skew | node signs, hub checks (`ASSERTION_LEEWAY_S`) |
+| Exchanged hub session | 30 min, renewed silently by the client | hub `EXCHANGE_TTL_MINUTES` |
+| Node and supplier logins | 8 h | `TOKEN_TTL_HOURS` |
+| Requirements per purchaser | 120 / hour, alert at 80% | node `REQUIREMENT_RATE_LIMIT_PER_HOUR` |
+| Assertions per purchaser | 30 / hour | node `ASSERTION_RATE_LIMIT_PER_HOUR` |
+| Daily egress alert | 300 objects per user | node `EGRESS_DAILY_ALERT_PER_USER` |
+| Rounds per assessment | 3 (an extra round adds one) | hub `MAX_ROUNDS` |
+| Job retries | 3, with growing delay; stuck jobs requeued after 10 min | hub queue |
+| CORS | off; named origins only, never `*` | hub `CORS_ORIGINS` |
+
+## Runbook: a new hospital
+1. At the hospital: `uv run --package hospital-node hospital-node keygen --out .secrets/node_<code>_ed25519.pem --kid <code>-<yyyy-mm>`.
+   The private key stays on the node (mode 0600); the command prints the public JWK and its fingerprint.
+2. At the hub, an operator creates the tenant (`POST /admin/tenants`) and registers the public JWK
+   (`POST /admin/tenants/{id}/signing-keys`, or `supplier-hub register-tenant --tenant <code>
+   --jwk-file <file>` on the hub host).
+3. The operator reads the returned fingerprint to the hospital's IT by phone; both must match
+   before the first purchaser signs in.
+4. The purchaser client then exchanges node assertions for hub sessions and syncs the templates.
+
+## Runbook: rotating a node key
+1. Generate the new key with a new `kid` and register it at the hub with `not_before` set to the
+   switch-over time; confirm the fingerprint as above.
+2. At `not_before`, point the node at the new key (`NODE_SIGNING_KEY_FILE`, `NODE_SIGNING_KID`) and
+   restart it.
+3. Revoke the old `kid` (`POST /admin/tenants/{id}/signing-keys/{kid}/revoke`). Every hub session
+   exchanged with it ends at once; purchasers are re-exchanged silently with the new key.
 
 ## Checks
 ```bash
 make lint     # ruff, format check, mypy strict, import boundaries
-make test     # all unit tests
+make test     # every package, both apps, the demo client and the in-process e2e suite
 ```
 
 ## Status
-Stages 0–5 of 7 done: workspace and tooling; the shared core (values, templates, parsers, facts,
-requirement, assertions and comparison); the **hospital node**, which runs standalone — accounts and tokens, the 10 demo articles with their
-facts and projections, normalization (parsers plus one `normalize_article` call at ingestion), the
-current-product link, the requirement allowlist with its egress log and rate limits, and signed hub
-assertions; and the **supplier hub** foundation — supplier and operator logins, tenants with their
-registered node keys and the token exchange, the attribute registry, both catalogs read from the
-client's PDFs, and candidate search; and the **assessment loop** at the hub — the job queue, judgment
-rounds (identifier evidence, comparators, the Opus 5 judge, verdict rules, stop conditions), question
-review, purchaser answers through new requirements, the supplier inbox, answer extraction, resolution,
-and new attributes from free questions (proposal → provisional → operator approval).
-Next: stage 6 (demo scenarios, e2e suite, evals).
-See ARCHITECTURE §22 for the stage plan.
+All seven stages done (ARCHITECTURE §22): the shared core, the standalone **hospital node**, the
+**supplier hub** with its catalogs, search and the full **assessment loop**, and the **demo client**
+with the four scenarios, an in-process end-to-end suite (scenarios 1–4, 6 and 7) and the evals.
+The frontend is the next phase (§20).

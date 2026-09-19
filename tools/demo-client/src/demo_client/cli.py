@@ -1,6 +1,5 @@
 """Command line entry point: `demo-client <command>`."""
 
-import json
 from typing import Annotated, Any
 
 import httpx
@@ -11,6 +10,9 @@ from rich.table import Table
 from demo_client.client import check_health
 from demo_client.hub import HubClient
 from demo_client.node import NodeClient
+from demo_client.scenarios import SCENARIOS
+from demo_client.scenarios.common import Actors, ScenarioResult
+from demo_client.session import Session
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -142,8 +144,10 @@ def demo_search(
         console.print("[red]set NODE_SEED_PASSWORD (the password `make seed` used)[/red]")
         raise typer.Exit(code=1)
     with httpx.Client(timeout=30.0) as http:
-        node = NodeClient(http, node_url)
-        node.login(email, password)
+        session = Session(NodeClient(http, node_url), HubClient(http, hub_url))
+        exchanged = session.sign_in(email, password)
+        console.print(f"exchanged at the hub as [bold]{exchanged['tenant_alias']}[/bold]")
+        node, hub = session.node, session.hub
         article = next(a for a in node.articles() if a["internal_id"] == internal_id)
         issued = node.requirement(article["id"])
         requirement = issued["requirement"]
@@ -152,10 +156,6 @@ def demo_search(
             f"({len(requirement['attributes'])} attributes, "
             f"{len(requirement['unknown_attributes'])} unknown)"
         )
-
-        hub = HubClient(http, hub_url)
-        exchanged = hub.exchange(node.assertion()["assertion"])
-        console.print(f"exchanged at the hub as [bold]{exchanged['tenant_alias']}[/bold]")
 
         result = hub.search(requirement)
         _print_candidates(console, result)
@@ -167,20 +167,9 @@ def demo_search(
         )
 
 
-# What the purchaser knows about art_03 that its master data does not say (§21, scenario 1).
-PURCHASER_ANSWERS: dict[str, dict[str, Any]] = {
-    "single_use": {"type": "bool", "value": True},
-    "standards": {"type": "list", "value": ["ISO 7886-1"]},
-    "special_scale": {"type": "text", "value": "keine"},
-    "needle_included": {"type": "bool", "value": False},
-    "safety_mechanism": {"type": "bool", "value": False},
-    "pump_compatible": {"type": "bool", "value": False},
-    "light_protected": {"type": "bool", "value": False},
-}
-
-
-@app.command("demo-assessment")
-def demo_assessment(
+@app.command()
+def scenario(
+    number: Annotated[int, typer.Argument(help="Which §21 scenario: 1, 2, 3 or 4.")],
     node_url: Annotated[
         str, typer.Option(help="Hospital node base URL.")
     ] = "http://127.0.0.1:8001",
@@ -199,111 +188,39 @@ def demo_assessment(
         str, typer.Option(envvar="HUB_SEED_PASSWORD", help="Password of the hub demo accounts.")
     ] = "",
 ) -> None:
-    """Scenario 1 over HTTP only: search, current product, assessment, questions, simulated
-    supplier answers, round 2 and the resolution; then what left the hospital."""
+    """Run one §21 scenario over HTTP and check its outcome; exits with 1 if a check fails.
+
+    Run them on freshly seeded data, in order: each tells the story of a first encounter."""
     console = Console()
+    if number not in SCENARIOS:
+        console.print(f"[red]no scenario {number}; choose one of {sorted(SCENARIOS)}[/red]")
+        raise typer.Exit(code=2)
     if not password or not hub_password:
         console.print(
             "[red]set NODE_SEED_PASSWORD and HUB_SEED_PASSWORD (as for `make seed`)[/red]"
         )
         raise typer.Exit(code=1)
-    with httpx.Client(timeout=30.0) as http:
-        node = NodeClient(http, node_url)
-        node.login(email, password)
-        article = next(a for a in node.articles() if a["internal_id"] == "3")
-        hub = HubClient(http, hub_url)
-        hub.exchange(node.assertion()["assertion"])
-        issued: list[dict[str, Any]] = []
-
-        def issue(answered: tuple[str, ...] = ()) -> dict[str, Any]:
-            requirement: dict[str, Any] = node.requirement(article["id"], answered)["requirement"]
-            issued.append(requirement)
-            return requirement
-
-        console.print(f"[bold]1. search[/bold] with {article['name']}")
-        found = hub.search(issue(), limit=50)["candidates"]
-        by_article = {candidate["article_no"]: candidate for candidate in found}
-        injekt, plastipak = by_article["4606728V"], by_article["300912"]
-
-        console.print(f"[bold]2. current product[/bold]: {injekt['display_name']}")
-        node.set_reference(article["id"], hub.variant_attributes(injekt["variant_id"]))
-
-        console.print(f"[bold]3. assessment[/bold] against {plastipak['display_name']}")
-        opened = hub.open_assessment(issue(), plastipak["variant_id"])
-        detail = hub.settled(opened["id"])
-        _print_round(console, detail)
-
-        console.print("[bold]4. questions[/bold]")
-        answered: list[str] = []
-        for question in _drafts(detail, "PURCHASER"):
-            key = question["attribute_key"]
-            if key in PURCHASER_ANSWERS:
-                node.set_fact(article["id"], key, PURCHASER_ANSWERS[key], question["id"])
-                answered.append(question["id"])
-                console.print(f"  purchaser answers {key} at the node")
-            else:
-                hub.withdraw_question(detail["id"], question["id"], detail["version"])
-                console.print(f"  purchaser withdraws {key}")
-            detail = hub.assessment(detail["id"])
-        if answered:
-            hub.add_requirement(detail["id"], issue(tuple(answered)), detail["version"])
-            detail = hub.assessment(detail["id"])
-        # With nothing left for the supplier, the purchaser's answers alone start the next round.
-        if detail["status"] == "NEEDS_QUESTION_REVIEW":
-            for question in _drafts(detail, "SUPPLIER"):
-                console.print(f"  to the supplier: {question['text']}")
-            status = hub.send_questions(detail["id"], detail["version"])["status"]
-            console.print(f"  sent → {status}")
-            if status == "AWAITING_ANSWERS":
-                console.print("[bold]5. the supplier answers[/bold] (development simulator)")
-                operator = HubClient(http, hub_url)
-                operator.login(operator_email, hub_password)
-                operator.simulate_supplier(detail["id"])
-        detail = hub.settled(detail["id"])
-        _print_round(console, detail)
-
-        if detail["status"] == "PROPOSED_RESOLUTION":
-            detail = hub.resolve(detail["id"], detail["proposed_verdict"], detail["version"])
-        console.print(f"[bold]6. result[/bold]: {detail['status']} · {detail['final_verdict']}")
-
-        _print_leak_check(console, node.article(article["id"]), issued)
-        admin = NodeClient(http, node_url)
-        admin.login(admin_email, password)
-        log = admin.egress()
-        console.print(f"egress log: {len(log['entries'])} entries, alerts: {log['alerts']}")
-
-
-def _drafts(detail: dict[str, Any], addressee: str) -> list[dict[str, Any]]:
-    return [
-        q for q in detail["questions"] if q["addressee"] == addressee and q["status"] == "DRAFT"
-    ]
-
-
-def _print_round(console: Console, detail: dict[str, Any]) -> None:
-    last = detail["rounds"][-1]
-    console.print(
-        f"  round {last['round_no']}: rules {last['rule_verdict']}, judge "
-        f"{last['llm_verdict'] or '-'} → {detail['status']}"
-    )
-    if last["rationale"]:
-        console.print(f"  [dim]{last['rationale']}[/dim]")
-
-
-def _print_leak_check(
-    console: Console, article: dict[str, Any], issued: list[dict[str, Any]]
-) -> None:
-    """Every requirement that left, searched for what must never leave (§16)."""
-    secrets = [article["name"], article["brand"], article["target_net_price"]]
-    secrets += [identifier["value"] for identifier in article["identifiers"]]
-    wire = json.dumps(issued, ensure_ascii=False)
-    leaked = [secret for secret in secrets if secret and secret in wire]
-    if leaked:
-        console.print(f"[red]left the hospital: {leaked}[/red]")
+    with httpx.Client(timeout=120.0) as http:
+        purchaser = Session(NodeClient(http, node_url), HubClient(http, hub_url))
+        purchaser.sign_in(email, password)
+        operator = HubClient(http, hub_url)
+        operator.login(operator_email, hub_password)
+        node_admin = NodeClient(http, node_url)
+        node_admin.login(admin_email, password)
+        result = SCENARIOS[number](Actors(purchaser, operator, node_admin, console))
+    print_checks(console, result)
+    if not result.ok:
+        # Both services remember answers and current products: a replay asks less.
+        console.print("The checks describe a first run: `make seed`, then scenarios 1 → 4.")
         raise typer.Exit(code=1)
-    console.print(
-        f"{len(issued)} requirements left the hospital; none contains the name, brand, "
-        "price or an identifier"
-    )
+
+
+def print_checks(console: Console, result: ScenarioResult) -> None:
+    table = Table("", "check", "detail", title=result.title)
+    for check in result.checks:
+        mark = "[green]✓[/green]" if check.ok else "[red]✗[/red]"
+        table.add_row(mark, check.name, check.detail)
+    console.print(table)
 
 
 def _print_candidates(console: Console, result: dict[str, Any]) -> None:

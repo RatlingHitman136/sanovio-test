@@ -291,7 +291,7 @@ entity events {
 entity jobs {
   * id : uuid <<PK>>
   --
-  * kind : text <<CHECK NORMALIZE_ITEM|ASSESS|EXTRACT_ANSWERS|\nPROPOSE_ATTRIBUTE|SIMULATE_SUPPLIER|REBUILD_PROJECTION>>
+  * kind : text <<CHECK NORMALIZE_ITEM|ASSESS|EXTRACT_ANSWERS|\nPROPOSE_ATTRIBUTE|REBUILD_PROJECTION>>
   * payload : jsonb
   dedupe_key : text <<UNIQUE>>
   * status : text

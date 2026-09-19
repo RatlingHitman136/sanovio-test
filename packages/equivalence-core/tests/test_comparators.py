@@ -213,6 +213,17 @@ def test_includes_lists(syringe: TemplateDefinition) -> None:
     assert partial.detail is not None and "ISO 80369-7" in partial.detail
 
 
+def test_includes_reads_adoptions_and_editions_as_the_same_standard(
+    syringe: TemplateDefinition,
+) -> None:
+    """Found in the real-key run: the catalog said "DIN EN ISO 7864", the hospital "ISO 7864"."""
+    ours = ListValue(value=("ISO 7886-1",))
+
+    judgment = _one(syringe, "standards", ours, ListValue(value=("DIN EN ISO 7886-1:2018",)))
+
+    assert judgment.status is ComparisonStatus.MATCH
+
+
 @pytest.mark.parametrize(
     ("ours", "theirs", "status"),
     [

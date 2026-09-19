@@ -15,7 +15,9 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from equivalence_core.identifiers import IdentifierScheme
 from equivalence_core.templates import TemplateDefinition
+from equivalence_core.values import IdentifierValue, TypedValue
 from llm_client import LLMClient
 from service_kit.errors import Conflict
 from supplier_hub.core.settings import HubSettings
@@ -26,6 +28,7 @@ from supplier_hub.models import Assessment, User
 from supplier_hub.models.assessments import AssessmentStatus, QuestionStatus
 from supplier_hub.models.identity import UserRole
 from supplier_hub.services import attribute_registry, llm_calls, supplier_inbox, templates
+from supplier_hub.services.questions import IDENTIFIER_KEYS
 from supplier_hub.services.supplier_inbox import DraftAnswer
 
 _NOT_SPECIFIED = "Nicht spezifiziert."
@@ -55,7 +58,12 @@ def simulate(
     simulation = simulate_supplier(
         llm,
         questions=[
-            {"question_id": str(q.id), "attribute_key": q.attribute_key, "text": q.text}
+            {
+                "question_id": str(q.id),
+                "attribute_key": q.attribute_key,
+                "text": q.text,
+                "expected_answer": q.expected_answer,
+            }
             for q in questions
         ],
         datasheet=datasheets().get(assessment.variant.family.name, {}),
@@ -80,14 +88,12 @@ def _draft(
     key: str | None,
     answer: SimulatedAnswer | None,
 ) -> DraftAnswer:
-    """A value the definition cannot type is dropped; its comment, if any, still goes in."""
-    definition = attribute_registry.definition_for(session, template, key or "")
-    value = (
-        typed_value(definition, answer.value, answer.unit)
-        if answer is not None and definition is not None
-        else None
-    )
+    """A value the definition cannot type goes in as a comment, the way a supplier's own
+    wording would, so `extract_answer` reads it; the supplier did answer."""
+    value = None if answer is None else _value(session, template, key or "", answer)
     comment = answer.comment if answer is not None else None
+    if value is None and answer is not None and answer.value is not None and not comment:
+        comment = str(answer.value)
     if answer is None or answer.cannot_provide or (value is None and not comment):
         return DraftAnswer(question_id, None, _NOT_SPECIFIED, True, False)
     return DraftAnswer(
@@ -97,6 +103,20 @@ def _draft(
         False,
         answer.applies_to_family,
     )
+
+
+def _value(
+    session: Session, template: TemplateDefinition, key: str, answer: SimulatedAnswer
+) -> TypedValue | None:
+    if key in IDENTIFIER_KEYS:
+        # The inbox normalizes it and computes the check digit, as for a real supplier (D50).
+        if not isinstance(answer.value, str):
+            return None
+        return IdentifierValue(
+            scheme=IdentifierScheme(key.upper()), value=answer.value, checksum_valid=None
+        )
+    definition = attribute_registry.definition_for(session, template, key)
+    return None if definition is None else typed_value(definition, answer.value, answer.unit)
 
 
 def _supplier_user(session: Session, assessment: Assessment) -> User:

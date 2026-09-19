@@ -1,6 +1,8 @@
 """Command line entry point: `hospital-node <command>`."""
 
 import json
+import tempfile
+from dataclasses import asdict
 from pathlib import Path
 from typing import Annotated, NoReturn
 
@@ -15,7 +17,9 @@ from equivalence_core.exchange.keys import (
 )
 from hospital_node.core.migrations import upgrade_to_head
 from hospital_node.core.settings import NodeSettings
+from hospital_node.evals import extraction
 from hospital_node.llm.factory import make_llm
+from hospital_node.llm.normalize_article import PROMPT_VERSION
 from hospital_node.models.users import Role
 from hospital_node.services.normalization import NormalizationUnavailable
 from hospital_node.services.seed import DATASETS, SeedError
@@ -120,6 +124,64 @@ def create_user(
         _fail(str(exc))
     finally:
         engine.dispose()
+
+
+@app.command("eval")
+def run_eval(
+    mode: Annotated[
+        str, typer.Option(help="rules, llm (needs the hospital's key) or both.")
+    ] = "both",
+    out: Annotated[Path, typer.Option(help="Where the result file goes.")] = Path("var/evals"),
+) -> None:
+    """Score normalization of the 10 demo names against the golden set (§9, target ≥90%)."""
+    if mode not in ("rules", "llm", "both"):
+        _fail("--mode must be rules, llm or both")
+    settings = NodeSettings()
+    modes: list[extraction.Mode] = ["rules", "llm"] if mode == "both" else [mode]  # type: ignore[list-item]
+    llm = llm_factory(settings.model_copy(update={"normalize_mode": "llm"}))
+    if "llm" in modes and llm is None:
+        _fail("the llm mode needs ANTHROPIC_API_KEY in the node's .env (or run --mode rules)")
+    now = utc_now()
+    out.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory() as workdir:
+        results = [
+            extraction.run(
+                m,
+                llm=llm if m == "llm" else None,
+                settings=settings,
+                workdir=Path(workdir),
+                now=now,
+            )
+            for m in modes
+        ]
+    report = {
+        "service": "hospital-node",
+        "created_at": now.isoformat(),
+        "model": settings.normalize_model,
+        "prompt_version": PROMPT_VERSION,
+        "target": extraction.TARGET,
+        "runs": [
+            {
+                "mode": r.mode,
+                "accuracy": round(r.accuracy, 4),
+                "passed": r.passed,
+                "extras": r.extras,
+                "articles": [asdict(a) for a in r.articles],
+                "usage": [asdict(u) for u in r.usage],
+            }
+            for r in results
+        ],
+    }
+    path = out / f"{now:%Y%m%d-%H%M%S}-node-extraction.json"
+    path.write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
+    for r in results:
+        misses = {a.internal_id: a.missed for a in r.articles if a.missed or not a.category_ok}
+        typer.echo(f"{r.mode}: {r.accuracy:.0%} (target {extraction.TARGET:.0%}), misses {misses}")
+        for u in r.usage:
+            typer.echo(f"  {u.model}: {u.calls} calls, ${u.cost_usd:.4f}, {u.mean_latency_ms} ms")
+    typer.echo(f"written to {path}")
+    if not all(r.passed for r in results):
+        raise typer.Exit(code=1)
 
 
 def _fail(message: str) -> NoReturn:

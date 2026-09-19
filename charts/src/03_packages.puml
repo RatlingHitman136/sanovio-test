@@ -33,7 +33,7 @@ frame "sanovio/ (uv workspace root: pyproject.toml, uv.lock)" {
     package "models / schemas" as node_models
     package "services\n(articles, facts, normalization,\nprojection, requirement_builder,\nassertion_signer, reference_link,\negress_log, llm_calls, seed,\nauth, user_directory, template_sync)" as node_services
     package "llm\n(normalize_article,\ningestion only)" as node_llm
-    package "alembic, seed data, tests" as node_misc
+    package "alembic, seed data,\nevals, tests" as node_misc
   }
 
   frame "apps/supplier-hub" #E8F5E9 {
@@ -41,7 +41,7 @@ frame "sanovio/ (uv workspace root: pyproject.toml, uv.lock)" {
     package "api/v1" as hub_api
     package "core\n(settings, db, migrations)" as hub_core
     package "models / schemas" as hub_models
-    package "services\n(auth, tenants_keys, token_exchange,\nrequirement_intake, candidate_search,\ncatalog, normalization, projection,\nattribute_registry, templates, seed,\nassessment, questions, enrichment,\nresolution)" as hub_services
+    package "services\n(auth, tenants_keys, token_exchange,\nrequirement_intake, candidate_search,\ncatalog, normalization, projection,\nattribute_registry, templates, seed,\nassessment, assess, questions,\nsupplier_inbox, enrichment, resolution,\nattribute_proposals, supplier_simulator)" as hub_services
     package "domain\n(state_machine,\nstop_conditions)" as hub_domain
     package "llm\n(client, pipelines, prompts)" as hub_llm
     package "jobs" as hub_jobs
@@ -49,7 +49,7 @@ frame "sanovio/ (uv workspace root: pyproject.toml, uv.lock)" {
   }
 
   frame "tools/demo-client" {
-    package "demo_client\n(typer + httpx + rich)" as demo_client
+    package "demo_client\n(typer + httpx + rich;\nclients, session, scenarios 1–4)" as demo_client
   }
   package "tests/e2e" as e2e
   package "http" as http
@@ -107,7 +107,9 @@ core_identifiers ..> core_primitives
 
 demo_client ..> node_api : HTTP only
 demo_client ..> hub_api : HTTP only
-e2e ..> demo_client
+e2e ..> demo_client : runs the scenarios
+e2e ..> node_main : in-process app
+e2e ..> hub_main : in-process app
 http ..> node_api : HTTP
 http ..> hub_api : HTTP
 
@@ -123,6 +125,9 @@ note bottom of core_exchange
   - the apps reach the Anthropic SDK only through llm_client
   - hospital_node imports no HTTP client (httpx, requests)
   - demo_client imports neither app
+  tests/e2e is the one place that imports all three:
+  it starts both apps in-process and drives them
+  through the demo client, never around it
 end note
 
 @enduml

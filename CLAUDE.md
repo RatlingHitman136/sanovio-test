@@ -32,14 +32,14 @@ Working rules and project map for the Article Equivalence Loop prototype. The de
 
 ## Project structure
 
-Status: ✅ exists (stages 0–5 done) · ⏳ filled by the stage in brackets.
+Status: ✅ exists (stages 0–6 done).
 
 ```
 sanovio/
 ├── CLAUDE.md                     ✅ this file
 ├── README.md                     ✅ what the project is, how to run it
 ├── Makefile                      ✅ setup, keys, seed, dev, dev-node, dev-hub, demo-node, demo-search,
-│                                    demo-assessment, lint, format, test, charts
+│                                    demo, eval, lint, format, test, charts
 ├── pyproject.toml                ✅ uv workspace root, dev tools, ruff / mypy / pytest / import-linter config
 ├── uv.lock  .python-version      ✅
 ├── architecture/                 ✅ ARCHITECTURE.md (design), data-model.md (tables),
@@ -47,8 +47,10 @@ sanovio/
 ├── charts/                       ✅ PlantUML sources (src/), renders (svg/, png/), render.sh
 ├── data_examples/                ✅ client sample files (never committed)
 ├── packages/
-│   ├── llm-client/               ✅ LLMClient protocol, Anthropic adapter, FakeLLM, prompts, prices
-│   ├── service-kit/              ✅ db base, clock, argon2id + bearer tokens, error → HTTP mapping
+│   ├── llm-client/               ✅ LLMClient protocol, Anthropic adapter, FakeLLM, prompts, prices,
+│   │                                RecordingLLM + usage summary (evals)
+│   ├── service-kit/              ✅ db base, clock, argon2id + bearer tokens, error → HTTP mapping,
+│   │                                ERROR_RESPONSES for OpenAPI
 │   └── equivalence-core/         shared library, plain Python
 │       └── src/equivalence_core/
 │           ├── values.py         ✅ typed value shapes (AttributeValue excludes identifiers)
@@ -69,7 +71,7 @@ sanovio/
 │   ├── hospital-node/            one per hospital, port 8001
 │   │   └── src/hospital_node/
 │   │       ├── main.py           ✅ app factory + lifespan (loads secrets, normalizes changed articles)
-│   │       ├── cli.py            ✅ keygen, migrate, seed, create-user
+│   │       ├── cli.py            ✅ keygen, migrate, seed, create-user, eval
 │   │       ├── alembic/ seed/    ✅ migrations and the demo datasets, shipped in the package
 │   │       ├── core/             ✅ settings, secrets, db, clock, security, migrations
 │   │       ├── api/v1/           ✅ health, auth, users, articles, reference, requirements,
@@ -78,11 +80,12 @@ sanovio/
 │   │       ├── services/         ✅ articles, facts, normalization, projection, requirement_builder,
 │   │       │                        egress_log, llm_calls, assertion_signer, reference_link, auth,
 │   │       │                        user_directory, template_sync, seed
-│   │       └── llm/              ✅ normalize_article pipeline + prompt (ingestion only)
+│   │       ├── llm/              ✅ normalize_article pipeline + prompt (ingestion only)
+│   │       └── evals/            ✅ golden_extraction.yaml, extraction (rules vs llm + parsers)
 │   └── supplier-hub/             central, port 8000
 │       └── src/supplier_hub/
 │           ├── main.py           ✅ app factory
-│           ├── cli.py            ✅ migrate, seed, create-operator, register-tenant, worker
+│           ├── cli.py            ✅ migrate, seed, create-operator, register-tenant, worker, eval
 │           ├── alembic/ seed/    ✅ migrations, both catalogs, scripted fake readings,
 │           │                        synthetic hidden datasheets (dev simulator)
 │           ├── core/             ✅ settings, db, migrations
@@ -97,10 +100,13 @@ sanovio/
 │           ├── domain/           ✅ state_machine, stop_conditions
 │           ├── llm/              ✅ normalize_item, judge, extract_answer, propose_attribute,
 │           │                        simulate_supplier + prompts; fakes (scripted, all purposes)
-│           └── jobs/             ✅ queue, worker, handlers
+│           ├── jobs/             ✅ queue, worker, handlers
+│           └── evals/            ✅ golden verdicts + comments, verdicts, answers
 ├── tools/
-│   └── demo-client/              ✅ health, node-demo, demo-search, demo-assessment · ⏳ scenario scripts [6]
-├── tests/e2e/                    ⏳ [6]
+│   └── demo-client/              ✅ api (shared client, ApiError), node, hub, session (401 re-exchange,
+│                                    template sync), scenarios/ 1–4, cli: health, node-demo, demo-search,
+│                                    scenario
+├── tests/e2e/                    ✅ both apps in-process: scenarios 1–4, isolation (6), registry (7)
 ├── .secrets/                     created by `make keys` (git-ignored)
 └── var/                          SQLite files (git-ignored)
 ```
@@ -116,9 +122,10 @@ Each workspace member keeps its tests in its own `tests/` directory.
 | `make seed` | seed node and hub and register the node keys (`make seed-node` / `make seed-hub` for one); needs `NODE_SEED_PASSWORD` and `HUB_SEED_PASSWORD` |
 | `make demo-node` | walk through the standalone node (needs `make dev-node` running) |
 | `make demo-search` | node + hub: requirement, token exchange, candidate search (needs `make dev`) |
-| `make demo-assessment` | scenario 1 over HTTP: current product, assessment, questions, simulated supplier answers, resolution, leak check (needs `make dev`; `NODE_SEED_PASSWORD` and `HUB_SEED_PASSWORD`) |
+| `make demo SCENARIO=n` | §21 scenario 1–4 over HTTP, ending with its checks (needs `make dev`; run after `make seed`, in order) |
+| `make eval` | model quality on hand-labelled data, results in `var/evals/` (real API; `EVAL_LLM=fake` runs it offline) |
 | `make dev` | hub on :8000 and node on :8001 (`make dev-hub`, `make dev-node` for one) |
 | `make lint` | ruff, format check, mypy strict, import contracts |
 | `make format` | ruff format + auto-fixable lint |
-| `make test` | pytest for every workspace member |
+| `make test` | pytest for every workspace member and `tests/e2e` |
 | `make charts` | re-render the UML diagrams |

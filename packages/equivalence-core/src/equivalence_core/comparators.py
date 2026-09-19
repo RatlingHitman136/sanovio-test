@@ -13,6 +13,7 @@ from pydantic import BaseModel, ConfigDict, model_validator
 
 from equivalence_core.exchange.requirement import AttributeOrigin, RequirementPayload
 from equivalence_core.facts import ResolvedRecord, Scope
+from equivalence_core.parsers.standards import canonical_standard
 from equivalence_core.templates.model import (
     ComparisonRule,
     Criticality,
@@ -265,7 +266,8 @@ def _includes(
 ) -> tuple[ComparisonStatus, str | None]:
     if not isinstance(hospital, ListValue) or not isinstance(supplier, ListValue):
         return ComparisonStatus.NEEDS_JUDGE, "not a list on both sides"
-    missing = [entry for entry in hospital.value if entry not in supplier.value]
+    offered = {canonical_standard(entry) for entry in supplier.value}
+    missing = [entry for entry in hospital.value if canonical_standard(entry) not in offered]
     if not missing:
         return ComparisonStatus.MATCH, None
     return ComparisonStatus.MISMATCH, f"missing: {', '.join(missing)}"

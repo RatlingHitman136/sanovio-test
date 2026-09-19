@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from llm_client import LLMClient
 from service_kit.clock import Clock, utc_now
 from service_kit.db import make_engine, make_session_factory
-from service_kit.http_errors import install_error_handlers
+from service_kit.http_errors import ERROR_RESPONSES, install_error_handlers
 from supplier_hub.api.deps import HubContext
 from supplier_hub.api.v1 import (
     admin,
@@ -75,7 +75,7 @@ def create_app(
         )
     install_error_handlers(app)
 
-    api = APIRouter(prefix="/api/v1")
+    api = APIRouter(prefix="/api/v1", responses=ERROR_RESPONSES)
     for module in (health, auth, admin, templates, catalog, search, assessments, supplier):
         api.include_router(module.router)
     if resolved.app_env == "dev":

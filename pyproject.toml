@@ -34,7 +34,7 @@ select = ["E", "F", "I", "B", "UP", "SIM"]
 [tool.ruff.lint.isort]
 known-first-party = [
     "equivalence_core", "llm_client", "service_kit", "hospital_node", "supplier_hub", "demo_client",
-    "node_fixtures", "hub_fixtures",
+    "node_fixtures", "hub_fixtures", "e2e_system",
 ]
 
 [tool.mypy]
@@ -52,7 +52,7 @@ files = [
 [tool.pytest.ini_options]
 addopts = "--import-mode=importlib"
 # Directories whose uniquely named helper modules the tests import.
-pythonpath = ["apps/hospital-node/tests", "apps/supplier-hub/tests"]
+pythonpath = ["apps/hospital-node/tests", "apps/supplier-hub/tests", "tests/e2e"]
 filterwarnings = [
     # Raised inside starlette's own test client (starlette 1.6 / anyio 4.15); nothing to fix on our side.
     "ignore:The anyio.abc.BlockingPortal alias is deprecated:DeprecationWarning:starlette.testclient",
@@ -64,6 +64,7 @@ testpaths = [
     "apps/hospital-node/tests",
     "apps/supplier-hub/tests",
     "tools/demo-client/tests",
+    "tests/e2e",
 ]
 
 [tool.importlinter]

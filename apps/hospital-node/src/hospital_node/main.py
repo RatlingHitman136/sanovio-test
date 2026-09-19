@@ -27,7 +27,7 @@ from hospital_node.services import normalization, template_sync
 from llm_client import LLMClient
 from service_kit.clock import Clock, utc_now
 from service_kit.db import make_engine, make_session_factory
-from service_kit.http_errors import install_error_handlers
+from service_kit.http_errors import ERROR_RESPONSES, install_error_handlers
 
 log = logging.getLogger(__name__)
 
@@ -59,7 +59,7 @@ def create_app(
     app.state.node = context
     install_error_handlers(app)
 
-    api = APIRouter(prefix="/api/v1")
+    api = APIRouter(prefix="/api/v1", responses=ERROR_RESPONSES)
     for module in (
         health,
         auth,

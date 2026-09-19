@@ -51,6 +51,9 @@ class ProductFamily(Base):
     content_hash: Mapped[str] = mapped_column(String(64))
     normalized_hash: Mapped[str | None] = mapped_column(String(64))
     raw: Mapped[dict[str, Any]]
+    # NULL: loaded from a printed catalog; else the supplier user who entered it (D59).
+    created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+    updated_at: Mapped[datetime]
 
     supplier: Mapped[Organization] = relationship()
     variants: Mapped[list[ProductVariant]] = relationship(back_populates="family")
@@ -71,8 +74,11 @@ class ProductVariant(Base):
     order_units_per_shipping_unit: Mapped[int | None]
     source_row: Mapped[dict[str, Any]]
     source_page: Mapped[int | None]
+    # A retired article leaves search and new assessments; open ones keep it (§9).
     is_active: Mapped[bool] = mapped_column(default=True)
     content_hash: Mapped[str] = mapped_column(String(64))
+    created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+    updated_at: Mapped[datetime]
 
     family: Mapped[ProductFamily] = relationship(back_populates="variants")
     supplier: Mapped[Organization] = relationship()

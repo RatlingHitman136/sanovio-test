@@ -338,12 +338,14 @@ Node settings (not tables):
 | name | text | NO | family title as printed |
 | product_type | text | YES | subtitle as printed |
 | category_code | text | YES | |
-| category_source | text | YES | CHECK `LLM_SUGGESTED`, `SUPPLIER` |
+| category_source | text | YES | CHECK `LLM_SUGGESTED`, `SUPPLIER`; `SUPPLIER` (stage 10) when the supplier chose the category, which a reading never overrides |
 | category_set_by / category_set_at | uuid / timestamptz | YES | |
 | description / properties_text | text | YES | as printed |
 | source_document / source_page | text / integer | YES | |
 | content_hash / normalized_hash | char(64) | NO / YES | |
-| raw | jsonb | NO | |
+| raw | jsonb | NO | the entry as printed or as entered; a supplier's text edit rewrites it and `content_hash`, so the family is read again |
+| created_by | uuid | YES | FK users; NULL = loaded from a printed catalog, else the supplier user who entered it (stage 10, D59) |
+| updated_at | timestamptz | NO | |
 
 | id | supplier_id | manufacturer | brand_name | name | product_type | category_code | properties_text (excerpt) | source_document | source_page |
 |---|---|---|---|---|---|---|---|---|---|
@@ -364,8 +366,10 @@ Node settings (not tables):
 | units_per_order_unit / order_units_per_shipping_unit | integer | YES | |
 | source_row | jsonb | NO | table row as printed |
 | source_page | integer | YES | |
-| is_active | boolean | NO | |
+| is_active | boolean | NO | false = retired by its supplier (stage 10): out of search and new assessments; open assessments keep it; can be reactivated; never deleted |
 | content_hash | char(64) | NO | |
+| created_by | uuid | YES | FK users; NULL = printed row, else entered by the supplier (its `source_row` holds `Art.-Nr.`, `Größe`, `GTIN`, `PZN` as entered) |
+| updated_at | timestamptz | NO | |
 
 | id | family_id | article_no | label | order_unit | units_per_order_unit | order_units_per_shipping_unit | source_page |
 |---|---|---|---|---|---|---|---|

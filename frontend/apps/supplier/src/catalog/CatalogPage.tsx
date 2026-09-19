@@ -1,4 +1,5 @@
 import {
+  Button,
   Card,
   CardTitle,
   Empty,
@@ -10,13 +11,21 @@ import {
   formatValue,
 } from "@sanovio/ui";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router";
 
 import { useSession } from "../sessionContext";
+import { FamilyDialog } from "./FamilyForms";
+import { useFamilySaved } from "./useFamilySaved";
 
 /** Our own families and variants with the values the hub holds, including answered ones. */
 export function CatalogPage() {
-  const { session } = useSession();
+  const { session, me } = useSession();
+  const navigate = useNavigate();
+  const [creating, setCreating] = useState(false);
+  const created = useFamilySaved(() => {
+    setCreating(false);
+  });
   const catalog = useQuery({
     queryKey: ["catalog"],
     queryFn: () => session.call((hub) => hub.GET("/api/v1/supplier/catalog")),
@@ -24,7 +33,27 @@ export function CatalogPage() {
   if (catalog.isPending) return <Spinner />;
   return (
     <>
-      <PageHeader title="Catalog" />
+      <PageHeader title="Catalog">
+        <Button
+          onClick={() => {
+            setCreating(true);
+          }}
+        >
+          New family
+        </Button>
+      </PageHeader>
+      {creating && (
+        <FamilyDialog
+          manufacturer={me.organization}
+          onSaved={(family) => {
+            created(family);
+            void navigate(`/catalog/${family.id}`);
+          }}
+          onClose={() => {
+            setCreating(false);
+          }}
+        />
+      )}
       {!catalog.data?.length ? (
         <Empty>No products.</Empty>
       ) : (

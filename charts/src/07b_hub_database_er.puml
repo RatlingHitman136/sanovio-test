@@ -113,6 +113,7 @@ entity product_families {
   * content_hash : char(64)
   normalized_hash : char(64)
   * raw : jsonb
+  created_by : uuid <<FK users>>
   * created_at : timestamptz
   * updated_at : timestamptz
 }
@@ -131,6 +132,7 @@ entity product_variants {
   source_page : integer
   * is_active : boolean
   * content_hash : char(64)
+  created_by : uuid <<FK users>>
   * created_at : timestamptz
   * updated_at : timestamptz
   ..
@@ -426,6 +428,8 @@ questions ||--o| answers
 assessments ||--o{ events
 assessments |o--o{ llm_calls
 users ||--o{ operator_actions : operator_id
+users |o--o{ product_families : created_by
+users |o--o{ product_variants : created_by
 
 note bottom of jobs
   payload references ids (no foreign keys).

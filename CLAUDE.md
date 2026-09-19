@@ -32,7 +32,7 @@ Working rules and project map for the Article Equivalence Loop prototype. The de
 
 ## Project structure
 
-Status: ✅ exists (stages 0–9 done).
+Status: ✅ exists (stages 0–10 done).
 
 ```
 sanovio/
@@ -99,7 +99,7 @@ sanovio/
 │           │                        requirement_intake, candidate_search, seed, assessment, assess,
 │           │                        questions, supplier_inbox, enrichment, resolution,
 │           │                        attribute_proposals, supplier_simulator, supplier_catalog,
-│           │                        accounts, operations, operator_audit
+│           │                        supplier_products, accounts, operations, operator_audit
 │           ├── domain/           ✅ state_machine, stop_conditions
 │           ├── llm/              ✅ normalize_item, judge, extract_answer, propose_attribute,
 │           │                        simulate_supplier, compare_text + prompts; fakes (scripted)
@@ -120,10 +120,12 @@ sanovio/
 │   ├── apps/purchaser/           ✅ served by the node: assessments, articles, search, current
 │   │                                product, assessment detail with questions both ways
 │   ├── apps/supplier/            ✅ served by the hub, routed by role: supplier pages (inbox, answer
-│   │                                form, simulator, catalog with family pages) and operator/
+│   │                                form, simulator, catalog: new family, family pages with values,
+│   │                                edit family, add/retire variants) and operator/
 │   │                                console (curation, attributes, templates, hospitals, accounts,
 │   │                                catalog, jobs, LLM usage, audit)
-│   └── e2e/                      ✅ Playwright: scenario 1 across both apps, operator console
+│   └── e2e/                      ✅ Playwright: scenario 1 across both apps, operator console,
+│                                    supplier catalog
 ├── .secrets/                     created by `make keys` (git-ignored)
 └── var/                          SQLite files (git-ignored)
 ```

@@ -6,7 +6,13 @@ type Family = HubSchemas["schemas"]["SupplierFamilyDetail"];
 export const family: Family = {
   id: "fam-1",
   name: "BD Plastipak™ Luer-Lok™",
+  manufacturer: "BD",
+  brand_name: "BD Plastipak™",
+  product_type: "Einmalspritze, dreiteilig",
+  description: "Luer-Lok-Ansatz, zentrisch.",
+  properties_text: null,
   category_code: "syringe_single_use",
+  reading: false,
   attributes: [
     {
       key: "dehp_free",
@@ -39,6 +45,11 @@ export const family: Family = {
       variant_id: "var-10",
       article_no: "300912",
       label: "BD Plastipak™ Luer-Lok™ 10 ml",
+      is_active: true,
+      size_text: "10 ml",
+      order_unit: "Box",
+      units_per_order_unit: 100,
+      order_units_per_shipping_unit: 8,
       values: {
         dehp_free: {
           value: { type: "bool", value: true },

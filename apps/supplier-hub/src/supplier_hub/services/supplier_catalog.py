@@ -33,7 +33,7 @@ class FamilyView:
 
 
 def family_view(session: Session, user: User, family_id: uuid.UUID) -> FamilyView:
-    return view_of(session, _own_family(session, user, family_id))
+    return view_of(session, own_family(session, user, family_id))
 
 
 def view_of(session: Session, family: ProductFamily) -> FamilyView:
@@ -44,8 +44,8 @@ def view_of(session: Session, family: ProductFamily) -> FamilyView:
     )
     variants = [
         (variant, projection.resolve(session, variant, template))
-        for variant in sorted(family.variants, key=lambda v: v.article_no)
-        if variant.is_active
+        # Retired variants too, marked by `is_active`: the supplier may bring them back.
+        for variant in sorted(family.variants, key=lambda v: (not v.is_active, v.article_no))
     ]
     return FamilyView(family, template, family_record, variants)
 
@@ -67,11 +67,11 @@ def set_value(
     if unavailable == (value is not None):
         raise Unprocessable("send either a value or unavailable=true")
     if variant_id is not None:
-        variant = _own_variant(session, user, variant_id)
+        variant = own_variant(session, user, variant_id)
         family = variant.family
     else:
         assert family_id is not None
-        family = _own_family(session, user, family_id)
+        family = own_family(session, user, family_id)
     template = family_template(session, family)
     checked = None if value is None else _checked(session, template, key, value)
     fact = catalog.add_fact(
@@ -127,7 +127,7 @@ def family_template(session: Session, family: ProductFamily) -> TemplateDefiniti
     return templates.definition(session, family.category_code or "")
 
 
-def _own_family(session: Session, user: User, family_id: uuid.UUID) -> ProductFamily:
+def own_family(session: Session, user: User, family_id: uuid.UUID) -> ProductFamily:
     family = session.get(ProductFamily, family_id)
     # Another supplier's family does not exist, as far as this supplier can tell.
     if family is None or family.supplier_id != user.org_id:
@@ -135,7 +135,7 @@ def _own_family(session: Session, user: User, family_id: uuid.UUID) -> ProductFa
     return family
 
 
-def _own_variant(session: Session, user: User, variant_id: uuid.UUID) -> ProductVariant:
+def own_variant(session: Session, user: User, variant_id: uuid.UUID) -> ProductVariant:
     variant = session.get(ProductVariant, variant_id)
     if variant is None or variant.supplier_id != user.org_id:
         raise NotFound("variant not found")

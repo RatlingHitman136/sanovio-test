@@ -949,6 +949,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/supplier/catalog/families": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Create Family
+     * @description A product line the supplier enters itself, read like a printed one (D59).
+     */
+    post: operations["create_family_api_v1_supplier_catalog_families_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/supplier/catalog/families/{family_id}": {
     parameters: {
       query?: never;
@@ -963,6 +983,64 @@ export interface paths {
     get: operations["supplier_family_api_v1_supplier_catalog_families__family_id__get"];
     put?: never;
     post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /**
+     * Edit Family
+     * @description A changed text is read again; what the old text said no longer counts.
+     */
+    patch: operations["edit_family_api_v1_supplier_catalog_families__family_id__patch"];
+    trace?: never;
+  };
+  "/api/v1/supplier/catalog/families/{family_id}/variants": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Add Variant */
+    post: operations["add_variant_api_v1_supplier_catalog_families__family_id__variants_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/supplier/catalog/variants/{variant_id}/reactivate": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Reactivate Variant */
+    post: operations["reactivate_variant_api_v1_supplier_catalog_variants__variant_id__reactivate_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/supplier/catalog/variants/{variant_id}/retire": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Retire Variant
+     * @description Out of search and new assessments; open assessments keep it.
+     */
+    post: operations["retire_variant_api_v1_supplier_catalog_variants__variant_id__retire_post"];
     delete?: never;
     options?: never;
     head?: never;
@@ -1576,6 +1654,32 @@ export interface components {
       /** Purpose */
       purpose: string;
     };
+    /** FamilyCreate */
+    FamilyCreate: {
+      /** Brand Name */
+      brand_name?: string | null;
+      /** Category Code */
+      category_code: string;
+      /** Description */
+      description?: string | null;
+      /** Manufacturer */
+      manufacturer: string;
+      /** Name */
+      name: string;
+      /** Product Type */
+      product_type?: string | null;
+      /** Properties Text */
+      properties_text?: string | null;
+    };
+    /**
+     * FamilyEdit
+     * @description Either part may be left out: the text as a whole, or the category.
+     */
+    FamilyEdit: {
+      /** Category Code */
+      category_code?: string | null;
+      text?: components["schemas"]["FamilyTextBody"] | null;
+    };
     /** FamilyRow */
     FamilyRow: {
       /** Category Code */
@@ -1595,6 +1699,21 @@ export interface components {
       supplier: string;
       /** Variants */
       variants: number;
+    };
+    /** FamilyTextBody */
+    FamilyTextBody: {
+      /** Brand Name */
+      brand_name?: string | null;
+      /** Description */
+      description?: string | null;
+      /** Manufacturer */
+      manufacturer: string;
+      /** Name */
+      name: string;
+      /** Product Type */
+      product_type?: string | null;
+      /** Properties Text */
+      properties_text?: string | null;
     };
     /** FamilyView */
     FamilyView: {
@@ -2108,8 +2227,12 @@ export interface components {
     SupplierFamilyDetail: {
       /** Attributes */
       attributes: components["schemas"]["CatalogAttribute"][];
+      /** Brand Name */
+      brand_name: string | null;
       /** Category Code */
       category_code: string | null;
+      /** Description */
+      description: string | null;
       /** Family Unavailable */
       family_unavailable: string[];
       /** Family Values */
@@ -2121,10 +2244,18 @@ export interface components {
        * Format: uuid
        */
       id: string;
+      /** Manufacturer */
+      manufacturer: string;
       /** Name */
       name: string;
       /** Own Facts */
       own_facts: components["schemas"]["OwnFact"][];
+      /** Product Type */
+      product_type: string | null;
+      /** Properties Text */
+      properties_text: string | null;
+      /** Reading */
+      reading: boolean;
       /** Variants */
       variants: components["schemas"]["VariantValues"][];
     };
@@ -2416,14 +2547,43 @@ export interface components {
        */
       variant_id: string;
     };
+    /** VariantCreate */
+    VariantCreate: {
+      /** Article No */
+      article_no: string;
+      /** Gtin */
+      gtin?: string | null;
+      /** Label */
+      label: string;
+      /** Order Unit */
+      order_unit?: string | null;
+      /** Order Units Per Shipping Unit */
+      order_units_per_shipping_unit?: number | null;
+      /** Pzn */
+      pzn?: string | null;
+      /** Size Text */
+      size_text?: string | null;
+      /** Units Per Order Unit */
+      units_per_order_unit?: number | null;
+    };
     /** VariantValues */
     VariantValues: {
       /** Article No */
       article_no: string;
+      /** Is Active */
+      is_active: boolean;
       /** Label */
       label: string;
+      /** Order Unit */
+      order_unit: string | null;
+      /** Order Units Per Shipping Unit */
+      order_units_per_shipping_unit: number | null;
+      /** Size Text */
+      size_text: string | null;
       /** Unavailable */
       unavailable: string[];
+      /** Units Per Order Unit */
+      units_per_order_unit: number | null;
       /** Values */
       values: {
         [key: string]: components["schemas"]["CatalogValue"];
@@ -6215,12 +6375,357 @@ export interface operations {
       };
     };
   };
+  create_family_api_v1_supplier_catalog_families_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["FamilyCreate"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SupplierFamilyDetail"];
+        };
+      };
+      /** @description Missing, expired or revoked token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description The caller's role may not do this */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not found, or another tenant's */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description A state or version conflict; see `code` */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   supplier_family_api_v1_supplier_catalog_families__family_id__get: {
     parameters: {
       query?: never;
       header?: never;
       path: {
         family_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SupplierFamilyDetail"];
+        };
+      };
+      /** @description Missing, expired or revoked token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description The caller's role may not do this */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not found, or another tenant's */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description A state or version conflict; see `code` */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  edit_family_api_v1_supplier_catalog_families__family_id__patch: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        family_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["FamilyEdit"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SupplierFamilyDetail"];
+        };
+      };
+      /** @description Missing, expired or revoked token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description The caller's role may not do this */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not found, or another tenant's */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description A state or version conflict; see `code` */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  add_variant_api_v1_supplier_catalog_families__family_id__variants_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        family_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["VariantCreate"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SupplierFamilyDetail"];
+        };
+      };
+      /** @description Missing, expired or revoked token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description The caller's role may not do this */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not found, or another tenant's */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description A state or version conflict; see `code` */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  reactivate_variant_api_v1_supplier_catalog_variants__variant_id__reactivate_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        variant_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SupplierFamilyDetail"];
+        };
+      };
+      /** @description Missing, expired or revoked token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description The caller's role may not do this */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not found, or another tenant's */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description A state or version conflict; see `code` */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  retire_variant_api_v1_supplier_catalog_variants__variant_id__retire_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        variant_id: string;
       };
       cookie?: never;
     };

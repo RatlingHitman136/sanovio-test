@@ -37,6 +37,7 @@ rectangle "Supplier hub (central)" #E8F5E9 {
   usecase "View requests (inbox,\nhospital alias only)" as H_inbox
   usecase "Answer supplier questions\n(drafts, submit)" as H_sans
   usecase "View enriched catalog" as H_catalog
+  usecase "Maintain own catalog: add families\nand variants, edit family text and\ncategory, retire variants" as H_maintain
   usecase "Register tenant and\npublic signing key" as H_tenant
   usecase "Rotate / revoke key" as H_revoke
   usecase "Normalize family" as H_norm
@@ -89,6 +90,8 @@ H_login <-- S
 H_inbox <-- S
 H_sans <-- S
 H_catalog <-- S
+H_maintain <-- S
+H_maintain ..> H_norm : <<include>>\n(text read again)
 H_login <-- OP
 H_tenant <-- OP
 H_revoke <-- OP

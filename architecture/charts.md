@@ -9,6 +9,17 @@ Companion to the prototype plan ([design-plan.md](design-plan.md)) and `architec
 - **Done:** `charts/` renders 21 diagrams covering the v3 split, the attribute registry and rounds 5–10 (PlantUML 1.2026.8 via `charts/render.sh`, Smetana layout, no Graphviz). Verified for round 7: render exits 0 with 21 SVG + 21 PNG, all 13 changed PNGs were checked, and `grep -riE "article_identifiers|item_identifiers|identifier_scheme|ArticleIdentifier|ItemIdentifier" charts/src charts/README.md` finds nothing.
 - **Next design change** reuses the same tooling, style file, render script and rules.
 
+### Stage 10 update (done)
+Suppliers maintain their own families and variants (D59).
+
+| # | File | Change |
+|---|---|---|
+| 01 | `use_cases` | Supplier: "Maintain own catalog" (add families and variants, edit family text and category, retire variants), including normalization of the text |
+| 05b | `hub_domain_classes` | `ProductFamily.created_by`, `ProductVariant.created_by` |
+| 07b | `hub_database_er` | `created_by` (FK users) and `updated_at` on `product_families` and `product_variants` |
+
+Verified: `make charts` renders 21 SVG + 21 PNG.
+
 ### Stage 9 update (done)
 The operator console (§17.1, D58): curation merge and reject become real, and operator actions are audited.
 

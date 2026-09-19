@@ -12,15 +12,19 @@ from supplier_hub.schemas.catalog import (
     CatalogAttribute,
     CatalogEdit,
     CatalogValue,
+    FamilyCreate,
+    FamilyEdit,
     FamilyView,
     OwnFact,
     SupplierFamilyDetail,
     SupplierView,
     VariantAttributesView,
+    VariantCreate,
     VariantValues,
     VariantView,
 )
-from supplier_hub.services import catalog, supplier_catalog
+from supplier_hub.services import catalog, supplier_catalog, supplier_products
+from supplier_hub.services.supplier_products import FamilyText, VariantRow
 
 router = APIRouter(tags=["catalog"])
 
@@ -100,7 +104,13 @@ def family_detail(session: DbSession, view: supplier_catalog.FamilyView) -> Supp
     return SupplierFamilyDetail(
         id=view.family.id,
         name=view.family.name,
+        manufacturer=view.family.manufacturer,
+        brand_name=view.family.brand_name,
+        product_type=view.family.product_type,
+        description=view.family.description,
+        properties_text=view.family.properties_text,
         category_code=view.family.category_code,
+        reading=view.family.normalized_hash != view.family.content_hash,
         attributes=[
             CatalogAttribute(
                 key=attribute.key,
@@ -119,6 +129,11 @@ def family_detail(session: DbSession, view: supplier_catalog.FamilyView) -> Supp
                 variant_id=variant.id,
                 article_no=variant.article_no,
                 label=variant.label,
+                is_active=variant.is_active,
+                size_text=variant.source_row.get("Größe"),
+                order_unit=variant.order_unit,
+                units_per_order_unit=variant.units_per_order_unit,
+                order_units_per_shipping_unit=variant.order_units_per_shipping_unit,
                 values=_values(record),
                 unavailable=list(record.unavailable_attributes),
             )
@@ -167,6 +182,72 @@ def withdraw_catalog_value(
 ) -> None:
     """Takes back one of the supplier's own values; what was there before shows again."""
     supplier_catalog.withdraw(session, user, fact_id, now=context.clock())
+
+
+@router.post("/supplier/catalog/families")
+def create_family(
+    body: FamilyCreate, context: Context, session: DbSession, user: Supplier
+) -> SupplierFamilyDetail:
+    """A product line the supplier enters itself, read like a printed one (D59)."""
+    text = FamilyText(**body.model_dump(exclude={"category_code"}))
+    family = supplier_products.create_family(
+        session, user, text, body.category_code, now=context.clock()
+    )
+    return family_detail(session, supplier_catalog.view_of(session, family))
+
+
+@router.patch("/supplier/catalog/families/{family_id}")
+def edit_family(
+    family_id: uuid.UUID, body: FamilyEdit, context: Context, session: DbSession, user: Supplier
+) -> SupplierFamilyDetail:
+    """A changed text is read again; what the old text said no longer counts."""
+    family = supplier_products.edit_family(
+        session,
+        user,
+        family_id,
+        text=FamilyText(**body.text.model_dump()) if body.text is not None else None,
+        category_code=body.category_code,
+        now=context.clock(),
+    )
+    return family_detail(session, supplier_catalog.view_of(session, family))
+
+
+@router.post("/supplier/catalog/families/{family_id}/variants")
+def add_variant(
+    family_id: uuid.UUID,
+    body: VariantCreate,
+    context: Context,
+    session: DbSession,
+    user: Supplier,
+) -> SupplierFamilyDetail:
+    variant = supplier_products.add_variant(
+        session, user, family_id, VariantRow(**body.model_dump()), now=context.clock()
+    )
+    return family_detail(session, supplier_catalog.view_of(session, variant.family))
+
+
+@router.post("/supplier/catalog/variants/{variant_id}/retire")
+def retire_variant(
+    variant_id: uuid.UUID, context: Context, session: DbSession, user: Supplier
+) -> SupplierFamilyDetail:
+    """Out of search and new assessments; open assessments keep it."""
+    return _set_active(variant_id, False, context, session, user)
+
+
+@router.post("/supplier/catalog/variants/{variant_id}/reactivate")
+def reactivate_variant(
+    variant_id: uuid.UUID, context: Context, session: DbSession, user: Supplier
+) -> SupplierFamilyDetail:
+    return _set_active(variant_id, True, context, session, user)
+
+
+def _set_active(
+    variant_id: uuid.UUID, active: bool, context: Context, session: DbSession, user: Supplier
+) -> SupplierFamilyDetail:
+    variant = supplier_products.set_variant_active(
+        session, user, variant_id, active=active, now=context.clock()
+    )
+    return family_detail(session, supplier_catalog.view_of(session, variant.family))
 
 
 def _values(record: ResolvedRecord) -> dict[str, CatalogValue]:

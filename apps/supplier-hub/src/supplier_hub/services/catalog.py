@@ -47,11 +47,15 @@ _CODE_COLUMNS = {
 }
 _TEXT_COLUMNS = {"Farbcode": "colour_code"}
 _IDENTIFIER_COLUMNS = {
+    "GTIN": IdentifierScheme.GTIN,
     "Produkt-Nr.": IdentifierScheme.SUPPLIER_ARTICLE_NO,
     "Art.-Nr.": IdentifierScheme.SUPPLIER_ARTICLE_NO,
     "PZN": IdentifierScheme.PZN,
     "HiMiV": IdentifierScheme.HIMIV,
 }
+
+# Facts that come from reading a family's text, as opposed to what its supplier set.
+_READINGS = frozenset({SupplierSource.CATALOG, SupplierSource.EXTRACTION})
 
 
 def supplier_by_code(session: Session, code: str) -> Organization:
@@ -69,7 +73,24 @@ def ingest_family(
     *,
     now: datetime,
 ) -> ProductFamily:
-    """Stores a family with its variants and every fact the printed text already states."""
+    """Stores a printed family with its variants and every fact the printed text already states."""
+    family = store_family(session, supplier, data, template, now=now)
+    for row in data.get("variants", ()):
+        add_variant(session, family, row, template, now=now)
+    session.flush()
+    return family
+
+
+def store_family(
+    session: Session,
+    supplier: Organization,
+    data: Mapping[str, Any],
+    template: TemplateDefinition,
+    *,
+    now: datetime,
+    created_by: uuid.UUID | None = None,
+) -> ProductFamily:
+    """A family as printed, or as its supplier entered it (D59): the same shape either way."""
     family = ProductFamily(
         supplier_id=supplier.id,
         manufacturer=data["manufacturer"],
@@ -82,32 +103,55 @@ def ingest_family(
         properties_text=data.get("properties_text"),
         source_document=data.get("source_document"),
         source_page=data.get("source_page"),
-        content_hash=sha256_hex(dict(data) | {"variants": None}),
+        content_hash=family_content_hash(data),
         raw=dict(data),
+        created_by=created_by,
+        updated_at=now,
     )
     session.add(family)
     session.flush()
-
-    for value, raw in _family_values(data, template):
-        add_fact(session, family_id=family.id, key=value[0], value=value[1], raw=raw, now=now)
-    for row in data.get("variants", ()):
-        _ingest_variant(session, supplier, family, row, template, now=now)
-    session.flush()
+    read_family_text(session, family, template, now=now)
     return family
 
 
-def _ingest_variant(
+def family_content_hash(data: Mapping[str, Any]) -> str:
+    """What a reading depends on: the family's own text, not its size table."""
+    return sha256_hex(dict(data) | {"variants": None})
+
+
+def read_family_text(
+    session: Session, family: ProductFamily, template: TemplateDefinition, *, now: datetime
+) -> None:
+    """The headline facts the parsers find at once; `normalize_item` reads the rest later."""
+    for value, raw in _family_values(family.raw, template):
+        add_fact(session, family_id=family.id, key=value[0], value=value[1], raw=raw, now=now)
+
+
+def retire_family_readings(
+    session: Session, family: ProductFamily, user_id: uuid.UUID, *, now: datetime
+) -> None:
+    """Before an edited text is read again: what the old text said no longer counts.
+    The supplier's own values are not readings and stay."""
+    for fact in family_facts(session, family.id):
+        if fact.source in _READINGS:
+            fact.withdrawn_at = now
+            fact.withdrawn_by = user_id
+    session.flush()
+
+
+def add_variant(
     session: Session,
-    supplier: Organization,
     family: ProductFamily,
     row: Mapping[str, Any],
     template: TemplateDefinition,
     *,
     now: datetime,
+    created_by: uuid.UUID | None = None,
 ) -> ProductVariant:
+    """One size-table row, printed or entered; its cells are read like any printed row."""
     variant = ProductVariant(
         family_id=family.id,
-        supplier_id=supplier.id,
+        supplier_id=family.supplier_id,
         article_no=row["article_no"],
         label=row["label"],
         order_unit=row.get("order_unit"),
@@ -116,6 +160,8 @@ def _ingest_variant(
         source_row=dict(row["source_row"]),
         source_page=row.get("source_page", family.source_page),
         content_hash=sha256_hex(dict(row)),
+        created_by=created_by,
+        updated_at=now,
     )
     session.add(variant)
     session.flush()

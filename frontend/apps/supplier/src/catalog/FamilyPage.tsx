@@ -5,6 +5,7 @@ import {
   Card,
   CardTitle,
   CriticalityBadge,
+  Empty,
   Dialog,
   ErrorMessage,
   Label,
@@ -24,6 +25,8 @@ import { useState } from "react";
 import { useParams } from "react-router";
 
 import { useSession } from "../sessionContext";
+import { FamilyDialog, VariantDialog } from "./FamilyForms";
+import { useFamilySaved } from "./useFamilySaved";
 
 type Family = HubSchemas["schemas"]["SupplierFamilyDetail"];
 type Attribute = HubSchemas["schemas"]["CatalogAttribute"];
@@ -56,13 +59,38 @@ export function FamilyPage() {
           params: { path: { family_id: familyId } },
         }),
       ),
+    // While the text is being read in the background, look again until it is done.
+    refetchInterval: (query) => (query.state.data?.reading ? 3_000 : false),
+  });
+  const [editingFamily, setEditingFamily] = useState(false);
+  const saved = useFamilySaved(() => {
+    setEditingFamily(false);
   });
 
   if (family.isPending) return <Spinner />;
   if (!family.data) return <ErrorMessage error={family.error} />;
   return (
     <>
-      <PageHeader title={family.data.name} />
+      <PageHeader title={family.data.name}>
+        <Button
+          variant="secondary"
+          onClick={() => {
+            setEditingFamily(true);
+          }}
+        >
+          Edit family
+        </Button>
+      </PageHeader>
+      {editingFamily && (
+        <FamilyDialog
+          family={family.data}
+          manufacturer={family.data.manufacturer}
+          onSaved={saved}
+          onClose={() => {
+            setEditingFamily(false);
+          }}
+        />
+      )}
       <Notice>
         Values you set here outrank the catalog. Open assessments use them in their next round.
       </Notice>
@@ -75,10 +103,20 @@ export function FamilyPage() {
 export function FamilyValues({ detail, readOnly = false }: { detail: Family; readOnly?: boolean }) {
   const [variantId, setVariantId] = useState<string>("");
   const [editing, setEditing] = useState<Target | null>(null);
+  const [adding, setAdding] = useState(false);
   const variant = detail.variants.find((v) => v.variant_id === variantId) ?? detail.variants[0];
+  const added = useFamilySaved(() => {
+    setAdding(false);
+  });
+  const active = useVariantActive(added);
 
   return (
     <>
+      {detail.reading && (
+        <p className="mt-4 text-sm">
+          <Badge tone="info">being read</Badge> The catalog text is being read for further values.
+        </p>
+      )}
       <div className="mt-4 grid gap-4 xl:grid-cols-2">
         <Card>
           <CardTitle>For the whole family</CardTitle>
@@ -98,51 +136,98 @@ export function FamilyValues({ detail, readOnly = false }: { detail: Family; rea
             }}
           />
         </Card>
-        {variant && (
+        {(variant ?? !readOnly) && (
           <Card>
-            <div className="mb-3 flex items-end justify-between gap-3">
+            <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
               <CardTitle className="mb-0">One variant</CardTitle>
-              <div className="w-72">
-                <Label htmlFor="variant" className="text-xs">
-                  Variant
-                </Label>
-                <Select
-                  id="variant"
-                  value={variant.variant_id}
-                  onChange={(event) => {
-                    setVariantId(event.target.value);
-                  }}
-                >
-                  {detail.variants.map((v) => (
-                    <option key={v.variant_id} value={v.variant_id}>
-                      {v.article_no} · {v.label}
-                    </option>
-                  ))}
-                </Select>
-              </div>
+              {!readOnly && (
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => {
+                      setAdding(true);
+                    }}
+                  >
+                    Add variant
+                  </Button>
+                  {variant && (
+                    <Button
+                      size="sm"
+                      variant={variant.is_active ? "danger" : "secondary"}
+                      disabled={active.isPending}
+                      onClick={() => {
+                        active.mutate(variant);
+                      }}
+                    >
+                      {variant.is_active ? "Retire" : "Reactivate"}
+                    </Button>
+                  )}
+                </div>
+              )}
             </div>
-            <ValuesTable
-              family={detail}
-              values={variant.values}
-              unavailable={variant.unavailable}
-              own={(key) =>
-                detail.own_facts.find(
-                  (f) => f.attribute_key === key && f.variant_id === variant.variant_id,
-                )
-              }
-              scopeColumn
-              action={readOnly ? undefined : "Override"}
-              onEdit={(attribute) => {
-                setEditing({
-                  attribute,
-                  variantId: variant.variant_id,
-                  label: `${attribute.label} · ${variant.article_no} only`,
-                });
-              }}
-            />
+            {!variant ? (
+              <Empty>No variants yet.</Empty>
+            ) : (
+              <>
+                <div className="mb-3 w-72">
+                  <Label htmlFor="variant" className="text-xs">
+                    Variant
+                  </Label>
+                  <Select
+                    id="variant"
+                    value={variant.variant_id}
+                    onChange={(event) => {
+                      setVariantId(event.target.value);
+                    }}
+                  >
+                    {detail.variants.map((v) => (
+                      <option key={v.variant_id} value={v.variant_id}>
+                        {v.article_no} · {v.label}
+                        {v.is_active ? "" : " (retired)"}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+                {!variant.is_active && (
+                  <p className="mb-3 text-sm">
+                    <Badge>retired</Badge> Out of search and new assessments; open ones keep it.
+                  </p>
+                )}
+                <ValuesTable
+                  family={detail}
+                  values={variant.values}
+                  unavailable={variant.unavailable}
+                  own={(key) =>
+                    detail.own_facts.find(
+                      (f) => f.attribute_key === key && f.variant_id === variant.variant_id,
+                    )
+                  }
+                  scopeColumn
+                  action={readOnly ? undefined : "Override"}
+                  onEdit={(attribute) => {
+                    setEditing({
+                      attribute,
+                      variantId: variant.variant_id,
+                      label: `${attribute.label} · ${variant.article_no} only`,
+                    });
+                  }}
+                />
+              </>
+            )}
+            <ErrorMessage error={active.error} />
           </Card>
         )}
       </div>
+      {adding && (
+        <VariantDialog
+          family={detail}
+          onSaved={added}
+          onClose={() => {
+            setAdding(false);
+          }}
+        />
+      )}
       {editing && (
         <EditDialog
           familyKey={detail.id}
@@ -244,6 +329,20 @@ function ValuesTable({
       <ErrorMessage error={withdraw.error} />
     </>
   );
+}
+
+function useVariantActive(onSaved: (saved: Family) => void) {
+  const { session } = useSession();
+  return useMutation({
+    mutationFn: (variant: Family["variants"][number]) =>
+      session.call((hub) => {
+        const params = { params: { path: { variant_id: variant.variant_id } } };
+        return variant.is_active
+          ? hub.POST("/api/v1/supplier/catalog/variants/{variant_id}/retire", params)
+          : hub.POST("/api/v1/supplier/catalog/variants/{variant_id}/reactivate", params);
+      }),
+    onSuccess: onSaved,
+  });
 }
 
 function useWithdraw(familyId: string) {

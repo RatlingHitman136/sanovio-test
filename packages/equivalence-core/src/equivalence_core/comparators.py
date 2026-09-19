@@ -14,6 +14,7 @@ from pydantic import BaseModel, ConfigDict, model_validator
 from equivalence_core.exchange.requirement import AttributeOrigin, RequirementPayload
 from equivalence_core.facts import ResolvedRecord, Scope
 from equivalence_core.parsers.standards import canonical_standard
+from equivalence_core.parsers.wording import canonical_text
 from equivalence_core.templates.model import (
     ComparisonRule,
     Criticality,
@@ -21,7 +22,7 @@ from equivalence_core.templates.model import (
     TemplateDefinition,
     TemplateError,
 )
-from equivalence_core.values import AttributeValue, ListValue, NumberValue
+from equivalence_core.values import AttributeValue, ListValue, NumberValue, TextValue
 
 # Numbers arrive in the template's canonical unit; this only absorbs float noise.
 EPSILON = 1e-9
@@ -38,6 +39,11 @@ class ComparisonStatus(StrEnum):
     INFO = "INFO"
     # Left to the judge on purpose (semantic rules, or values whose types do not line up).
     NEEDS_JUDGE = "NEEDS_JUDGE"
+
+
+# The reason on a text judgment the comparators leave open because only the wording differs;
+# the hub reads these by meaning with a small model before the judge sees anything (§8).
+WORDED_DIFFERENTLY = "worded differently"
 
 
 class DecidedBy(StrEnum):
@@ -214,9 +220,16 @@ def _gap(
     )
 
 
-def _exact(hospital: AttributeValue, supplier: AttributeValue) -> tuple[ComparisonStatus, None]:
+def _exact(
+    hospital: AttributeValue, supplier: AttributeValue
+) -> tuple[ComparisonStatus, str | None]:
     if isinstance(hospital, NumberValue) and isinstance(supplier, NumberValue):
         return _numbers_equal(hospital, supplier), None
+    if isinstance(hospital, TextValue) and isinstance(supplier, TextValue):
+        # Free text written differently is not yet a mismatch: a model reads it by meaning.
+        if canonical_text(hospital.value) == canonical_text(supplier.value):
+            return ComparisonStatus.MATCH, None
+        return ComparisonStatus.NEEDS_JUDGE, WORDED_DIFFERENTLY
     return (ComparisonStatus.MATCH if hospital == supplier else ComparisonStatus.MISMATCH), None
 
 
@@ -287,9 +300,17 @@ def _required_if_hospital(
 def _semantic(
     hospital: AttributeValue, supplier: AttributeValue
 ) -> tuple[ComparisonStatus, str | None]:
-    if hospital == supplier:
+    if hospital == supplier or _same_text(hospital, supplier):
         return ComparisonStatus.MATCH, None
     return ComparisonStatus.NEEDS_JUDGE, "free text; the judge decides"
+
+
+def _same_text(hospital: AttributeValue, supplier: AttributeValue) -> bool:
+    return (
+        isinstance(hospital, TextValue)
+        and isinstance(supplier, TextValue)
+        and canonical_text(hospital.value) == canonical_text(supplier.value)
+    )
 
 
 def _numbers_equal(hospital: NumberValue, supplier: NumberValue) -> ComparisonStatus:

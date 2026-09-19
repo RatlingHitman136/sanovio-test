@@ -16,7 +16,13 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from equivalence_core.comparators import ComparisonStatus, Judgment, MissingSide, compare
+from equivalence_core.comparators import (
+    WORDED_DIFFERENTLY,
+    ComparisonStatus,
+    Judgment,
+    MissingSide,
+    compare,
+)
 from equivalence_core.exchange.requirement import RequirementPayload
 from equivalence_core.facts import ResolvedRecord
 from equivalence_core.hashing import sha256_hex
@@ -34,6 +40,7 @@ from supplier_hub.core.settings import HubSettings
 from supplier_hub.domain import state_machine
 from supplier_hub.domain.stop_conditions import next_step
 from supplier_hub.llm import judge as judge_pipeline
+from supplier_hub.llm.compare_text import compare_text
 from supplier_hub.llm.judge import JudgeResult, SupplierFactView
 from supplier_hub.llm.outputs import QuestionDraft
 from supplier_hub.models import Answer, Assessment, AssessmentRound, Question, Requirement
@@ -91,6 +98,7 @@ def run_round(
         judgments: tuple[Judgment, ...] = ()
     else:
         judgments = compare(inputs.payload, inputs.record, inputs.template)
+        judgments = _read_worded_text(session, assessment, inputs, judgments, llm, settings, now)
         if _needs_the_judge(judgments):
             if llm is None:
                 raise RuntimeError("the judge is needed but no LLM client is configured")
@@ -186,6 +194,32 @@ def _inputs(session: Session, assessment: Assessment) -> RoundInput:
         template=template,
         record=projection.resolve(session, assessment.variant, template),
     )
+
+
+def _read_worded_text(
+    session: Session,
+    assessment: Assessment,
+    inputs: RoundInput,
+    judgments: tuple[Judgment, ...],
+    llm: LLMClient | None,
+    settings: HubSettings,
+    now: datetime,
+) -> tuple[Judgment, ...]:
+    """Text the comparators could not settle by spelling, read by meaning in one small call
+    (§8). What the model cannot tell stays open for the judge."""
+    worded = [
+        judgment
+        for judgment in judgments
+        if judgment.status is ComparisonStatus.NEEDS_JUDGE and judgment.detail == WORDED_DIFFERENTLY
+    ]
+    if not worded or llm is None or decide(judgments).verdict is Verdict.NOT_EQUIVALENT:
+        return judgments
+    reading = compare_text(
+        llm, template=inputs.template, worded=worded, model=settings.compare_text_model
+    )
+    for record in reading.records:
+        llm_calls.record_call(session, record, now=now, assessment_id=assessment.id)
+    return apply_judgments(judgments, reading.judgments).judgments
 
 
 def _needs_the_judge(judgments: Sequence[Judgment]) -> bool:

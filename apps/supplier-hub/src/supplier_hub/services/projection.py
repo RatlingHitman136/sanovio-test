@@ -1,5 +1,6 @@
 """The search projection (H.11): one row per variant, family facts merged underneath."""
 
+from collections.abc import Iterable
 from datetime import datetime
 from typing import Any
 
@@ -16,7 +17,7 @@ from equivalence_core.facts import (
 )
 from equivalence_core.templates import TemplateDefinition
 from equivalence_core.values import TypedValue
-from supplier_hub.models import ItemSearchProjection, ProductFamily, ProductVariant
+from supplier_hub.models import ItemFact, ItemSearchProjection, ProductFamily, ProductVariant
 from supplier_hub.services import attribute_registry, catalog
 
 _VALUE = TypeAdapter[TypedValue](TypedValue)
@@ -87,6 +88,11 @@ def _additional(facts: list[SupplierFact], keys: set[str]) -> dict[str, Any]:
 
 
 def _core_facts(session: Session, variant: ProductVariant) -> list[SupplierFact]:
+    return core_facts(catalog.facts_for(session, variant))
+
+
+def core_facts(facts: Iterable[ItemFact]) -> list[SupplierFact]:
+    """Stored facts in the core's shape, for the resolver."""
     return [
         SupplierFact(
             id=str(fact.id),
@@ -96,5 +102,5 @@ def _core_facts(session: Session, variant: ProductVariant) -> list[SupplierFact]
             scope=Scope.VARIANT if fact.variant_id is not None else Scope.FAMILY,
             created_at=fact.created_at,
         )
-        for fact in catalog.facts_for(session, variant)
+        for fact in facts
     ]

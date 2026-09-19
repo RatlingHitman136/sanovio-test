@@ -137,8 +137,11 @@ make ui-e2e   # scenario 1 in a real browser through both apps
 ```
 
 ## Status
-All eight stages done (ARCHITECTURE §22): the shared core, the standalone **hospital node**, the
+All nine stages done (ARCHITECTURE §22): the shared core, the standalone **hospital node**, the
 **supplier hub** with its catalogs, search and the full **assessment loop**, the **demo client** with
 the four scenarios, an in-process end-to-end suite and the evals, and the two **browser apps**
-(purchaser, served by the node; supplier, served by the hub). Next, when wanted: an operator section
+(purchaser, served by the node; supplier, served by the hub), refined in stage 8: suppliers edit
+their catalog per family and per variant, the current product is highlighted in search results, the
+comparison sorts and filters, and free text is compared by meaning ("nein" = "keine" without a model;
+other rewordings by one small Haiku call per round). Next, when wanted: an operator section
 in the hub-served app (attribute curation, hospitals and keys).

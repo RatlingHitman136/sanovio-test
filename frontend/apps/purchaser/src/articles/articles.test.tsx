@@ -176,3 +176,28 @@ test("an unknown attribute is entered with the input its template asks for", asy
     expect(saved).toEqual([{ cannot_provide: false, value: { type: "enum", value: "LUER_LOCK" } }]);
   });
 });
+
+test("the current product leads the results and is marked", async () => {
+  const withReference = {
+    ...article,
+    reference: {
+      variant_id: "var-plastipak",
+      label: "BD Plastipak™ Luer-Lok™ 10 ml",
+      linked_at: null,
+    },
+  };
+  serve(
+    http.get(`${NODE}/api/v1/articles/art-3`, () => HttpResponse.json(withReference)),
+    ...articleHandlers([]),
+  );
+  await renderPurchaser("/articles/art-3");
+
+  await userEvent.click(await screen.findByRole("button", { name: "Search the hub" }));
+
+  const rows = await screen.findAllByRole("row");
+  const first = rows[1];
+  if (!first) throw new Error("no candidate rows");
+  expect(first).toHaveAttribute("aria-current", "true");
+  expect(within(first).getByText("Current product", { selector: "span" })).toBeInTheDocument();
+  expect(within(first).getByRole("button", { name: "Current product" })).toBeDisabled();
+});

@@ -523,10 +523,70 @@ export interface paths {
       cookie?: never;
     };
     /**
-     * Supplier Catalog
+     * Own Catalog
      * @description A supplier sees its own catalog and nothing else.
      */
-    get: operations["supplier_catalog_api_v1_supplier_catalog_get"];
+    get: operations["own_catalog_api_v1_supplier_catalog_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/supplier/catalog/facts": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * Set Catalog Value
+     * @description Sets a value for the whole family, or overrides it for one variant.
+     */
+    put: operations["set_catalog_value_api_v1_supplier_catalog_facts_put"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/supplier/catalog/facts/{fact_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * Withdraw Catalog Value
+     * @description Takes back one of the supplier's own values; what was there before shows again.
+     */
+    delete: operations["withdraw_catalog_value_api_v1_supplier_catalog_facts__fact_id__delete"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/supplier/catalog/families/{family_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Supplier Family
+     * @description The supplier's family: its own values, and each variant's with its scope (§9).
+     */
+    get: operations["supplier_family_api_v1_supplier_catalog_families__family_id__get"];
     put?: never;
     post?: never;
     delete?: never;
@@ -917,6 +977,52 @@ export interface components {
        */
       variant_id: string;
     };
+    /** CatalogAttribute */
+    CatalogAttribute: {
+      /** Criticality */
+      criticality: string;
+      /** Key */
+      key: string;
+      /** Label */
+      label: string;
+      /** Options */
+      options: string[];
+      /** Type */
+      type: string;
+      /** Unit */
+      unit: string | null;
+    };
+    /**
+     * CatalogEdit
+     * @description Exactly one of family and variant; a typed value, or unavailable=true.
+     */
+    CatalogEdit: {
+      /** Attribute Key */
+      attribute_key: string;
+      /** Family Id */
+      family_id?: string | null;
+      /**
+       * Unavailable
+       * @default false
+       */
+      unavailable: boolean;
+      value?: components["schemas"]["TypedValue"] | null;
+      /** Variant Id */
+      variant_id?: string | null;
+    };
+    /** CatalogValue */
+    CatalogValue: {
+      /** Fact Id */
+      fact_id: string;
+      /** Scope */
+      scope: string | null;
+      /** Source */
+      source: string;
+      /** Value */
+      value: {
+        [key: string]: unknown;
+      };
+    };
     /**
      * ComparisonRule
      * @description Named here so templates are validated now; the comparators themselves live in stage 3.
@@ -1049,6 +1155,25 @@ export interface components {
       /** Detail */
       detail?: components["schemas"]["ValidationError"][];
     };
+    /**
+     * IdentifierScheme
+     * @enum {string}
+     */
+    IdentifierScheme:
+      "GTIN" | "EAN" | "MANUFACTURER_REF" | "PHARMACODE" | "SUPPLIER_ARTICLE_NO" | "PZN" | "HIMIV";
+    /** IdentifierValue */
+    IdentifierValue: {
+      /** Checksum Valid */
+      checksum_valid: boolean | null;
+      scheme: components["schemas"]["IdentifierScheme"];
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: "identifier";
+      /** Value */
+      value: string;
+    };
     /** ListValue */
     ListValue: {
       /**
@@ -1092,6 +1217,27 @@ export interface components {
       unit: string;
       /** Value */
       value: number;
+    };
+    /**
+     * OwnFact
+     * @description A value the supplier set itself (or its "not available"), which it may withdraw.
+     */
+    OwnFact: {
+      /** Attribute Key */
+      attribute_key: string;
+      /**
+       * Fact Id
+       * Format: uuid
+       */
+      fact_id: string;
+      /** Unavailable */
+      unavailable: boolean;
+      /** Value */
+      value: {
+        [key: string]: unknown;
+      } | null;
+      /** Variant Id */
+      variant_id: string | null;
     };
     /** PrecheckEntry */
     PrecheckEntry: {
@@ -1349,6 +1495,33 @@ export interface components {
       /** Revoked At */
       revoked_at: string | null;
     };
+    /**
+     * SupplierFamilyDetail
+     * @description Per attribute: the family's value, then each variant's effective value with its scope.
+     */
+    SupplierFamilyDetail: {
+      /** Attributes */
+      attributes: components["schemas"]["CatalogAttribute"][];
+      /** Category Code */
+      category_code: string | null;
+      /** Family Unavailable */
+      family_unavailable: string[];
+      /** Family Values */
+      family_values: {
+        [key: string]: components["schemas"]["CatalogValue"];
+      };
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Name */
+      name: string;
+      /** Own Facts */
+      own_facts: components["schemas"]["OwnFact"][];
+      /** Variants */
+      variants: components["schemas"]["VariantValues"][];
+    };
     /** SupplierQuestionView */
     SupplierQuestionView: {
       /** Attribute Key */
@@ -1495,6 +1668,13 @@ export interface components {
        */
       token_type: string;
     };
+    TypedValue:
+      | components["schemas"]["NumberValue"]
+      | components["schemas"]["BoolValue"]
+      | components["schemas"]["EnumValue"]
+      | components["schemas"]["TextValue"]
+      | components["schemas"]["ListValue"]
+      | components["schemas"]["IdentifierValue"];
     /**
      * UserRole
      * @enum {string}
@@ -1527,6 +1707,24 @@ export interface components {
       identifiers: unknown[];
       /** Label */
       label: string;
+      /**
+       * Variant Id
+       * Format: uuid
+       */
+      variant_id: string;
+    };
+    /** VariantValues */
+    VariantValues: {
+      /** Article No */
+      article_no: string;
+      /** Label */
+      label: string;
+      /** Unavailable */
+      unavailable: string[];
+      /** Values */
+      values: {
+        [key: string]: components["schemas"]["CatalogValue"];
+      };
       /**
        * Variant Id
        * Format: uuid
@@ -3665,7 +3863,7 @@ export interface operations {
       };
     };
   };
-  supplier_catalog_api_v1_supplier_catalog_get: {
+  own_catalog_api_v1_supplier_catalog_get: {
     parameters: {
       query?: never;
       header?: never;
@@ -3717,6 +3915,207 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  set_catalog_value_api_v1_supplier_catalog_facts_put: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CatalogEdit"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["OwnFact"];
+        };
+      };
+      /** @description Missing, expired or revoked token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description The caller's role may not do this */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not found, or another tenant's */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description A state or version conflict; see `code` */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  withdraw_catalog_value_api_v1_supplier_catalog_facts__fact_id__delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        fact_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Missing, expired or revoked token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description The caller's role may not do this */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not found, or another tenant's */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description A state or version conflict; see `code` */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  supplier_family_api_v1_supplier_catalog_families__family_id__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        family_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SupplierFamilyDetail"];
+        };
+      };
+      /** @description Missing, expired or revoked token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description The caller's role may not do this */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not found, or another tenant's */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description A state or version conflict; see `code` */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
         };
       };
     };

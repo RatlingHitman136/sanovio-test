@@ -256,7 +256,9 @@ def _facts_of(
     family_id: uuid.UUID | None = None,
     variant_id: uuid.UUID | None = None,
 ) -> list[ItemFact]:
-    query = select(ItemFact).where(ItemFact.superseded_by_id.is_(None))
+    query = select(ItemFact).where(
+        ItemFact.superseded_by_id.is_(None), ItemFact.withdrawn_at.is_(None)
+    )
     query = (
         query.where(ItemFact.variant_id == variant_id)
         if variant_id is not None

@@ -10,6 +10,7 @@ import {
   formatValue,
 } from "@sanovio/ui";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router";
 
 import { useSession } from "../sessionContext";
 
@@ -30,7 +31,11 @@ export function CatalogPage() {
         <div className="space-y-4">
           {catalog.data.map((family) => (
             <Card key={family.id}>
-              <CardTitle>{family.name}</CardTitle>
+              <CardTitle>
+                <Link to={`/catalog/${family.id}`} className="text-accent hover:underline">
+                  {family.name}
+                </Link>
+              </CardTitle>
               <p className="mb-3 text-xs text-neutral-500">
                 {family.category_code ?? "uncategorised"}
                 {family.source_document &&

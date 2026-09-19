@@ -44,6 +44,7 @@ export function SearchCard({ article }: { article: Article }) {
     },
   });
   const result = search.data;
+  const currentId = article.reference?.variant_id;
 
   return (
     <Card>
@@ -78,10 +79,11 @@ export function SearchCard({ article }: { article: Article }) {
                 </tr>
               </thead>
               <tbody>
-                {result.response.candidates.map((candidate) => (
+                {currentFirst(result.response.candidates, currentId).map((candidate) => (
                   <CandidateRow
                     key={candidate.variant_id}
                     candidate={candidate}
+                    current={candidate.variant_id === currentId}
                     onMark={() => {
                       setMarking(candidate);
                     }}
@@ -152,12 +154,20 @@ function SearchSummary({ response }: { response: SearchResponse }) {
   );
 }
 
+/** The product the hospital buys today leads the list, so it is easy to compare against. */
+function currentFirst(candidates: Candidate[], currentId: string | undefined): Candidate[] {
+  const current = candidates.filter((candidate) => candidate.variant_id === currentId);
+  return [...current, ...candidates.filter((candidate) => candidate.variant_id !== currentId)];
+}
+
 function CandidateRow({
   candidate,
+  current,
   onMark,
   onStart,
 }: {
   candidate: Candidate;
+  current: boolean;
   onMark: () => void;
   onStart: () => void;
 }) {
@@ -166,9 +176,13 @@ function CandidateRow({
     counts.set(entry.status, (counts.get(entry.status) ?? 0) + 1);
   }
   return (
-    <tr>
+    <tr
+      className={current ? "bg-accent/5 shadow-[inset_4px_0_0_0_var(--color-accent)]" : undefined}
+      aria-current={current ? "true" : undefined}
+    >
       <Td>
         <div className="font-medium">{candidate.display_name}</div>
+        {current && <Badge tone="info">Current product</Badge>}
         <div className="text-xs text-neutral-500">
           {candidate.supplier} · {candidate.family}
         </div>
@@ -187,8 +201,8 @@ function CandidateRow({
         ))}
       </Td>
       <Td className="space-y-1 text-right">
-        <Button size="sm" variant="secondary" onClick={onMark}>
-          This is our current product
+        <Button size="sm" variant="secondary" onClick={onMark} disabled={current}>
+          {current ? "Current product" : "This is our current product"}
         </Button>
         <Button size="sm" onClick={onStart}>
           Start assessment

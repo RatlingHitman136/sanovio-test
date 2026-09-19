@@ -5,17 +5,31 @@ from typing import Any
 
 import pytest
 
-from equivalence_core.comparators import ComparisonStatus, DecidedBy, compare
+from equivalence_core.comparators import (
+    ComparisonStatus,
+    Criticality,
+    DecidedBy,
+    HospitalSide,
+    Judgment,
+    SupplierSide,
+    compare,
+)
 from equivalence_core.exchange.requirement import (
     AttributeOrigin,
     ProductHints,
     RequirementPayload,
 )
 from equivalence_core.facts import ResolvedRecord, ResolvedValue
-from equivalence_core.templates import load_seed_templates
+from equivalence_core.templates import ComparisonRule, load_seed_templates
 from equivalence_core.values import BoolValue, EnumValue, NumberValue, TextValue
 from llm_client import FakeLLM
-from supplier_hub.llm import extract_answer, judge, propose_attribute, simulate_supplier
+from supplier_hub.llm import (
+    compare_text,
+    extract_answer,
+    judge,
+    propose_attribute,
+    simulate_supplier,
+)
 from supplier_hub.llm.fakes import fake_llm
 from supplier_hub.llm.judge import SupplierFactView
 from supplier_hub.llm.outputs import (
@@ -24,6 +38,8 @@ from supplier_hub.llm.outputs import (
     JudgeOutput,
     Labels,
     QuestionDraft,
+    TextReading,
+    TextReadings,
 )
 from supplier_hub.llm.propose_attribute import ProposalRejected
 
@@ -271,3 +287,35 @@ def test_the_simulator_answers_only_from_the_datasheet() -> None:
     assert by_question["q1"].value == "IIA" and by_question["q1"].applies_to_family
     assert by_question["q2"].cannot_provide
     assert json.dumps([a.model_dump() for a in simulated.answers])
+
+
+def test_a_text_reading_keeps_only_decided_pairs_that_were_asked() -> None:
+    worded = Judgment(
+        attribute_key="special_scale",
+        criticality=Criticality.MAJOR,
+        rule=ComparisonRule.EXACT,
+        status=ComparisonStatus.NEEDS_JUDGE,
+        hospital=HospitalSide(
+            value=TextValue(value="Skala 0,2 ml"), origin=AttributeOrigin.PURCHASER
+        ),
+        supplier=SupplierSide(value=TextValue(value="0.2-ml-Teilung"), fact_id="f1"),
+    )
+
+    def reply(request: Any) -> TextReadings:
+        return TextReadings(
+            readings=[
+                TextReading(attribute_key="special_scale", status="MATCH", rationale="Same step."),
+                TextReading(attribute_key="stopper_material", status="MISMATCH", rationale="-"),
+            ]
+        )
+
+    llm = FakeLLM({compare_text.PURPOSE: reply})
+    result = compare_text.compare_text(
+        llm, template=SYRINGE, worded=[worded], model="claude-haiku-4-5"
+    )
+
+    assert set(result.judgments) == {"special_scale"}
+    assert result.judgments["special_scale"].decided_by is DecidedBy.LLM
+    (request,) = llm.calls
+    assert request.effort is None
+    assert "Skala 0,2 ml" in request.user

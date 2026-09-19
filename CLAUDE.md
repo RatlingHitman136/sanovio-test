@@ -32,7 +32,7 @@ Working rules and project map for the Article Equivalence Loop prototype. The de
 
 ## Project structure
 
-Status: ✅ exists (stages 0–7 done).
+Status: ✅ exists (stages 0–8 done).
 
 ```
 sanovio/
@@ -61,7 +61,8 @@ sanovio/
 │           ├── validation.py     ✅ a typed value checked against its attribute definition
 │           ├── service_info.py   ✅ health response shared by both services and the demo client
 │           ├── templates/        ✅ model, loader, seed/*.yaml (definitions + 3 templates)
-│           ├── parsers/          ✅ numbers, units, gauge, dimensions, packaging, synonyms, text
+│           ├── parsers/          ✅ numbers, units, gauge, dimensions, packaging, synonyms, text,
+│           │                        standards (canonical designations), wording (canonical free text)
 │           ├── facts.py          ✅ precedence, resolver, record_hash
 │           ├── exchange/         ✅ keys, requirement, assertion, jws
 │           ├── comparators.py    ✅ per-attribute judgments; comparator decisions are final
@@ -96,10 +97,10 @@ sanovio/
 │           │                        templates, catalog, normalization, projection,
 │           │                        requirement_intake, candidate_search, seed, assessment, assess,
 │           │                        questions, supplier_inbox, enrichment, resolution,
-│           │                        attribute_proposals, supplier_simulator
+│           │                        attribute_proposals, supplier_simulator, supplier_catalog
 │           ├── domain/           ✅ state_machine, stop_conditions
 │           ├── llm/              ✅ normalize_item, judge, extract_answer, propose_attribute,
-│           │                        simulate_supplier + prompts; fakes (scripted, all purposes)
+│           │                        simulate_supplier, compare_text + prompts; fakes (scripted)
 │           ├── jobs/             ✅ queue, worker, handlers
 │           └── evals/            ✅ golden verdicts + comments, verdicts, answers
 ├── tools/
@@ -117,6 +118,7 @@ sanovio/
 │   ├── apps/purchaser/           ✅ served by the node: assessments, articles, search, current
 │   │                                product, assessment detail with questions both ways
 │   ├── apps/supplier/            ✅ served by the hub: inbox, answer form, simulator (dev), catalog
+│   │                                with family pages (edit family values, override per variant)
 │   └── e2e/                      ✅ Playwright: scenario 1 across both apps (own ports + var/e2e)
 ├── .secrets/                     created by `make keys` (git-ignored)
 └── var/                          SQLite files (git-ignored)

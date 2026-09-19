@@ -11,7 +11,7 @@ from hospital_node.models.users import Role
 from service_kit.errors import Conflict
 from service_kit.security import PasswordHasher
 
-MIN_PASSWORD_LENGTH = 12
+MIN_PASSWORD_LENGTH = 6
 
 
 def create_user(

@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 import pytest
 
 from equivalence_core.comparators import (
+    WORDED_DIFFERENTLY,
     ComparisonStatus,
     DecidedBy,
     Judgment,
@@ -396,3 +397,30 @@ def test_compare_values_is_usable_on_its_own(syringe: TemplateDefinition) -> Non
 
     assert status is ComparisonStatus.ACCEPTABLE_DEVIATION
     assert detail is not None
+
+
+def test_text_saying_the_same_nothing_matches(syringe: TemplateDefinition) -> None:
+    """Found in the dev data: the hospital answered "nein", BD's catalog said "keine"."""
+    judgment = _one(syringe, "special_scale", TextValue(value="nein"), TextValue(value="keine"))
+
+    assert judgment.status is ComparisonStatus.MATCH
+
+
+def test_text_worded_differently_is_left_for_a_reading_not_a_mismatch(
+    syringe: TemplateDefinition,
+) -> None:
+    judgment = _one(
+        syringe,
+        "special_scale",
+        TextValue(value="0,2-ml-Teilung"),
+        TextValue(value="unterteilt in 0,2 ml"),
+    )
+
+    assert judgment.status is ComparisonStatus.NEEDS_JUDGE
+    assert judgment.detail == WORDED_DIFFERENTLY
+
+
+def test_an_enum_still_mismatches_on_its_own(syringe: TemplateDefinition) -> None:
+    judgment = _one(syringe, "design", EnumValue(value="TWO_PART"), EnumValue(value="THREE_PART"))
+
+    assert judgment.status is ComparisonStatus.MISMATCH

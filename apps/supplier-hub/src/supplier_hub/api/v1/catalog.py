@@ -3,16 +3,24 @@ import uuid
 from fastapi import APIRouter
 from sqlalchemy import select
 
+from equivalence_core.facts import ResolvedRecord, SupplierSource
 from service_kit.errors import NotFound
-from supplier_hub.api.deps import CurrentPrincipal, CurrentUser, DbSession
+from supplier_hub.api.deps import Context, CurrentPrincipal, CurrentUser, DbSession, Supplier
 from supplier_hub.models import ItemSearchProjection, Organization, ProductFamily, ProductVariant
 from supplier_hub.models.organizations import OrganizationType
 from supplier_hub.schemas.catalog import (
+    CatalogAttribute,
+    CatalogEdit,
+    CatalogValue,
     FamilyView,
+    OwnFact,
+    SupplierFamilyDetail,
     SupplierView,
     VariantAttributesView,
+    VariantValues,
     VariantView,
 )
+from supplier_hub.services import supplier_catalog
 
 router = APIRouter(tags=["catalog"])
 
@@ -74,10 +82,100 @@ def variant_attributes(
 
 
 @router.get("/supplier/catalog")
-def supplier_catalog(session: DbSession, user: CurrentUser) -> list[FamilyView]:
+def own_catalog(session: DbSession, user: CurrentUser) -> list[FamilyView]:
     """A supplier sees its own catalog and nothing else."""
     query = select(ProductFamily).where(ProductFamily.supplier_id == user.org_id)
     return [_family(family) for family in session.scalars(query.order_by(ProductFamily.name))]
+
+
+@router.get("/supplier/catalog/families/{family_id}")
+def supplier_family(
+    family_id: uuid.UUID, session: DbSession, user: Supplier
+) -> SupplierFamilyDetail:
+    """The supplier's family: its own values, and each variant's with its scope (§9)."""
+    view = supplier_catalog.family_view(session, user, family_id)
+    return SupplierFamilyDetail(
+        id=view.family.id,
+        name=view.family.name,
+        category_code=view.family.category_code,
+        attributes=[
+            CatalogAttribute(
+                key=attribute.key,
+                label=attribute.labels.en,
+                type=attribute.type,
+                unit=attribute.unit,
+                options=list(attribute.options),
+                criticality=attribute.criticality,
+            )
+            for attribute in view.template.attributes
+        ],
+        family_values=_values(view.family_record),
+        family_unavailable=list(view.family_record.unavailable_attributes),
+        variants=[
+            VariantValues(
+                variant_id=variant.id,
+                article_no=variant.article_no,
+                label=variant.label,
+                values=_values(record),
+                unavailable=list(record.unavailable_attributes),
+            )
+            for variant, record in view.variants
+        ],
+        own_facts=[
+            OwnFact(
+                fact_id=fact.id,
+                attribute_key=fact.attribute_key,
+                variant_id=fact.variant_id,
+                value=fact.value,
+                unavailable=fact.source == SupplierSource.UNAVAILABLE,
+            )
+            for fact in supplier_catalog.own_facts(session, view.family)
+        ],
+    )
+
+
+@router.put("/supplier/catalog/facts")
+def set_catalog_value(
+    body: CatalogEdit, context: Context, session: DbSession, user: Supplier
+) -> OwnFact:
+    """Sets a value for the whole family, or overrides it for one variant."""
+    fact = supplier_catalog.set_value(
+        session,
+        user,
+        family_id=body.family_id,
+        variant_id=body.variant_id,
+        key=body.attribute_key,
+        value=body.value,
+        unavailable=body.unavailable,
+        now=context.clock(),
+    )
+    return OwnFact(
+        fact_id=fact.id,
+        attribute_key=fact.attribute_key,
+        variant_id=fact.variant_id,
+        value=fact.value,
+        unavailable=body.unavailable,
+    )
+
+
+@router.delete("/supplier/catalog/facts/{fact_id}", status_code=204)
+def withdraw_catalog_value(
+    fact_id: uuid.UUID, context: Context, session: DbSession, user: Supplier
+) -> None:
+    """Takes back one of the supplier's own values; what was there before shows again."""
+    supplier_catalog.withdraw(session, user, fact_id, now=context.clock())
+
+
+def _values(record: ResolvedRecord) -> dict[str, CatalogValue]:
+    return {
+        key: CatalogValue(
+            value=resolved.value.model_dump(mode="json"),
+            source=resolved.source,
+            scope=resolved.scope,
+            fact_id=resolved.fact_id,
+        )
+        for key, resolved in record.attributes.items()
+    }
 
 
 def _load_family(session: DbSession, family_id: uuid.UUID) -> ProductFamily:

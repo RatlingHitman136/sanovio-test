@@ -7,7 +7,7 @@ from alembic import context
 import hospital_node.models  # noqa: F401  (registers every table on Base.metadata)
 from hospital_node.core.db import Base
 from hospital_node.core.settings import NodeSettings
-from service_kit.db import make_engine
+from service_kit.db import make_engine, migration_connection
 
 _DEFAULT_URL: str = NodeSettings.model_fields["database_url"].default
 
@@ -21,7 +21,7 @@ def _url() -> str:
 
 def run_migrations() -> None:
     engine = make_engine(_url())
-    with engine.connect() as connection:
+    with engine.connect() as raw, migration_connection(raw) as connection:
         context.configure(
             connection=connection,
             target_metadata=Base.metadata,

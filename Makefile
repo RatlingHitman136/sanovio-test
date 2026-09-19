@@ -12,6 +12,7 @@ setup:
 
 # File targets: existing keys are left alone, so re-running is safe.
 keys: $(NODE_KEYS)
+	@echo "Node signing keys are in .secrets/ ($(notdir $(NODE_KEYS))); existing keys are never overwritten."
 
 .secrets/node_ksp_ed25519.pem:
 	uv run --package hospital-node hospital-node keygen --out $@ --kid ksp-2026-09

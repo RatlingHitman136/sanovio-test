@@ -689,6 +689,143 @@
         "title": "CandidateView",
         "type": "object"
       },
+      "CatalogAttribute": {
+        "properties": {
+          "criticality": {
+            "title": "Criticality",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "options": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Options",
+            "type": "array"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "type",
+          "unit",
+          "options",
+          "criticality"
+        ],
+        "title": "CatalogAttribute",
+        "type": "object"
+      },
+      "CatalogEdit": {
+        "description": "Exactly one of family and variant; a typed value, or unavailable=true.",
+        "properties": {
+          "attribute_key": {
+            "title": "Attribute Key",
+            "type": "string"
+          },
+          "family_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Family Id"
+          },
+          "unavailable": {
+            "default": false,
+            "title": "Unavailable",
+            "type": "boolean"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TypedValue"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "variant_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variant Id"
+          }
+        },
+        "required": [
+          "attribute_key"
+        ],
+        "title": "CatalogEdit",
+        "type": "object"
+      },
+      "CatalogValue": {
+        "properties": {
+          "fact_id": {
+            "title": "Fact Id",
+            "type": "string"
+          },
+          "scope": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "value": {
+            "additionalProperties": true,
+            "title": "Value",
+            "type": "object"
+          }
+        },
+        "required": [
+          "value",
+          "source",
+          "scope",
+          "fact_id"
+        ],
+        "title": "CatalogValue",
+        "type": "object"
+      },
       "ComparisonRule": {
         "description": "Named here so templates are validated now; the comparators themselves live in stage 3.",
         "enum": [
@@ -1007,6 +1144,55 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "IdentifierScheme": {
+        "enum": [
+          "GTIN",
+          "EAN",
+          "MANUFACTURER_REF",
+          "PHARMACODE",
+          "SUPPLIER_ARTICLE_NO",
+          "PZN",
+          "HIMIV"
+        ],
+        "title": "IdentifierScheme",
+        "type": "string"
+      },
+      "IdentifierValue": {
+        "additionalProperties": false,
+        "properties": {
+          "checksum_valid": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checksum Valid"
+          },
+          "scheme": {
+            "$ref": "#/components/schemas/IdentifierScheme"
+          },
+          "type": {
+            "const": "identifier",
+            "default": "identifier",
+            "title": "Type",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scheme",
+          "value",
+          "checksum_valid"
+        ],
+        "title": "IdentifierValue",
+        "type": "object"
+      },
       "ListValue": {
         "additionalProperties": false,
         "properties": {
@@ -1118,6 +1304,57 @@
           "unit"
         ],
         "title": "NumberValue",
+        "type": "object"
+      },
+      "OwnFact": {
+        "description": "A value the supplier set itself (or its \"not available\"), which it may withdraw.",
+        "properties": {
+          "attribute_key": {
+            "title": "Attribute Key",
+            "type": "string"
+          },
+          "fact_id": {
+            "format": "uuid",
+            "title": "Fact Id",
+            "type": "string"
+          },
+          "unavailable": {
+            "title": "Unavailable",
+            "type": "boolean"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "variant_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variant Id"
+          }
+        },
+        "required": [
+          "fact_id",
+          "attribute_key",
+          "variant_id",
+          "value",
+          "unavailable"
+        ],
+        "title": "OwnFact",
         "type": "object"
       },
       "PrecheckEntry": {
@@ -1797,6 +2034,78 @@
         "title": "SigningKeyView",
         "type": "object"
       },
+      "SupplierFamilyDetail": {
+        "description": "Per attribute: the family's value, then each variant's effective value with its scope.",
+        "properties": {
+          "attributes": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogAttribute"
+            },
+            "title": "Attributes",
+            "type": "array"
+          },
+          "category_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Code"
+          },
+          "family_unavailable": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Family Unavailable",
+            "type": "array"
+          },
+          "family_values": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/CatalogValue"
+            },
+            "title": "Family Values",
+            "type": "object"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "own_facts": {
+            "items": {
+              "$ref": "#/components/schemas/OwnFact"
+            },
+            "title": "Own Facts",
+            "type": "array"
+          },
+          "variants": {
+            "items": {
+              "$ref": "#/components/schemas/VariantValues"
+            },
+            "title": "Variants",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "category_code",
+          "attributes",
+          "family_values",
+          "family_unavailable",
+          "variants",
+          "own_facts"
+        ],
+        "title": "SupplierFamilyDetail",
+        "type": "object"
+      },
       "SupplierQuestionView": {
         "properties": {
           "attribute_key": {
@@ -2120,6 +2429,39 @@
         "title": "TokenResponse",
         "type": "object"
       },
+      "TypedValue": {
+        "discriminator": {
+          "mapping": {
+            "bool": "#/components/schemas/BoolValue",
+            "enum": "#/components/schemas/EnumValue",
+            "identifier": "#/components/schemas/IdentifierValue",
+            "list": "#/components/schemas/ListValue",
+            "number": "#/components/schemas/NumberValue",
+            "text": "#/components/schemas/TextValue"
+          },
+          "propertyName": "type"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/NumberValue"
+          },
+          {
+            "$ref": "#/components/schemas/BoolValue"
+          },
+          {
+            "$ref": "#/components/schemas/EnumValue"
+          },
+          {
+            "$ref": "#/components/schemas/TextValue"
+          },
+          {
+            "$ref": "#/components/schemas/ListValue"
+          },
+          {
+            "$ref": "#/components/schemas/IdentifierValue"
+          }
+        ]
+      },
       "UserRole": {
         "enum": [
           "SUPPLIER",
@@ -2203,6 +2545,46 @@
           "additional_information"
         ],
         "title": "VariantAttributesView",
+        "type": "object"
+      },
+      "VariantValues": {
+        "properties": {
+          "article_no": {
+            "title": "Article No",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "unavailable": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Unavailable",
+            "type": "array"
+          },
+          "values": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/CatalogValue"
+            },
+            "title": "Values",
+            "type": "object"
+          },
+          "variant_id": {
+            "format": "uuid",
+            "title": "Variant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "variant_id",
+          "article_no",
+          "label",
+          "values",
+          "unavailable"
+        ],
+        "title": "VariantValues",
         "type": "object"
       },
       "VariantView": {
@@ -5166,7 +5548,7 @@
     "/api/v1/supplier/catalog": {
       "get": {
         "description": "A supplier sees its own catalog and nothing else.",
-        "operationId": "supplier_catalog_api_v1_supplier_catalog_get",
+        "operationId": "own_catalog_api_v1_supplier_catalog_get",
         "responses": {
           "200": {
             "content": {
@@ -5175,7 +5557,7 @@
                   "items": {
                     "$ref": "#/components/schemas/FamilyView"
                   },
-                  "title": "Response Supplier Catalog Api V1 Supplier Catalog Get",
+                  "title": "Response Own Catalog Api V1 Supplier Catalog Get",
                   "type": "array"
                 }
               }
@@ -5228,7 +5610,265 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "Supplier Catalog",
+        "summary": "Own Catalog",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/api/v1/supplier/catalog/facts": {
+      "put": {
+        "description": "Sets a value for the whole family, or overrides it for one variant.",
+        "operationId": "set_catalog_value_api_v1_supplier_catalog_facts_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CatalogEdit"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OwnFact"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing, expired or revoked token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The caller's role may not do this"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Not found, or another tenant's"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "A state or version conflict; see `code`"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Set Catalog Value",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/api/v1/supplier/catalog/facts/{fact_id}": {
+      "delete": {
+        "description": "Takes back one of the supplier's own values; what was there before shows again.",
+        "operationId": "withdraw_catalog_value_api_v1_supplier_catalog_facts__fact_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "fact_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Fact Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing, expired or revoked token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The caller's role may not do this"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Not found, or another tenant's"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "A state or version conflict; see `code`"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Withdraw Catalog Value",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/api/v1/supplier/catalog/families/{family_id}": {
+      "get": {
+        "description": "The supplier's family: its own values, and each variant's with its scope (\u00a79).",
+        "operationId": "supplier_family_api_v1_supplier_catalog_families__family_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Family Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupplierFamilyDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing, expired or revoked token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The caller's role may not do this"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Not found, or another tenant's"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "A state or version conflict; see `code`"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Supplier Family",
         "tags": [
           "catalog"
         ]

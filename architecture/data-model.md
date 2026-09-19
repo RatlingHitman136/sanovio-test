@@ -12,7 +12,7 @@ Companion to the prototype plan ([design-plan.md](design-plan.md), see §4.6 for
 - **Enums** are `text` + `CHECK`; Python `StrEnum` in code.
 - **Money:** `numeric(12,4)` (node only).
 - **Timestamps:** every table has `created_at timestamptz NOT NULL`; mutable tables add `updated_at`.
-- **Append-only tables:** facts (except `superseded_by_id` and `retracted_at`), `egress_log`, `requirements`, `assessment_rounds`, `events`, `llm_calls`, submitted `answers`.
+- **Append-only tables:** facts (except `superseded_by_id`, `retracted_at` at the node and `withdrawn_at` / `withdrawn_by` at the hub), `egress_log`, `requirements`, `assessment_rounds`, `events`, `llm_calls`, submitted `answers`.
 - **Hashes** are `char(64)` SHA-256 hex (shortened in examples).
 - **Typed `value` shapes** (both sides):
 
@@ -399,8 +399,9 @@ Node settings (not tables):
 | llm_call_id | uuid | YES | FK llm_calls |
 | model_id / prompt_version | text | YES | |
 | superseded_by_id | uuid | YES | FK item_facts |
+| withdrawn_at / withdrawn_by | timestamptz / uuid | YES | a supplier took back its own fact (stage 8); FK users. Only `SUPPLIER_ANSWER` and `UNAVAILABLE` facts can be withdrawn |
 
-Partial indexes `(variant_id, attribute_key)` and `(family_id, attribute_key)` `WHERE superseded_by_id IS NULL`.
+Partial indexes `(variant_id, attribute_key)` and `(family_id, attribute_key)` `WHERE superseded_by_id IS NULL AND withdrawn_at IS NULL`: a fact is current while both are NULL.
 
 | id | scope → item | attribute_key | value | raw_value | source | evidence_quote | conf. | answer_id | created_by | model / prompt |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -413,6 +414,8 @@ Partial indexes `(variant_id, attribute_key)` and `(family_id, attribute_key)` `
 | fct_31 | variant → var_microlance_21g_40 | inner_diameter_mm | NULL | – | UNAVAILABLE | – | – | ans_07 | usr_bd1 | – |
 
 **Superseding:** a later correction adds a new fact and sets `superseded_by_id` on the old one; nothing is deleted.
+
+**Supplier edits (stage 8):** a value a supplier sets in its catalog is a `SUPPLIER_ANSWER` fact (or `UNAVAILABLE`) with `created_by` set and no `answer_id`, at family scope or as a variant override. Withdrawing it sets `withdrawn_at` / `withdrawn_by`; the older value then resolves again.
 
 ### H.11 `item_search_projection` (derived, variant rows only)
 | Column | Type | Null | Notes |
@@ -625,7 +628,7 @@ Partial unique index: `(hospital_tenant_id, article_ref, variant_id) WHERE statu
 | Column | Type | Null | Notes |
 |---|---|---|---|
 | id | uuid | NO | PK |
-| purpose | text | NO | CHECK `NORMALIZE_ITEM`, `JUDGE`, `EXTRACT_ANSWER`, `PROPOSE_ATTRIBUTE`, `SIMULATE_SUPPLIER` |
+| purpose | text | NO | CHECK `NORMALIZE_ITEM`, `JUDGE`, `EXTRACT_ANSWER`, `PROPOSE_ATTRIBUTE`, `SIMULATE_SUPPLIER`, `COMPARE_TEXT` (stage 8) |
 | model | text | NO | |
 | effort | text | YES | |
 | prompt_version | text | NO | |

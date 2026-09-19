@@ -12,8 +12,10 @@ from importlib import resources
 from typing import Any
 
 from equivalence_core.parsers import parse_number
+from equivalence_core.parsers.wording import canonical_text
 from llm_client import FakeLLM, StructuredRequest
 from supplier_hub.llm import (
+    compare_text,
     extract_answer,
     judge,
     normalize_item,
@@ -31,6 +33,8 @@ from supplier_hub.llm.outputs import (
     QuestionDraft,
     SimulatedAnswer,
     SimulatedAnswers,
+    TextReading,
+    TextReadings,
 )
 
 _EMPTY: dict[str, Any] = {"category_code": None, "facts": []}
@@ -60,6 +64,7 @@ def fake_llm(readings: dict[str, Any] | None = None) -> FakeLLM:
             extract_answer.PURPOSE: _extract,
             propose_attribute.PURPOSE: _propose,
             simulate_supplier.PURPOSE: _simulate,
+            compare_text.PURPOSE: _compare_text,
         }
     )
 
@@ -239,3 +244,20 @@ def _simulate(request: StructuredRequest[Any]) -> SimulatedAnswers:
             )
         )
     return SimulatedAnswers(answers=answers)
+
+
+def _compare_text(request: StructuredRequest[Any]) -> TextReadings:
+    """Same meaning when at least half of the words are shared, after normalization."""
+    readings = []
+    for pair in _data(request)["pairs"]:
+        ours = set(canonical_text(pair["hospital"]).split())
+        theirs = set(canonical_text(pair["supplier"]).split())
+        shared = len(ours & theirs) / max(len(ours | theirs), 1)
+        readings.append(
+            TextReading(
+                attribute_key=pair["attribute_key"],
+                status="MATCH" if shared >= 0.5 else "MISMATCH",
+                rationale=f"{shared:.0%} of the words are shared.",
+            )
+        )
+    return TextReadings(readings=readings)

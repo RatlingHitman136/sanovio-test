@@ -5,7 +5,7 @@ import os
 from alembic import context
 
 import supplier_hub.models  # noqa: F401  (registers every table on Base.metadata)
-from service_kit.db import make_engine
+from service_kit.db import make_engine, migration_connection
 from supplier_hub.core.db import Base
 from supplier_hub.core.settings import HubSettings
 
@@ -21,7 +21,7 @@ def _url() -> str:
 
 def run_migrations() -> None:
     engine = make_engine(_url())
-    with engine.connect() as connection:
+    with engine.connect() as raw, migration_connection(raw) as connection:
         context.configure(
             connection=connection,
             target_metadata=Base.metadata,

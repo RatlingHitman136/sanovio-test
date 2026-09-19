@@ -114,7 +114,7 @@ def test_users_get_a_hub_subject_and_unique_email(
 
 
 def test_short_passwords_are_refused(session: Session, hasher: PasswordHasher) -> None:
-    with pytest.raises(ValueError, match="12 characters"):
+    with pytest.raises(ValueError, match="6 characters"):
         create_user(
             session,
             hasher,

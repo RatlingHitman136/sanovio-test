@@ -1,12 +1,14 @@
 """Database engine, sessions and the declarative base every service model inherits."""
 
 import uuid
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import JSON, CheckConstraint, DateTime, Engine, create_engine, event
+from sqlalchemy import JSON, CheckConstraint, Connection, DateTime, Engine, create_engine, event
 from sqlalchemy.engine.interfaces import DBAPIConnection
 from sqlalchemy.orm import Mapped, Session, mapped_column, sessionmaker
 from sqlalchemy.pool import ConnectionPoolEntry
@@ -75,6 +77,29 @@ def one_of(column: str, values: type[StrEnum], name: str | None = None) -> Check
     """A CHECK built from an enum, so the allowed values exist in exactly one place."""
     allowed = ", ".join(f"'{member.value}'" for member in values)
     return CheckConstraint(f"{column} IN ({allowed})", name=name or column)
+
+
+class DanglingReferences(RuntimeError):
+    """A migration left rows pointing at rows that no longer exist."""
+
+
+@contextmanager
+def migration_connection(connection: Connection) -> Iterator[Connection]:
+    """SQLite's own procedure for rebuilding tables: foreign-key enforcement off while a
+    migration drops and recreates a table other rows point at, then a full check that nothing
+    dangles. Other databases alter tables in place and need none of this."""
+    if connection.dialect.name != "sqlite":
+        yield connection
+        return
+    # Only outside a transaction does SQLite honour this pragma.
+    connection.exec_driver_sql("PRAGMA foreign_keys=OFF")
+    connection.commit()
+    yield connection
+    dangling = connection.exec_driver_sql("PRAGMA foreign_key_check").fetchall()
+    connection.exec_driver_sql("PRAGMA foreign_keys=ON")
+    connection.commit()
+    if dangling:
+        raise DanglingReferences(f"foreign keys broken by the migration: {dangling[:5]}")
 
 
 def make_session_factory(engine: Engine) -> sessionmaker[Session]:

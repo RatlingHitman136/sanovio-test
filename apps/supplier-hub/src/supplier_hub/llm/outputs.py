@@ -99,3 +99,16 @@ class SimulatedAnswer(BaseModel):
 
 class SimulatedAnswers(BaseModel):
     answers: list[SimulatedAnswer]
+
+
+# --- compare_text ----------------------------------------------------------------------
+
+
+class TextReading(BaseModel):
+    attribute_key: str
+    status: Literal["MATCH", "MISMATCH", "UNKNOWN"]
+    rationale: str = Field(description="One short sentence on why.")
+
+
+class TextReadings(BaseModel):
+    readings: list[TextReading]

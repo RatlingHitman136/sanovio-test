@@ -143,6 +143,8 @@ entity item_facts {
   model_id : text
   prompt_version : text
   superseded_by_id : uuid <<FK item_facts>>
+  withdrawn_at : timestamptz
+  withdrawn_by : uuid <<FK users>>
   * created_at : timestamptz
   ..
   CHECK num_nonnulls(family_id, variant_id) = 1
@@ -308,7 +310,7 @@ entity jobs {
 entity llm_calls {
   * id : uuid <<PK>>
   --
-  * purpose : text <<CHECK NORMALIZE_ITEM|JUDGE|\nEXTRACT_ANSWER|PROPOSE_ATTRIBUTE|SIMULATE_SUPPLIER>>
+  * purpose : text <<CHECK NORMALIZE_ITEM|JUDGE|\nEXTRACT_ANSWER|PROPOSE_ATTRIBUTE|SIMULATE_SUPPLIER|\nCOMPARE_TEXT>>
   * model : text
   effort : text
   * prompt_version : text

@@ -5,6 +5,8 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 DATA=var/e2e
 mkdir -p "$DATA"
+# Throwaway data: every run starts from fresh files, whatever a previous run left behind.
+rm -f "$DATA/$1.db" "$DATA/$1.db-wal" "$DATA/$1.db-shm"
 export APP_ENV=dev NODE_SEED_PASSWORD=e2e-demo-password HUB_SEED_PASSWORD=e2e-demo-password
 
 case "$1" in

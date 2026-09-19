@@ -32,7 +32,14 @@ endif
 |Domain (core + hub)|
 :Hospital side = requirement attributes\n(+ unknown / unavailable lists);\nsupplier side = variant effective record;
 :input_hash = hash(requirement_hash\n+ supplier record_hash + definition_hash);\nstore snapshot (incl. the definition judged);
-:Run comparators where both sides\nhave structured values\n(results are final);
+:Run comparators where both sides\nhave structured values\n(results are final; free text compared\nin canonical form: "nein" = "keine");
+if (free text worded differently,\nand no critical MISMATCH yet?) then (yes)
+  |LLM|
+  :compare_text (Haiku 4.5, no thinking)\none call: all worded-differently pairs\n→ MATCH / MISMATCH / UNKNOWN;
+  |Domain (core + hub)|
+  :Decided pairs merged (decided by model);\nUNKNOWN or a failed call stays for the judge;
+else (no)
+endif
 if (critical MISMATCH already, or nothing\nleft to judge or word?) then (yes)
   :No judge call;\nrule verdict and template question texts;
 else (no)

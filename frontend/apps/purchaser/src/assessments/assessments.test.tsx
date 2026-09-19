@@ -196,3 +196,30 @@ test("a valid GTIN on both sides shows the same-trade-item banner", async () => 
 
   expect(await screen.findByText(/Same trade item: GTIN 04040456789018/)).toBeInTheDocument();
 });
+
+test("the comparison sorts by criticality and filters by judgment", async () => {
+  serve(...assessmentHandlers(assessment()));
+  await renderPurchaser("/assessments/asm-1");
+
+  const table = (await screen.findByText("Design")).closest("table");
+  if (!table) throw new Error("no comparison table");
+  const names = () =>
+    within(table)
+      .getAllByRole("row")
+      .slice(1)
+      .map((row) => row.querySelector("td")?.textContent);
+  // Critical before major by default; by judgment, the mismatch comes first.
+  expect(names()).toEqual(["Nominal volume", "Design"]);
+  await userEvent.selectOptions(screen.getByLabelText("Sort by"), "judgment");
+  expect(names()).toEqual(["Design", "Nominal volume"]);
+  expect(screen.getByRole("button", { name: "mismatch 1" })).toBeInTheDocument();
+
+  await userEvent.click(screen.getByRole("button", { name: "mismatch 1" }));
+  expect(names()).toEqual(["Design"]);
+
+  await userEvent.click(screen.getByRole("button", { name: "match 1" }));
+  expect(names()).toEqual(["Nominal volume"]);
+
+  await userEvent.click(screen.getByLabelText("decided by model"));
+  expect(screen.getByText("Nothing matches this filter.")).toBeInTheDocument();
+});

@@ -13,6 +13,7 @@ from sqlalchemy import (
     Numeric,
     String,
     UniqueConstraint,
+    and_,
     column,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -77,7 +78,8 @@ class ProductVariant(Base):
     supplier: Mapped[Organization] = relationship()
 
 
-_ACTIVE = column("superseded_by_id").is_(None)
+# A fact counts until a newer one supersedes it or its supplier withdraws it.
+_ACTIVE = and_(column("superseded_by_id").is_(None), column("withdrawn_at").is_(None))
 
 
 class ItemFact(Base):
@@ -120,10 +122,13 @@ class ItemFact(Base):
     model_id: Mapped[str | None]
     prompt_version: Mapped[str | None]
     superseded_by_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("item_facts.id"))
+    # A supplier took its own value back; the catalog or family value shows again (§9).
+    withdrawn_at: Mapped[datetime | None]
+    withdrawn_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
 
     @property
     def is_active(self) -> bool:
-        return self.superseded_by_id is None
+        return self.superseded_by_id is None and self.withdrawn_at is None
 
 
 class ItemSearchProjection(Base):

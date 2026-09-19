@@ -10,6 +10,7 @@ from llm_client import LLMClient
 from service_kit.clock import Clock, utc_now
 from service_kit.db import make_engine, make_session_factory
 from service_kit.http_errors import ERROR_RESPONSES, install_error_handlers
+from service_kit.spa import mount_spa
 from supplier_hub.api.deps import HubContext
 from supplier_hub.api.v1 import (
     admin,
@@ -81,4 +82,6 @@ def create_app(
     if resolved.app_env == "dev":
         api.include_router(dev.router)
     app.include_router(api)
+    if resolved.supplier_ui_dir is not None:
+        mount_spa(app, resolved.supplier_ui_dir)
     return app

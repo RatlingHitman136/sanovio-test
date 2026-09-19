@@ -15,13 +15,20 @@ frame "Prototype (developer machine)" {
     database "var/node_ksp.db" as pdb1
     database "var/hub.db" as pdbh
     artifact ".secrets/\n(node + hub Ed25519 keys, 0600)" as psec
-    artifact "demo client / .http /\nSwagger (two base URLs)" as pcl
+    artifact "demo client /\nSwagger (two base URLs)" as pcl
+    node "Vite dev servers\n(make ui-dev)" as vite {
+      artifact "purchaser app :5173" as vpa
+      artifact "supplier app :5174" as vsa
+    }
   }
   cloud "Anthropic API" as panth
 }
 
 pcl --> pn1app : HTTP node token
 pcl --> phapp : HTTP hub token
+vpa --> pn1app : proxy /api
+vpa --> phapp : proxy /hub
+vsa --> phapp : proxy /api
 pn1app --> pdb1
 phapp --> pdbh
 pn1app ..> psec
@@ -31,7 +38,7 @@ phapp --> panth : HTTPS
 frame "Production: on-prem node" {
   frame "Hospital network (firewall: no inbound from outside)" #E3F2FD {
     node "Hospital VM / container" as onp {
-      artifact "hospital-node\n(FastAPI + worker)" as onpapp
+      artifact "hospital-node\n(FastAPI; serves the\npurchaser app at /)" as onpapp
       database "SQLite or Postgres" as onpdb
       artifact "Key vault / HSM\n(node private key)" as onpkey
     }
@@ -40,11 +47,10 @@ frame "Production: on-prem node" {
     }
   }
   frame "Our cloud" #E8F5E9 {
-    node "supplier-hub API hosts" as hubapi
+    node "supplier-hub API hosts\n(serve the supplier app at /)" as hubapi
     node "hub worker process" as hubw
     database "Postgres\n(+ pgvector later)" as hubpg
     artifact "KMS / secret manager\n(hub private key,\nAnthropic key)" as hubkms
-    node "Supplier SPA hosting" as sspa
   }
   cloud "Anthropic API" as anth
   actor "Supplier user" as sup
@@ -59,8 +65,7 @@ hubapi --> hubpg
 hubw --> hubpg
 hubw --> anth : HTTPS
 hubapi ..> hubkms : sign
-sup --> sspa
-sspa --> hubapi : HTTPS
+sup --> hubapi : HTTPS\n(supplier app + API)
 
 frame "Production: managed node (run by us for a hospital)" {
   frame "Isolated tenant environment (own network, no route to hub)" #E3F2FD {
@@ -77,9 +82,11 @@ mnode --> mdb
 mnode ..> msec
 
 note bottom of hubapi
-  The hub never connects to any node,
-  and no node has a hub URL: all exchange
-  goes through the purchaser's client.
+  The hub never connects to any node, and
+  no node connects to the hub: the node only
+  tells the browser the hub's address
+  (client-config). All exchange goes through
+  the purchaser's app.
 end note
 
 @enduml

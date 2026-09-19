@@ -77,14 +77,29 @@ def test_the_simulator_answers_for_bd_and_the_loop_ends_in_a_proposal(
     assert ExtractionStatus.EXTRACTED in statuses
 
 
-def test_only_an_operator_may_simulate(
+def test_the_request_s_own_supplier_may_simulate(
+    client: TestClient, buyer: dict[str, str], bd: dict[str, str], session: Session
+) -> None:
+    created = _awaiting(client, buyer, session)
+
+    response = _simulate(client, bd, created["id"])
+
+    assert response.status_code == 200, response.text
+    assert response.json() == {"status": "ASSESSING"}
+
+
+def test_nobody_else_may_simulate(
     client: TestClient,
     buyer: dict[str, str],
-    bd: dict[str, str],
+    orgs: Orgs,
     session: Session,
 ) -> None:
     created = _awaiting(client, buyer, session)
-    assert _simulate(client, bd, created["id"]).status_code == 403
+    braun = session.scalar(select(User).where(User.email == "katalog@bbraun-demo.example"))
+    assert braun is not None
+
+    # Another supplier sees no such request; a purchaser has no hub user account at all.
+    assert _simulate(client, login(client, braun), created["id"]).status_code == 404
     assert _simulate(client, buyer, created["id"]).status_code in (401, 403)
 
 

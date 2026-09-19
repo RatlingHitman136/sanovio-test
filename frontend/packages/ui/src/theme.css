@@ -1,0 +1,6 @@
+/* Shared look of both apps: neutral surfaces, one accent, clear status colours. */
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --color-accent: oklch(0.52 0.14 250);
+  --color-accent-foreground: oklch(0.99 0 0);
+}

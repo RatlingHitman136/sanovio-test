@@ -35,3 +35,11 @@ def test_defaults_follow_the_architecture(settings: NodeSettings) -> None:
     assert settings.assertion_rate_limit_per_hour == 30
     assert settings.share_product_hints is False
     assert settings.normalize_batch_size == 25
+
+
+def test_an_empty_ui_dir_means_no_app(settings: NodeSettings) -> None:
+    configured = NodeSettings.model_validate(
+        settings.model_dump() | {"purchaser_ui_dir": "", "_env_file": None}
+    )
+    assert configured.purchaser_ui_dir is None
+    assert configured.hub_url == "http://127.0.0.1:8000"

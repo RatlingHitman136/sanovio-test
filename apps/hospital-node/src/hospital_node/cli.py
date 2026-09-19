@@ -15,6 +15,7 @@ from equivalence_core.exchange.keys import (
     public_jwk,
     write_private_key,
 )
+from hospital_node import openapi
 from hospital_node.core.migrations import upgrade_to_head
 from hospital_node.core.settings import NodeSettings
 from hospital_node.evals import extraction
@@ -182,6 +183,16 @@ def run_eval(
     typer.echo(f"written to {path}")
     if not all(r.passed for r in results):
         raise typer.Exit(code=1)
+
+
+@app.command("openapi")
+def export_openapi(
+    out: Annotated[Path, typer.Option(help="Where the JSON document goes.")],
+) -> None:
+    """Write the OpenAPI document the UI's typed client is generated from (`make openapi`)."""
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(openapi.spec(), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    typer.echo(f"written to {out}")
 
 
 def _fail(message: str) -> NoReturn:

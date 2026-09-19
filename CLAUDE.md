@@ -10,7 +10,7 @@ Working rules and project map for the Article Equivalence Loop prototype. The de
 
 3. **Never touch git history.** Never run `git init`, `git add`, `git commit`, `git push`, `git rebase`, `git reset` or anything else that stages or changes history. When a logical checkpoint is reached — at the latest at the end of every stage — stop and tell the user it is a good time to commit, with a one-line suggested commit message. The user commits manually.
 
-4. **uv only.** Use uv for Python versions, libraries and commands (`uv sync`, `uv add --package <member> …`, `uv run …`). No pip, venv, poetry or requirements files. Add a dependency only in the change that first uses it.
+4. **uv only for Python; npm only for the browser apps.** Use uv for Python versions, libraries and commands (`uv sync`, `uv add --package <member> …`, `uv run …`). No pip, venv, poetry or requirements files. JavaScript lives in `frontend/` and uses npm workspaces (Node 22). Add a dependency only in the change that first uses it.
 
 5. **The architecture documents are the source of truth.** `architecture/ARCHITECTURE.md`, `architecture/data-model.md` and the diagrams in `charts/` describe the target. If the implementation needs to diverge, stop and raise it first. When a change is agreed, update the documents — and re-render the diagrams with `make charts` — in the same step as the code.
 
@@ -32,7 +32,7 @@ Working rules and project map for the Article Equivalence Loop prototype. The de
 
 ## Project structure
 
-Status: ✅ exists (stages 0–6 done).
+Status: ✅ exists (stages 0–7 done).
 
 ```
 sanovio/
@@ -107,6 +107,17 @@ sanovio/
 │                                    template sync), scenarios/ 1–4, cli: health, node-demo, demo-search,
 │                                    scenario
 ├── tests/e2e/                    ✅ both apps in-process: scenarios 1–4, isolation (6), registry (7)
+├── openapi/                      ✅ node.json, hub.json: exported specs (`make openapi`; a test keeps them current)
+├── frontend/                     ✅ npm workspaces (ARCHITECTURE §20), TypeScript strict
+│   ├── packages/api/             ✅ generated OpenAPI types, openapi-fetch clients, ApiError,
+│   │                                PurchaserSession (node login → assertion → hub, 401 renewal,
+│   │                                template sync), HubSession
+│   ├── packages/ui/              ✅ shadcn-style components on Radix + Tailwind: shell, sign-in,
+│   │                                badges, typed value view/input from `expected_answer`, dialog
+│   ├── apps/purchaser/           ✅ served by the node: assessments, articles, search, current
+│   │                                product, assessment detail with questions both ways
+│   ├── apps/supplier/            ✅ served by the hub: inbox, answer form, simulator (dev), catalog
+│   └── e2e/                      ✅ Playwright: scenario 1 across both apps (own ports + var/e2e)
 ├── .secrets/                     created by `make keys` (git-ignored)
 └── var/                          SQLite files (git-ignored)
 ```
@@ -125,7 +136,13 @@ Each workspace member keeps its tests in its own `tests/` directory.
 | `make demo SCENARIO=n` | §21 scenario 1–4 over HTTP, ending with its checks (needs `make dev`; run after `make seed`, in order) |
 | `make eval` | model quality on hand-labelled data, results in `var/evals/` (real API; `EVAL_LLM=fake` runs it offline) |
 | `make dev` | hub on :8000 and node on :8001 (`make dev-hub`, `make dev-node` for one) |
-| `make lint` | ruff, format check, mypy strict, import contracts |
+| `make lint` | ruff, format check, mypy strict, import contracts, plus eslint, prettier and tsc for `frontend/` |
 | `make format` | ruff format + auto-fixable lint |
-| `make test` | pytest for every workspace member and `tests/e2e` |
+| `make test` | pytest for every workspace member and `tests/e2e`, plus Vitest for `frontend/` |
+| `make ui-setup` | `npm ci` in `frontend/` (Node 22; once: `npx playwright install chromium` for `ui-e2e`) |
+| `make ui-dev` | purchaser app on :5173 and supplier app on :5174, proxying to `make dev` |
+| `make ui-build` | build both apps; serve them via `PURCHASER_UI_DIR` (node) and `SUPPLIER_UI_DIR` (hub) |
+| `make ui-lint` / `make ui-test` | eslint + prettier + tsc / Vitest (both also run by `make lint` / `make test`) |
+| `make ui-e2e` | Playwright: scenario 1 in a browser through both apps, on ports 18000/18001/15173/15174 |
+| `make openapi` | re-export both OpenAPI specs and regenerate the apps' typed clients |
 | `make charts` | re-render the UML diagrams |

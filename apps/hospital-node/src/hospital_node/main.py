@@ -11,6 +11,7 @@ from hospital_node.api.v1 import (
     admin,
     articles,
     auth,
+    client_config,
     dev,
     egress,
     health,
@@ -28,6 +29,7 @@ from llm_client import LLMClient
 from service_kit.clock import Clock, utc_now
 from service_kit.db import make_engine, make_session_factory
 from service_kit.http_errors import ERROR_RESPONSES, install_error_handlers
+from service_kit.spa import mount_spa
 
 log = logging.getLogger(__name__)
 
@@ -62,6 +64,7 @@ def create_app(
     api = APIRouter(prefix="/api/v1", responses=ERROR_RESPONSES)
     for module in (
         health,
+        client_config,
         auth,
         users,
         articles,
@@ -76,6 +79,8 @@ def create_app(
     if resolved.app_env == "dev":
         api.include_router(dev.router)
     app.include_router(api)
+    if resolved.purchaser_ui_dir is not None:
+        mount_spa(app, resolved.purchaser_ui_dir, connect_to=[resolved.hub_url])
     return app
 
 

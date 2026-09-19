@@ -31,3 +31,7 @@ def test_cors_is_off_unless_origins_are_named(monkeypatch: pytest.MonkeyPatch) -
     assert named.cors_origins == ("http://localhost:5173", "https://app.example")
     with pytest.raises(ValidationError, match="'\\*' is not allowed"):
         HubSettings(cors_origins="*")  # type: ignore[arg-type]
+
+
+def test_an_empty_ui_dir_means_no_app() -> None:
+    assert HubSettings(supplier_ui_dir="").supplier_ui_dir is None  # type: ignore[arg-type]

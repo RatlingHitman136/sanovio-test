@@ -5,15 +5,16 @@ title Components: hospital node + central supplier hub, client as the only bridg
 skinparam componentStyle uml2
 
 rectangle "Clients" {
-  component "Purchaser client\n(demo CLI now, SPA later;\nnode + hub tokens in memory)" as PC
-  component "Supplier client\n(Swagger UI, .http;\nsupplier SPA later)" as SC
+  component "Purchaser app\n(browser, served by the node;\nCLI demo client for scripts;\nnode + hub tokens in memory)" as PC
+  component "Supplier app\n(browser, served by the hub)" as SC
 }
 
 interface "Node REST /api/v1\n(hospital LAN, node token)" as NREST
 interface "Hub REST /api/v1\n(internet HTTPS, hub token)" as HREST
 
 rectangle "Hospital node (apps/hospital-node, per hospital)" #E3F2FD {
-  component "api/v1 routers\n(auth, articles, users,\nrequirements, hub_assertions,\nreference, egress, templates)" as N_API
+  component "api/v1 routers\n(auth, articles, users,\nrequirements, hub_assertions,\nreference, egress, templates,\nclient-config)" as N_API
+  component "Purchaser app hosting\n(built SPA at /, CSP)" as N_SPA
   component "Auth\n(node users, hashed tokens)" as N_AUTH
   component "Article services\n(facts, category,\nprojection)" as N_SVC
   component "Normalization at ingestion\n(parsers + normalize_article)" as N_NORM
@@ -35,6 +36,7 @@ rectangle "equivalence-core (shared library)" #FFF3E0 {
 
 rectangle "Supplier hub (apps/supplier-hub, central)" #E8F5E9 {
   component "api/v1 routers\n(auth, token_exchange, admin,\ncatalog, search, assessments,\nsupplier, dev)" as H_API
+  component "Supplier app hosting\n(built SPA at /, CSP;\nCORS for node origins)" as H_SPA
   component "Auth\n(supplier/operator login,\nexchanged purchaser tokens)" as H_AUTH
   component "TokenExchange +\nTenantKeys" as H_TOK
   component "RequirementIntake\n(strict schema,\ntenant from token)" as H_INT
@@ -53,8 +55,10 @@ rectangle "Supplier hub (apps/supplier-hub, central)" #E8F5E9 {
 cloud "Anthropic API\n(Opus 5, Sonnet 5, Haiku 4.5)" as ANTAPI
 
 PC ..> NREST
-PC ..> HREST
+PC ..> HREST : cross-origin
 SC ..> HREST
+N_SPA ..> PC : serves
+H_SPA ..> SC : serves
 NREST - N_API
 HREST - H_API
 

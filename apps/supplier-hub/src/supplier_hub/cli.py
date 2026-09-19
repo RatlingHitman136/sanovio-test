@@ -16,6 +16,7 @@ from service_kit.clock import utc_now
 from service_kit.db import make_engine, make_session_factory
 from service_kit.errors import Conflict, ServiceError
 from service_kit.security import PasswordHasher
+from supplier_hub import openapi
 from supplier_hub.core.migrations import upgrade_to_head
 from supplier_hub.core.settings import HubSettings
 from supplier_hub.evals import answers, verdicts
@@ -228,6 +229,16 @@ def _operator(session: Session) -> User:
     if operator is None:
         _fail("no operator account; seed the hub first")
     return operator
+
+
+@app.command("openapi")
+def export_openapi(
+    out: Annotated[Path, typer.Option(help="Where the JSON document goes.")],
+) -> None:
+    """Write the OpenAPI document the UI's typed client is generated from (`make openapi`)."""
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(openapi.spec(), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    typer.echo(f"written to {out}")
 
 
 def _fail(message: str) -> NoReturn:

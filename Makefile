@@ -1,5 +1,6 @@
 # Every Python command runs through uv (see CLAUDE.md).
-.PHONY: setup keys seed seed-node seed-hub dev dev-hub dev-node demo-node demo-search demo eval lint format test charts
+.PHONY: setup keys seed seed-node seed-hub dev dev-hub dev-node demo-node demo-search demo eval lint format test charts \
+	ui-setup ui-dev ui-build ui-lint ui-test ui-e2e openapi
 
 NODE_KEYS := .secrets/node_ksp_ed25519.pem .secrets/node_spital2_ed25519.pem
 
@@ -71,7 +72,7 @@ else
 	uv run --package supplier-hub --env-file apps/supplier-hub/.env supplier-hub eval
 endif
 
-lint:
+lint: ui-lint
 	uv run ruff check .
 	uv run ruff format --check .
 	uv run mypy
@@ -81,9 +82,42 @@ lint:
 format:
 	uv run ruff format .
 	uv run ruff check --fix .
+	cd frontend && npm run format
 
-test:
+test: ui-test
 	uv run pytest
+
+# --- Browser apps (ARCHITECTURE §20): npm only for JS, Node 22 required -------------------
+ui-setup:
+	@node --version | grep -q '^v2[2-9]' || (echo "Node 22 or newer is required (see README)"; exit 1)
+	cd frontend && npm ci
+
+# Purchaser app on :5173 (talks to the node on :8001 and the hub on :8000), supplier app on
+# :5174 (hub); needs `make dev` running.
+ui-dev:
+	cd frontend && npm run dev
+
+# Built apps: point PURCHASER_UI_DIR (node) and SUPPLIER_UI_DIR (hub) at the dist folders.
+ui-build:
+	cd frontend && npm run build
+
+ui-lint:
+	cd frontend && npm run lint
+
+ui-test:
+	cd frontend && npm test
+
+# Scenario 1 in a real browser through both apps. Starts its own hub, node and dev servers on
+# ports 18000/18001/15173/15174 with databases in var/e2e/, so `make dev` can keep running.
+# First time: `cd frontend && npx playwright install chromium`.
+ui-e2e:
+	cd frontend && npm run e2e
+
+# Re-export both OpenAPI documents and regenerate the apps' typed clients from them.
+openapi:
+	uv run --package hospital-node hospital-node openapi --out openapi/node.json
+	uv run --package supplier-hub supplier-hub openapi --out openapi/hub.json
+	cd frontend && npm run gen
 
 charts:
 	bash charts/render.sh

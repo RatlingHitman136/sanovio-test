@@ -1,8 +1,9 @@
 """Hub configuration, read from the environment (see `.env.example`)."""
 
+from pathlib import Path
 from typing import Annotated, Literal, Self
 
-from pydantic import Field, SecretStr, model_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 from llm_client import Effort
@@ -38,6 +39,9 @@ class HubSettings(BaseSettings):
 
     hub_seed_password: SecretStr | None = None
 
+    # The built supplier app (`make ui-build`); unset, the hub serves only its API.
+    supplier_ui_dir: Path | None = None
+
     @model_validator(mode="after")
     def _real_llm_needs_a_key(self) -> Self:
         if self.llm_mode == "anthropic" and self.anthropic_api_key is None:
@@ -50,6 +54,12 @@ class HubSettings(BaseSettings):
         if "*" in self.cors_origins:
             raise ValueError("CORS_ORIGINS must name origins; '*' is not allowed")
         return self
+
+    @field_validator("supplier_ui_dir", mode="before")
+    @classmethod
+    def _empty_is_unset(cls, value: object) -> object:
+        # `SUPPLIER_UI_DIR=` in .env means "no app", not the current directory.
+        return None if value == "" else value
 
     @model_validator(mode="before")
     @classmethod

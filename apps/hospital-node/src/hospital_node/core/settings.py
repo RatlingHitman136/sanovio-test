@@ -20,6 +20,11 @@ class NodeSettings(BaseSettings):
     hub_audience: str = "sanovio-hub"
     node_signing_key_file: Path
     node_signing_kid: str
+    # Handed to the purchaser app, which calls the hub from the browser (§20, D33).
+    hub_url: str = "http://127.0.0.1:8000"
+
+    # The built purchaser app (`make ui-build`); unset, the node serves only its API.
+    purchaser_ui_dir: Path | None = None
 
     # Normalization at ingestion (D42, D56). The key is the hospital's own.
     anthropic_api_key: SecretStr | None = None
@@ -38,6 +43,12 @@ class NodeSettings(BaseSettings):
     token_ttl_hours: int = Field(default=8, ge=1)
     # Password given to the demo users by `hospital-node seed`.
     node_seed_password: SecretStr | None = None
+
+    @field_validator("purchaser_ui_dir", mode="before")
+    @classmethod
+    def _empty_is_unset(cls, value: object) -> object:
+        # `PURCHASER_UI_DIR=` in .env means "no app", not the current directory.
+        return None if value == "" else value
 
     @field_validator("egress_deny_attributes", mode="before")
     @classmethod

@@ -10,7 +10,13 @@ The system is split into a **hospital node** (one per hospital, can run behind t
 - Working rules and project map: [`CLAUDE.md`](CLAUDE.md)
 
 ## Requirements
-[uv](https://docs.astral.sh/uv/) (Python 3.14 is installed by uv if missing), GNU make, and Java for re-rendering the diagrams.
+[uv](https://docs.astral.sh/uv/) (Python 3.14 is installed by uv if missing), GNU make, **Node.js 22** for the
+browser apps, and Java for re-rendering the diagrams. On Ubuntu/WSL:
+
+```bash
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+sudo apt-get install -y nodejs
+```
 
 ## Getting started
 ```bash
@@ -47,6 +53,33 @@ make demo SCENARIO=1    # then 2, 3 and 4: the §21 scenarios, each ending with 
 Supplier answers come from the hub's development simulator (`POST /dev/assessments/{id}/simulate-supplier`,
 operators only, synthetic datasheets). The scenarios tell a first encounter: run them after
 `make seed`, in order; a replay on the same data asks less, because both services remember.
+
+## The browser apps
+Two apps in `frontend/` (ARCHITECTURE §20): the **purchaser app**, served by each hospital node, and the
+**supplier app**, served by the hub. The purchaser app is the bridge between the two services; the
+node itself never calls the hub.
+
+```bash
+make ui-setup          # once: npm ci (and `cd frontend && npx playwright install chromium` for ui-e2e)
+make dev               # hub :8000 and node :8001, as above
+make ui-dev            # purchaser app http://127.0.0.1:5173, supplier app http://127.0.0.1:5174
+```
+
+Sign in as Anna (`anna.meier@demo-ksp.example`) in the purchaser app and as BD
+(`catalog@bd-demo.example`) in the supplier app, with the seed passwords. Scenario 1 by hand:
+Articles → *Einmalspritze 10 ml Luer-Lock steril* → **Search the hub** → Injekt: **This is our current
+product** → Plastipak: **Start assessment** → answer "Questions for you" → **Send questions** → in the
+supplier app open the request and **Let the simulator answer** (or answer by hand) → back in the
+purchaser app round 2 appears → **Confirm verdict**.
+
+Served the production way: `make ui-build`, then start the node with
+`PURCHASER_UI_DIR=frontend/apps/purchaser/dist` and the hub with
+`SUPPLIER_UI_DIR=frontend/apps/supplier/dist` (and `CORS_ORIGINS=http://127.0.0.1:8001`); open
+http://127.0.0.1:8001/ and http://127.0.0.1:8000/. Tokens live in memory only: a reload signs you out.
+
+`make ui-e2e` runs scenario 1 in a headless browser through both apps, on its own ports and databases
+(`var/e2e/`), so a running `make dev` is not disturbed. Operators still work in Swagger (`:8000/docs`);
+an operator section in the hub-served app comes later.
 
 ## Running with real models
 Put `ANTHROPIC_API_KEY` in both `.env` files (the hospital's key at the node, Sanovio's at the hub),
@@ -99,11 +132,13 @@ EVAL_LLM=fake make eval   # the same harness offline (node parsers only, hub scr
 ## Checks
 ```bash
 make lint     # ruff, format check, mypy strict, import boundaries
-make test     # every package, both apps, the demo client and the in-process e2e suite
+make test     # every package, both apps, the demo client, the in-process e2e suite and the UI tests
+make ui-e2e   # scenario 1 in a real browser through both apps
 ```
 
 ## Status
-All seven stages done (ARCHITECTURE §22): the shared core, the standalone **hospital node**, the
-**supplier hub** with its catalogs, search and the full **assessment loop**, and the **demo client**
-with the four scenarios, an in-process end-to-end suite (scenarios 1–4, 6 and 7) and the evals.
-The frontend is the next phase (§20).
+All eight stages done (ARCHITECTURE §22): the shared core, the standalone **hospital node**, the
+**supplier hub** with its catalogs, search and the full **assessment loop**, the **demo client** with
+the four scenarios, an in-process end-to-end suite and the evals, and the two **browser apps**
+(purchaser, served by the node; supplier, served by the hub). Next, when wanted: an operator section
+in the hub-served app (attribute curation, hospitals and keys).

@@ -3,7 +3,7 @@
 Design of the prototype: a **hospital node** per hospital and a central **supplier hub**, connected only through the purchaser's client. This document describes the design as decided; column-level schemas are in [data-model.md](data-model.md) and the UML diagrams are listed in [charts.md](charts.md) (rendered to `../charts/png/`).
 
 ## Contents
-1. Overview · 2. Scope and constraints · 3. Source data · 4. System shape · 5. Technology stack · 6. Repository layout and modules · 7. Templates and attribute registry · 8. Comparison · 9. Enrichment · 10. Data placement and storage · 11. Assessment lifecycle · 12. Background work · 13. LLM pipelines · 14. API · 15. Candidate search · 16. The requirement · 17. Identity, keys and secrets · 18. Deployment · 19. The full loop as REST calls · 20. Frontend (later) · 21. Demo data and scenarios · 22. Implementation stages · 23. Design decisions · 24. Assumptions and open questions · 25. Related documents
+1. Overview · 2. Scope and constraints · 3. Source data · 4. System shape · 5. Technology stack · 6. Repository layout and modules · 7. Templates and attribute registry · 8. Comparison · 9. Enrichment · 10. Data placement and storage · 11. Assessment lifecycle · 12. Background work · 13. LLM pipelines · 14. API · 15. Candidate search · 16. The requirement · 17. Identity, keys and secrets · 18. Deployment · 19. The full loop as REST calls · 20. Frontend · 21. Demo data and scenarios · 22. Implementation stages · 23. Design decisions · 24. Assumptions and open questions · 25. Related documents
 
 ---
 
@@ -22,13 +22,13 @@ The system is split in two so that hospital data can stay inside the hospital:
 |---|---|---|
 | **Hospital node** (one per hospital, may sit behind the hospital firewall) | the hospital's articles, their facts and identifiers, users, the egress log | parsers + one LLM normalization pass at ingestion (hospital's own key); builds requirements; signs hub assertions |
 | **Supplier hub** (central, operated by us) | tenants, supplier catalogs and facts, the attribute registry, assessments, questions, answers | search, judging, extraction, attribute proposals (our key) |
-| **Purchaser client** (demo CLI now, SPA later) | nothing persistent; both tokens in memory | the only component that talks to both |
+| **Purchaser client** (the purchaser app in the browser; the CLI demo client for scripted runs) | nothing persistent; both tokens in memory | the only component that talks to both |
 
 **The node and the hub never connect to each other.** Hospital data reaches the hub only as a *requirement*: typed technical attribute values under an opaque reference, built through an allowlist at the node and logged there.
 
 ## 2. Scope and constraints
 
-- **Backend only** for now: FastAPI (Python), exercised through Swagger UI, curl and a scripted demo client. A React/TypeScript frontend is a later phase (§20).
+- FastAPI (Python) services, used through two browser apps (§20): the purchaser app served by each node and the supplier app served by the hub. Swagger UI and the CLI demo client remain for operators and scripted runs.
 - **uv** manages Python and every Python library.
 - **Tiered Claude models** keep LLM cost down (§13).
 - **Data ingestion is out of scope.** The sample files show what the data looks like; seeds are hand-written canonical JSON.
@@ -103,7 +103,7 @@ Only **syringes** (CSV row 3) and **hypodermic needles** (CSV row 6) appear in b
                                │ LAN HTTPS + node token                   │  └──────────────────────────────▲─────────────────────────────┘
                                │                                          │                                 │ HTTPS + hub token
                     ┌──────────┴──────────────────────────────────────────┴─────────────────────────────────┴───┐
-                    │ PURCHASER CLIENT (demo CLI now, SPA later): the ONLY component that talks to both            │
+                    │ PURCHASER CLIENT (purchaser app in the browser, or CLI): the ONLY component that talks to both│
                     │  carries: requirements node → hub · template definitions hub → node · assertions node → hub   │
                     │  holds: node token + hub token in memory only                                                │
                     └───────────────────────────────────────────────────────────────────────────────────────────────┘
@@ -152,7 +152,7 @@ Only **syringes** (CSV row 3) and **hypodermic needles** (CSV row 6) appear in b
 
 **Tooling**
 
-- **Makefile:** `setup`, `keys` (dev signing keys), `seed`, `dev` (hub :8000 + node :8001 together), `dev-hub`, `dev-node`, `demo-node`, `test`, `lint` (ruff, mypy, import-linter), `eval`, `demo`. Every Python target runs through `uv run`.
+- **Makefile:** `setup`, `keys` (dev signing keys), `seed`, `dev` (hub :8000 + node :8001 together), `dev-hub`, `dev-node`, `demo-node`, `test`, `lint` (ruff, mypy, import-linter), `eval`, `demo`, and for the browser apps `ui-setup`, `ui-dev`, `ui-build`, `ui-lint`, `ui-test`, `ui-e2e`, `openapi`. Every Python target runs through `uv run`; the UI targets through npm in `frontend/`.
 - **Per-service `.env.example`:**
   - `apps/hospital-node/.env.example`: `NODE_TENANT_ID`, `NODE_SIGNING_KEY_FILE`, `NODE_SIGNING_KID`, `HUB_AUDIENCE`, `ANTHROPIC_API_KEY` (the hospital's own), `NORMALIZE_MODE=llm|rules`, `NORMALIZE_BATCH_SIZE`, `EGRESS_DENY_ATTRIBUTES`, `SHARE_PRODUCT_HINTS`, rate limits, `EGRESS_DAILY_ALERT_PER_USER`, `NODE_SEED_PASSWORD`, `DATABASE_URL`, `APP_ENV`.
   - `apps/supplier-hub/.env.example`: `ANTHROPIC_API_KEY`, `LLM_MODE=anthropic|fake`, model and effort per pipeline, `MAX_ROUNDS`, `HUB_AUDIENCE`, `CORS_ORIGINS`, `TOKEN_TTL_HOURS`, `EXCHANGE_TTL_MINUTES`, `HUB_SEED_PASSWORD`, `DATABASE_URL`, `APP_ENV`.
@@ -222,6 +222,10 @@ sanovio/
   tools/
     demo-client/src/demo_client/   # typer + httpx + rich: node/hub clients, session, scenarios/ (1–4)
   tests/e2e/                  # hub + node in-process; scenarios 1–4 through the demo client, 6 and 7
+  frontend/                   # npm workspaces (§20): packages/api (generated clients, sessions),
+                              #   packages/ui (components), apps/purchaser (node-served),
+                              #   apps/supplier (hub-served), e2e/ (Playwright)
+  openapi/                    # node.json, hub.json: exported specs the UI types are generated from
   charts/                     # PlantUML sources + rendered SVG/PNG
   .secrets/                   # dev keys from `make keys` (git-ignored)
   var/                        # SQLite files (git-ignored)
@@ -643,6 +647,7 @@ The random `article_ref` is a reference, not an anonymization measure: the attri
 - **Lookups for the client** (to show hub assessments with local names):
   - `GET /users?include_inactive=true` → display name, role and `hub_subject_id` of this hospital's users (authenticated node users only). Deactivated users and retired `hub_subject_id`s are kept and returned, so the creator, resolver or assignee of an old assessment stays resolvable; a subject the node no longer knows is shown as the raw `sub_…`.
 - **Admin:** `GET /admin/signing-key` (public JWK + fingerprint for registration at the hub)
+- **Client config:** `GET /client-config` → `{hub_url}` (public): where the purchaser app reaches the hub; the node never calls it
 - **Templates:** `GET /templates` (current definition per category with `updated_at`), `PUT /templates {definition, updated_at?}` (validates against the core model, stores, rebuilds that category's projections in the same transaction; `updated_at` is the hub's, so the client can tell when to sync again; PURCHASER or NODE_ADMIN)
 - **Dev** (`APP_ENV=dev`): `POST /dev/reset-seed {dataset?}` (NODE_ADMIN; replaces all node data, so every session ends)
 
@@ -862,38 +867,45 @@ N = node (`:8001`), H = hub (`:8000`), C = client carrying data between them.
 
 If the hub token expires mid-flow (401), the client repeats step 0's assertion + exchange (no refresh tokens). State-changing hub requests carry `version` → **409** on conflict.
 
-## 20. Frontend (later phase)
+## 20. Frontend (stage 7)
+
+Two single-page apps, one per side of the system, in one npm workspace under `frontend/` (npm is used only for JS; Python stays uv-only):
+
+```
+Browser (purchaser)                               Browser (supplier)
+  purchaser app ── same origin ──► NODE :8001       supplier app ── same origin ──► HUB :8000
+  (served by the node)            /api/v1/*        (served by the hub)            /api/v1/*
+        └──────────── cross-origin (hub CORS allowlist) ──────────► HUB :8000
+```
+
+- **The purchaser app is the purchaser client** (D33): the only component that talks to both services, as the CLI demo client did before it. The node still never calls the hub; the browser does, with a hub session obtained through a node assertion.
+- **Tokens** live in memory only (no localStorage, no cookies, so no CSRF); a reload means signing in again. An expired hub session (30 min) is renewed silently with a fresh assertion, once.
+- **The hub's address** comes from the node at runtime (`GET /api/v1/client-config` → `HUB_URL`), so one build serves every hospital.
+- **Serving:** `make ui-build` writes each app's `dist/`; the node mounts the purchaser build (`PURCHASER_UI_DIR`), the hub the supplier build (`SUPPLIER_UI_DIR`), both at `/` with an `index.html` fallback and security headers (CSP: scripts and styles only from the serving origin, connections only there and to the hub). The hub's `CORS_ORIGINS` lists each node's origin. In development `make ui-dev` runs both apps on Vite (:5173, :5174), proxying to the services, so no CORS is needed.
+- **Typed clients:** each service exports its OpenAPI document (`make openapi` → `openapi/*.json`, committed; a test fails when stale); `openapi-typescript` generates the types the apps use.
 
 **Stack**
 
 | Concern | Choice |
 |---|---|
-| Runtime | Node 22 LTS + npm (uv only handles Python) |
-| Build | **Vite** + **React 19** + **TypeScript** (strict) |
-| Routing / server state | **React Router 7** (library mode), **TanStack Query** |
-| UI | **Tailwind CSS v4** + **shadcn/ui** (Radix) + lucide-react |
-| Forms | react-hook-form + zod |
-| API client | **openapi-typescript + openapi-fetch**, **two generated clients** (node OpenAPI, hub OpenAPI) |
-| Two origins | **Purchaser SPA is served by the hospital node** (works on the hospital network, same origin as the node API) and calls the hub cross-origin. The hub's CORS allowlist holds each tenant's registered SPA origin. **Supplier SPA is served by the hub.** Bearer tokens in headers (no cookies) → no CSRF. Tokens live **in memory only** (no localStorage); a reload means login + exchange again. |
-| Tests | Vitest + Testing Library; **Playwright** happy path against both services |
+| Build | **Vite 8** + **React 19** + **TypeScript 5.9** (strict; 5.9 because typescript-eslint and openapi-typescript do not support 7 yet) |
+| Routing / server state | **React Router 8** (library mode), **TanStack Query** (polls every 2 s while an assessment is ASSESSING or AWAITING_ANSWERS) |
+| UI | **Tailwind CSS v4** + shadcn/ui-style components on **Radix** (`frontend/packages/ui`) |
+| API client | **openapi-typescript + openapi-fetch**, one client per service; `PurchaserSession` / `HubSession` in `frontend/packages/api` |
+| Tests | **Vitest** + Testing Library + **MSW** (mocked services, fixtures typed by the generated schemas); **Playwright**: scenario 1 across both apps against the real services (`make ui-e2e`, own ports and databases) |
+| Quality | eslint (typescript-eslint strict, type-aware), prettier, `tsc`; part of `make lint` and `make test` |
+| Language | English |
 
 **Screens**
 
-- **Purchaser SPA (served by the node):**
-  - **Assessments list:** from hub `GET /assessments` (status, verdict, assignee subject); the client adds article names (node `GET /articles?article_ref=`) and user names (node `GET /users`).
-  - **Articles:** list with identifier warning badges, category, reference link. Detail page shows facts and sources.
-  - **"What leaves the hospital" panel:** before every search or assessment, the requirement JSON is shown.
-  - **Search and new assessment:** pick an article → one result list. Each row has two actions:
-    - *this is our current product* (preview, then an automatic second search on the extended parameter set)
-    - *start assessment*
-  - **Assessment detail:**
-    - identifier banner when the client's local check matches a valid identifier on both sides ("same trade item — this is the product you already buy"), with a one-click resolve
-    - comparison table: attribute | hospital value (+ source, joined locally from the node) | supplier value (+ source, scope) | judgment | criticality (identifiers are shown above it, never as a row)
-    - verdict card (rule verdict, LLM verdict + confidence, disagreement flag, reasoning)
-    - question panel: "to supplier" (edit/withdraw/add/send) and "for you" (answer inline → node fact → new requirement)
-    - round history, timeline, assignee picker (node users), resolve dialog
-- **Supplier SPA (served by the hub):** inbox; request detail (typed answer, comment, "cannot provide", "applies to whole family", draft, submit); catalog with enriched facts.
-- **Shared:** login per service, silent re-exchange of the hub token when it expires, role guards, "Simulate supplier" (dev). TanStack Query polls every 2s while ASSESSING.
+- **Purchaser app (served by the node):**
+  - **Assessments:** hub `GET /assessments` (status filter, "assigned to me"); article and colleague names joined in the browser from the node (`/articles?article_ref=`, `/users`).
+  - **Articles:** list with category and data-quality badges; detail with facts (source, quote), unknown and unavailable attributes (enter or correct a value, "cannot provide"), category, current product, and the hospital-only data (price, quantity, identifiers with check-digit warnings) marked as never leaving.
+  - **"What leaves the hospital" panel:** the exact requirement the node issued, shown before every search and before an assessment starts.
+  - **Search:** candidates with score, coverage, critical unknowns, pre-check and identifier match, plus hard filters, `excluded_by` and hospital gaps. Each row: *this is our current product* (preview with a keep-or-take choice per conflict, then an automatic second search) and *start assessment* (opens the existing one on 409 `ASSESSMENT_OPEN`).
+  - **Assessment detail:** status, round and manual reason; assignee picker; the actions the state machine allows (confirm, override with note, decide incl. UNDETERMINED, ask more questions, one more round, retry, cancel); the same-trade-item banner (the browser's own GS1 check on both sides' GTINs, with a one-click resolve); the comparison table (both sides, sources and scope, judgment, criticality, judge-decided marks); the verdict card (rules vs judge, disagreement, rationale); questions to the supplier (edit, withdraw, add a free question, send; a pending attribute proposal is explained) and questions for the purchaser (answered at the node, forwarded as a new requirement); round history and timeline.
+- **Supplier app (served by the hub):** inbox (hospital alias only); request form with a typed input per question from `expected_answer`, comment, "applies to the whole family", "cannot provide", drafts and submit (the hub's 422 lists unanswered questions); in development, **Let the simulator answer** for the supplier's own request; catalog with the values the hub holds.
+- **Later: an operator section** in the hub-served app (attribute proposals and approval with criticality, hospitals and node keys with fingerprints, perhaps LLM usage), with D55's reject and merge added to the backend first. Until then operators use Swagger (`:8000/docs`).
 
 ## 21. Demo data and scenarios
 
@@ -961,10 +973,11 @@ Each stage is implemented and tested on its own. The hospital node is complete a
 | 4 | Hub foundation: tenants, catalog, search | 1 | 1, 3 | `make seed` then `make dev` + `make demo-search`: a node assertion exchanged for a hub token, a node requirement returning Plastipak and Injekt, Emerald excluded by connector |
 | 5 | Hub loop: assessment, questions, answers | 1¼ | 4 | scenarios 1–3 complete under FakeLLM; a `SAME_TRADE_ITEM` round makes no judge call |
 | 6 | Demo client, e2e, evals, docs | 1 | 2, 5 | `make demo SCENARIO=1..4` with fake and real keys; e2e suite green |
+| 7 | Browser apps: purchaser (node-served) and supplier (hub-served) | 4 | 6 | scenario 1 through both apps in a browser (`make ui-e2e`); built apps served by node and hub; `make lint` and `make test` include the UI |
 
-**Total ≈5½ days.** The one remaining cut that gets under five days is the attribute registry's runtime path (proposals → provisional → approve, and scenario 7), about ½ day.
+**Total ≈5½ days for the backend (stages 0–6)**, plus ≈4 days for the browser apps (stage 7). The one remaining backend cut that gets under five days is the attribute registry's runtime path (proposals → provisional → approve, and scenario 7), about ½ day.
 
-**Deferred** (documented, additive): template versioning and signed bundles · a job queue at the node · search paging and relaxation · curation merge/reject · `.http` collections · a second node process in e2e.
+**Deferred** (documented, additive): template versioning and signed bundles · a job queue at the node · search paging and relaxation · curation merge/reject · `.http` collections · a second node process in e2e · an operator section in the hub-served app (§20).
 
 ## 23. Design decisions
 
@@ -973,7 +986,7 @@ Each decision lists the alternatives considered, why this one was chosen, and wh
 | # | Decision | Alternatives | Why this one | Would change if the client says… |
 |---|---|---|---|---|
 | D1 | Python/FastAPI for both services | Full TypeScript, Django | Strongest LLM and data tools. Pydantic serves as API, LLM output and requirement schemas. Matches the user's uv/Pydantic tools. Free OpenAPI per service. | A TS/Java backend is required |
-| D2 | React + Vite SPAs (later phase): purchaser SPA served by the node, supplier SPA by the hub | Next.js, HTMX | Logged-in tools with no SEO; a static bundle is easy to ship inside an on-prem node. | Public pages / Next.js standard |
+| D2 | React + Vite SPAs (built in stage 7): purchaser SPA served by the node, supplier SPA by the hub | Next.js, HTMX | Logged-in tools with no SEO; a static bundle is easy to ship inside an on-prem node. | Public pages / Next.js standard |
 | D3 | **SQLite per service**, ready for Postgres | Postgres from day 1 | Nothing to install; a hospital node with tens of thousands of articles never outgrows SQLite; the hub moves to Postgres in production. | Hosted hub at scale → Postgres + compose |
 | D4 | Job table + worker thread **at the hub** (the node has none, D53) | Celery/RQ/arq + Redis; one shared queue | Survives restarts, retries, visible state, no extra infrastructure. A shared queue would be a forbidden link between node and hub. | Bulk volume at the hub → Redis queue |
 | D5 | Polling (`GET /assessments/{id}` at the hub) | Server-sent events, WebSockets | Async two-sided work; updates only matter during LLM runs. | Live chat-like interaction wanted |
@@ -996,7 +1009,7 @@ Each decision lists the alternatives considered, why this one was chosen, and wh
 | D22 | **Deterministic candidate search on a requirement at the hub** (`POST /search`) | Node-side search over a catalog copy; LLM ranking; embeddings | Catalogs stay central and fresh; the requirement carries only what filters need; same comparators as the assessment; POST keeps it out of URLs and logs. | Semantic proposals wanted → pgvector recall with query text from the requirement |
 | D23 | Hand-written canonical seed; ingestion out of scope (user decision) | CSV importer, PDF extraction | The canonical model is the stable contract later adapters target. | — (next phase: adapters) |
 | D24 | Simulator with hidden datasheets + FakeLLM | Two humans to demo | One presenter can close the loop; offline tests; eval ground truth. | — |
-| D25 | Frontend (later phase): openapi-typescript (two clients), shadcn/ui + Tailwind, English UI | Hand types/tRPC; MUI; i18n now | Types come straight from Pydantic; quick, editable UI. | Design system / DE-FR UI |
+| D25 | Frontend (built in stage 7): openapi-typescript (two clients), shadcn/ui-style components on Radix + Tailwind, English UI | Hand types/tRPC; MUI; i18n now | Types come straight from Pydantic; quick, editable UI. | Design system / DE-FR UI |
 | D26 | **Read models on both sides** (`article_projection`, `item_search_projection`) | Query facts directly; views | Resolving precedence per request is slow; resolved rows are traceable and rebuildable; the requirement builder reads only the projection, which also enforces the allowlist. | — |
 | D27 | **Relational store; hybrid search inside hub Postgres later** | Vector database as the main store | Equivalence needs exact values, history, transactions and access control. | >10–50M vectors → dedicated vector database fed by an outbox |
 | D28 | **Hub assessments owned by the hospital tenant; creator, resolver and assignee recorded as pseudonymous principals; names resolved at the node** | Owned by users; assignee and verdict copy in a node table (`assessment_links`) | Staff change; the hub holds pseudonyms only, never staff identities; one source of truth avoids a node copy that goes stale; every purchaser of the hospital sees the same list. | Four-eyes approval → approver role, resolver principal ≠ creator principal |

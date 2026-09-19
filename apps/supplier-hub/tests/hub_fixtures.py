@@ -323,6 +323,23 @@ def open_assessment(
     return response.json()
 
 
+def ask_free_question(
+    client: TestClient, buyer: dict[str, str], assessment_id: str, text: str, **body: Any
+) -> Any:
+    """A purchaser's question without an attribute: it starts an attribute proposal (§7.2)."""
+    return client.post(
+        f"/api/v1/assessments/{assessment_id}/questions",
+        json={
+            "version": fetch(client, buyer, assessment_id)["version"],
+            "addressee": "SUPPLIER",
+            "attribute_key": None,
+            "text": text,
+        }
+        | body,
+        headers=buyer,
+    )
+
+
 def send_questions(client: TestClient, headers: dict[str, str], assessment_id: str) -> Any:
     version = fetch(client, headers, assessment_id)["version"]
     response = client.post(

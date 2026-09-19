@@ -30,6 +30,13 @@ def rebuild_family(
         rebuild(session, variant, template, now=now)
 
 
+def rebuild_category(session: Session, template: TemplateDefinition, *, now: datetime) -> None:
+    """A changed definition re-projects every family of its category (D52)."""
+    families = select(ProductFamily).where(ProductFamily.category_code == template.code)
+    for family in session.scalars(families):
+        rebuild_family(session, family, template, now=now)
+
+
 def resolve(
     session: Session, variant: ProductVariant, template: TemplateDefinition
 ) -> ResolvedRecord:

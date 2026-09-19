@@ -276,7 +276,7 @@ Node settings (not tables):
 | tenant_id | uuid | NO | FK organizations |
 | subject_id | text | NO | `sub` from assertions; unique (tenant_id, subject_id) |
 | first_seen_at / last_seen_at | timestamptz | NO | |
-| is_blocked | boolean | NO | operator can block one principal without revoking the tenant key |
+| is_blocked | boolean | NO | operator can block one principal without revoking the tenant key (stage 9: `POST /admin/tenants/{id}/principals/{sub}/block`; blocking also revokes the principal's hub tokens) |
 
 | id | tenant_id | subject_id | first_seen_at | last_seen_at | is_blocked |
 |---|---|---|---|---|---|
@@ -291,7 +291,7 @@ Node settings (not tables):
 | password_hash | text | NO | argon2id |
 | role | text | NO | CHECK `SUPPLIER`, `OPERATOR`; must match the organization type |
 | display_name | text | NO | |
-| is_active | boolean | NO | |
+| is_active | boolean | NO | deactivating (operator, stage 9) revokes the user's tokens; an operator cannot deactivate their own account |
 
 | id | org_id | email | role | display_name |
 |---|---|---|---|---|
@@ -662,7 +662,7 @@ Partial unique index: `(hospital_tenant_id, article_ref, variant_id) WHERE statu
 | status | text | NO | CHECK `PROVISIONAL`, `APPROVED`, `DEPRECATED` |
 | origin | text | NO | CHECK `SEED`, `PROPOSAL` |
 | proposal_id | uuid | YES | FK attribute_proposals |
-| merged_into_id | uuid | YES | FK attribute_definitions; set when merged |
+| merged_into_id | uuid | YES | FK attribute_definitions; set when an operator merges the attribute (stage 9), which also makes it `DEPRECATED` |
 | approved_by / approved_at | uuid / timestamptz | YES | FK users (operator) |
 | created_at / updated_at | timestamptz | NO | |
 
@@ -714,5 +714,24 @@ Partial unique index: `(hospital_tenant_id, article_ref, variant_id) WHERE statu
 | prop_1 | q_4 | syringe_single_use | NEW | `{"key":"peel_off_label","value_type":"bool","labels":{"de":"Abziehbares Dokumentationsetikett","en":"Peel-off documentation label"}}` | atd_41 | APPROVED | usr_ops | major for syringes; added to 1.1 |
 | prop_2 | q_17 | hypodermic_needle | EXISTING | NULL | NULL (matched atd_9 `wall_type`) | MATCHED | NULL | NULL |
 | prop_3 | q_20 | syringe_single_use | IDENTIFIER | NULL (`identifier_key = gtin`) | atd_50 | ROUTED | NULL | identifier definition, no comparable attribute |
+
+Stage 9: an operator decides a PROVISIONAL proposal by approve, merge (status `MERGED`, `review_note` required) or reject (status `REJECTED`, `review_note` required; `result` stays `NEW`, unlike an automatic rejection). Every proposal pointing at the same `attribute_id` is decided together.
+
+### H.23 `operator_actions` (append-only audit, stage 9)
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| id | uuid | NO | PK |
+| operator_id | uuid | NO | FK users (OPERATOR) |
+| action | text | NO | CHECK `TENANT_CREATED`, `SIGNING_KEY_REGISTERED`, `SIGNING_KEY_REVOKED`, `PRINCIPAL_BLOCKED`, `PRINCIPAL_UNBLOCKED`, `PROPOSAL_APPROVED`, `PROPOSAL_MERGED`, `PROPOSAL_REJECTED`, `TEMPLATE_EDITED`, `SUPPLIER_CREATED`, `USER_CREATED`, `USER_DEACTIVATED`, `USER_REACTIVATED`, `PASSWORD_RESET`, `FAMILY_RENORMALIZED`, `JOB_RETRIED` |
+| target_type | text | NO | `tenant`, `signing_key`, `principal`, `attribute_proposal`, `template`, `organization`, `user`, `family`, `job` |
+| target_id | text | NO | a readable id where there is one (tenant code, kid, email, template code), else the UUID |
+| data | jsonb | NO | what changed (e.g. the template edit, a key's fingerprint); never a password or key material |
+| created_at | timestamptz | NO | indexed; the console lists newest first |
+
+| id | operator_id | action | target_type | target_id | data |
+|---|---|---|---|---|---|
+| opa_1 | usr_ops | SIGNING_KEY_REGISTERED | signing_key | ksp-2026-09 | `{"tenant":"ten_ksp","fingerprint":"…"}` |
+| opa_2 | usr_ops | PROPOSAL_APPROVED | attribute_proposal | prop_1 | `{"category":"syringe_single_use","criticality":"major","rule":"exact",…}` |
+| opa_3 | usr_ops | PASSWORD_RESET | user | catalog@bd-demo.example | `{}` |
 
 ---

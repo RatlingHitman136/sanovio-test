@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from supplier_hub.api.deps import DbSession, Token
+from supplier_hub.models import CategoryTemplate
 from supplier_hub.schemas.templates import AttributeView, TemplateView
 from supplier_hub.services import attribute_registry, templates
 
@@ -10,26 +11,12 @@ router = APIRouter(tags=["registry"])
 @router.get("/templates")
 def list_templates(session: DbSession, _: Token) -> list[TemplateView]:
     """Every current definition; a node installs these as its own copies (D52)."""
-    return [
-        TemplateView(
-            code=row.code,
-            definition=templates.definition(session, row.code).model_dump(mode="json"),
-            definition_hash=row.definition_hash,
-            updated_at=row.updated_at,
-        )
-        for row in templates.rows(session)
-    ]
+    return [template_view(session, row) for row in templates.rows(session)]
 
 
 @router.get("/templates/{code}")
 def get_template(code: str, session: DbSession, _: Token) -> TemplateView:
-    row = templates.row_for(session, code)
-    return TemplateView(
-        code=row.code,
-        definition=templates.definition(session, code).model_dump(mode="json"),
-        definition_hash=row.definition_hash,
-        updated_at=row.updated_at,
-    )
+    return template_view(session, templates.row_for(session, code))
 
 
 @router.get("/attributes")
@@ -53,3 +40,13 @@ def list_attributes(
         )
         for row in attribute_registry.definitions(session, status=status, keys=keys)
     ]
+
+
+def template_view(session: DbSession, row: CategoryTemplate) -> TemplateView:
+    return TemplateView(
+        code=row.code,
+        definition=templates.definition(session, row.code).model_dump(mode="json"),
+        definition_hash=row.definition_hash,
+        change_note=row.change_note,
+        updated_at=row.updated_at,
+    )

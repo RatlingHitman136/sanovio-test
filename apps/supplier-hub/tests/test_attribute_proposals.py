@@ -2,7 +2,6 @@
 
 from typing import Any
 
-import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -11,8 +10,8 @@ from hub_fixtures import (
     ART_03_WITH_SCALE,
     FakeClock,
     Orgs,
+    ask_free_question,
     fetch,
-    login,
     open_assessment,
     purchaser_headers,
     run_jobs,
@@ -25,20 +24,12 @@ from supplier_hub.core.settings import HubSettings
 from supplier_hub.llm import judge, propose_attribute
 from supplier_hub.llm.fakes import fake_llm
 from supplier_hub.main import create_app
-from supplier_hub.models import AttributeDefinition, AttributeProposal, User
-from supplier_hub.models.identity import UserRole
+from supplier_hub.models import AttributeDefinition, AttributeProposal
 from supplier_hub.models.registry import AttributeStatus
 from supplier_hub.services.seed import SeedReport
 
 CONCERN = "Ist ein abziehbares Dokumentationsetikett beigelegt?"
 LABEL_QUESTION = "Liegt der Packung ein abziehbares Dokumentationsetikett bei?"
-
-
-@pytest.fixture
-def operator(client: TestClient, session: Session, buyer: dict[str, str]) -> dict[str, str]:
-    user = session.scalar(select(User).where(User.role == UserRole.OPERATOR))
-    assert user is not None
-    return login(client, user)
 
 
 def _in_review(client: TestClient, buyer: dict[str, str], session: Session) -> Any:
@@ -49,22 +40,6 @@ def _in_review(client: TestClient, buyer: dict[str, str], session: Session) -> A
     assert detail["status"] == "NEEDS_QUESTION_REVIEW"
     assert {q["addressee"] for q in detail["questions"]} == {"SUPPLIER"}
     return detail
-
-
-def _ask(
-    client: TestClient, buyer: dict[str, str], assessment_id: str, text: str, **body: Any
-) -> Any:
-    return client.post(
-        f"/api/v1/assessments/{assessment_id}/questions",
-        json={
-            "version": fetch(client, buyer, assessment_id)["version"],
-            "addressee": "SUPPLIER",
-            "attribute_key": None,
-            "text": text,
-        }
-        | body,
-        headers=buyer,
-    )
 
 
 def _question(detail: Any, text: str) -> Any:
@@ -94,7 +69,7 @@ def test_scenario_7_a_label_question_becomes_a_shared_then_approved_attribute(
     session: Session,
 ) -> None:
     review = _in_review(client, buyer, session)
-    assert _ask(client, buyer, review["id"], LABEL_QUESTION).status_code == 200
+    assert ask_free_question(client, buyer, review["id"], LABEL_QUESTION).status_code == 200
 
     # The proposal job has not run yet: the questions wait for it.
     version = fetch(client, buyer, review["id"])["version"]
@@ -167,7 +142,7 @@ def test_an_identifier_question_is_routed_without_an_attribute(
 ) -> None:
     review = _in_review(client, buyer, session)
     text = "Wie lautet die GTIN der Handelseinheit?"
-    _ask(client, buyer, review["id"], text).raise_for_status()
+    ask_free_question(client, buyer, review["id"], text).raise_for_status()
     run_jobs(client)
 
     [proposal] = _proposals(client, operator)
@@ -184,7 +159,7 @@ def test_a_question_about_a_known_attribute_takes_its_key(
     review = _in_review(client, buyer, session)
     label = _registry_row(session, "latex_free").labels["en"]
     text = f"Please confirm: {label}?"
-    _ask(client, buyer, review["id"], text).raise_for_status()
+    ask_free_question(client, buyer, review["id"], text).raise_for_status()
     run_jobs(client)
 
     [proposal] = _proposals(client, operator, status="MATCHED")
@@ -196,7 +171,7 @@ def test_a_withdrawn_free_question_creates_no_attribute(
     client: TestClient, buyer: dict[str, str], session: Session
 ) -> None:
     review = _in_review(client, buyer, session)
-    _ask(client, buyer, review["id"], LABEL_QUESTION).raise_for_status()
+    ask_free_question(client, buyer, review["id"], LABEL_QUESTION).raise_for_status()
     run_jobs(client)
     asked = _question(fetch(client, buyer, review["id"]), LABEL_QUESTION)
     client.patch(
@@ -215,7 +190,7 @@ def test_a_free_question_goes_to_the_supplier_only(
     client: TestClient, buyer: dict[str, str], session: Session
 ) -> None:
     review = _in_review(client, buyer, session)
-    response = _ask(client, buyer, review["id"], LABEL_QUESTION, addressee="PURCHASER")
+    response = ask_free_question(client, buyer, review["id"], LABEL_QUESTION, addressee="PURCHASER")
     assert response.status_code == 422
 
 
@@ -223,7 +198,7 @@ def test_only_a_provisional_attribute_can_be_approved(
     client: TestClient, buyer: dict[str, str], operator: dict[str, str], session: Session
 ) -> None:
     review = _in_review(client, buyer, session)
-    _ask(client, buyer, review["id"], LABEL_QUESTION).raise_for_status()
+    ask_free_question(client, buyer, review["id"], LABEL_QUESTION).raise_for_status()
     run_jobs(client)
     [proposal] = _proposals(client, operator)
 

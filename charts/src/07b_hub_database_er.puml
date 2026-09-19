@@ -59,6 +59,17 @@ entity users {
   * updated_at : timestamptz
 }
 
+entity operator_actions {
+  * id : uuid <<PK>>
+  --
+  * operator_id : uuid <<FK users>>
+  * action : text <<CHECK TENANT_CREATED|…|JOB_RETRIED>>
+  * target_type : text
+  * target_id : text
+  * data : jsonb
+  * created_at : timestamptz <<INDEX>>
+}
+
 entity api_tokens {
   * id : uuid <<PK>>
   --
@@ -414,6 +425,7 @@ requirements |o--o{ questions : answered_in_requirement_id
 questions ||--o| answers
 assessments ||--o{ events
 assessments |o--o{ llm_calls
+users ||--o{ operator_actions : operator_id
 
 note bottom of jobs
   payload references ids (no foreign keys).

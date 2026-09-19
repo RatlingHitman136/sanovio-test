@@ -45,7 +45,13 @@ rectangle "Supplier hub (central)" #E8F5E9 {
   usecase "Extract answer" as H_extract
   usecase "Simulate supplier (dev)" as H_sim
   usecase "Propose attribute\n(free question, duplicate check)" as H_prop
-  usecase "Curate proposals, set criticality,\nupdate category definition" as H_curate
+  usecase "Curate proposals: approve with\ncriticality, merge or reject" as H_curate
+  usecase "Edit category template\n(criticality, rule, add/remove)" as H_tedit
+  usecase "Manage hub accounts\n(suppliers, users, passwords)" as H_accounts
+  usecase "Block a purchaser\n(pseudonymous subject)" as H_block
+  usecase "Watch operations\n(jobs, LLM cost, assessment counts)" as H_ops
+  usecase "Read any catalog,\nre-read catalog text" as H_oversee
+  usecase "Read the audit trail" as H_audit
   usecase "Get template definition" as H_tpl
   usecase "View additional information\n(provisional attributes)" as H_addinfo
 }
@@ -115,6 +121,12 @@ P --> H_addinfo
 H_addinfo <-- S
 H_prop <-- HW
 H_curate <-- OP
+H_tedit <-- OP
+H_accounts <-- OP
+H_block <-- OP
+H_ops <-- OP
+H_oversee <-- OP
+H_audit <-- OP
 H_prop --> L
 H_review ..> H_prop : <<extend>>\nfree question
 N_tpl ..> H_tpl : <<include>>

@@ -2,15 +2,23 @@
 
 import uuid
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from datetime import datetime
 
-from sqlalchemy import or_, select, update
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from equivalence_core.exchange.keys import JwkError, jwk_thumbprint, public_key_from_jwk
 from service_kit.errors import Conflict, NotFound, Unprocessable
-from supplier_hub.models import ApiToken, Organization, TenantSigningKey
+from supplier_hub.models import (
+    ApiToken,
+    Assessment,
+    HospitalPrincipal,
+    Organization,
+    TenantSigningKey,
+)
 from supplier_hub.models.organizations import OrganizationType
+from supplier_hub.services import auth
 
 
 def create_tenant(
@@ -108,13 +116,49 @@ def revoke_key(
         raise NotFound("signing key not found")
     if key.revoked_at is None:
         key.revoked_at = now
-    session.execute(
-        update(ApiToken)
-        .where(ApiToken.kid == kid, ApiToken.revoked_at.is_(None))
-        .values(revoked_at=now)
-    )
+    auth.end_sessions(session, ApiToken.kid == kid, now=now)
     session.flush()
     return key
+
+
+@dataclass(frozen=True)
+class PrincipalSummary:
+    """A purchaser as the hub knows them: a pseudonym, never a name (§17)."""
+
+    principal: HospitalPrincipal
+    assessments: int
+
+
+def principals(session: Session, tenant: Organization) -> list[PrincipalSummary]:
+    created = (
+        select(func.count())
+        .where(Assessment.created_by_principal_id == HospitalPrincipal.id)
+        .scalar_subquery()
+    )
+    rows = session.execute(
+        select(HospitalPrincipal, created)
+        .where(HospitalPrincipal.tenant_id == tenant.id)
+        .order_by(HospitalPrincipal.last_seen_at.desc())
+    )
+    return [PrincipalSummary(principal=row, assessments=count) for row, count in rows]
+
+
+def set_blocked(
+    session: Session, tenant: Organization, subject_id: str, *, blocked: bool, now: datetime
+) -> HospitalPrincipal:
+    """Stops one purchaser without touching the hospital's key; their sessions end at once."""
+    principal = session.scalar(
+        select(HospitalPrincipal).where(
+            HospitalPrincipal.tenant_id == tenant.id, HospitalPrincipal.subject_id == subject_id
+        )
+    )
+    if principal is None:
+        raise NotFound("purchaser not found")
+    principal.is_blocked = blocked
+    if blocked:
+        auth.end_sessions(session, ApiToken.principal_id == principal.id, now=now)
+    session.flush()
+    return principal
 
 
 def active_key(

@@ -7,6 +7,7 @@ from supplier_hub.models.assessments import (
     Question,
     Requirement,
 )
+from supplier_hub.models.audit import OperatorAction
 from supplier_hub.models.catalog import (
     ItemFact,
     ItemSearchProjection,
@@ -46,6 +47,7 @@ __all__ = [
     "ItemFact",
     "ItemSearchProjection",
     "LlmCall",
+    "OperatorAction",
     "Organization",
     "ProductFamily",
     "ProductVariant",

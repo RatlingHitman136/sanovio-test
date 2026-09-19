@@ -1,75 +1,9 @@
-import type { HubSchemas } from "@sanovio/api";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 
+import { family } from "../test/fixtures";
 import { HUB, renderSupplier, serve } from "../test/harness";
-
-type Family = HubSchemas["schemas"]["SupplierFamilyDetail"];
-
-const family: Family = {
-  id: "fam-1",
-  name: "BD Plastipak™ Luer-Lok™",
-  category_code: "syringe_single_use",
-  attributes: [
-    {
-      key: "dehp_free",
-      label: "DEHP-free",
-      type: "bool",
-      unit: null,
-      options: [],
-      criticality: "major",
-    },
-    {
-      key: "special_scale",
-      label: "Special scale",
-      type: "text",
-      unit: null,
-      options: [],
-      criticality: "major",
-    },
-  ],
-  family_values: {
-    dehp_free: {
-      value: { type: "bool", value: true },
-      source: "CATALOG",
-      scope: "FAMILY",
-      fact_id: "c1",
-    },
-  },
-  family_unavailable: [],
-  variants: [
-    {
-      variant_id: "var-10",
-      article_no: "300912",
-      label: "BD Plastipak™ Luer-Lok™ 10 ml",
-      values: {
-        dehp_free: {
-          value: { type: "bool", value: true },
-          source: "CATALOG",
-          scope: "FAMILY",
-          fact_id: "c1",
-        },
-        special_scale: {
-          value: { type: "text", value: "Insulin" },
-          source: "SUPPLIER_ANSWER",
-          scope: "VARIANT",
-          fact_id: "o1",
-        },
-      },
-      unavailable: [],
-    },
-  ],
-  own_facts: [
-    {
-      fact_id: "o1",
-      attribute_key: "special_scale",
-      variant_id: "var-10",
-      value: { type: "text", value: "Insulin" },
-      unavailable: false,
-    },
-  ],
-};
 
 function familyHandlers(puts: unknown[], deletes: string[]) {
   return [

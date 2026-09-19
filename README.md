@@ -78,8 +78,14 @@ Served the production way: `make ui-build`, then start the node with
 http://127.0.0.1:8001/ and http://127.0.0.1:8000/. Tokens live in memory only: a reload signs you out.
 
 `make ui-e2e` runs scenario 1 in a headless browser through both apps, on its own ports and databases
-(`var/e2e/`), so a running `make dev` is not disturbed. Operators still work in Swagger (`:8000/docs`);
-an operator section in the hub-served app comes later.
+(`var/e2e/`), so a running `make dev` is not disturbed.
+
+**Operator console:** sign in to the hub app (http://127.0.0.1:5174/ with `make ui-dev`, or :8000
+when served) as `ops@sanovio-demo.example` with `HUB_SEED_PASSWORD`. The operator curates new
+attributes (approve with criticality, merge, reject), edits category templates, manages hospitals and
+their node keys (fingerprints) and purchasers, supplier organizations and users, reads every catalog,
+watches jobs, LLM cost and assessment counts, and reads the audit trail of every change. Operators never
+see an assessment's content or an LLM prompt (ARCHITECTURE §17.1).
 
 ## Running with real models
 Put `ANTHROPIC_API_KEY` in both `.env` files (the hospital's key at the node, Sanovio's at the hub),
@@ -137,11 +143,12 @@ make ui-e2e   # scenario 1 in a real browser through both apps
 ```
 
 ## Status
-All nine stages done (ARCHITECTURE §22): the shared core, the standalone **hospital node**, the
+All ten stages done (ARCHITECTURE §22): the shared core, the standalone **hospital node**, the
 **supplier hub** with its catalogs, search and the full **assessment loop**, the **demo client** with
 the four scenarios, an in-process end-to-end suite and the evals, and the two **browser apps**
 (purchaser, served by the node; supplier, served by the hub), refined in stage 8: suppliers edit
 their catalog per family and per variant, the current product is highlighted in search results, the
 comparison sorts and filters, and free text is compared by meaning ("nein" = "keine" without a model;
-other rewordings by one small Haiku call per round). Next, when wanted: an operator section
-in the hub-served app (attribute curation, hospitals and keys).
+other rewordings by one small Haiku call per round). Stage 9 added the **operator console** in the
+hub-served app, with curation merge/reject, template editing, accounts, operations and an audit
+trail.

@@ -50,13 +50,14 @@ endif
 |Hub operator (curator)|
 :Review proposal;
 if (Decision?) then (approve)
-  :Set final key, labels, synonyms;\nset CRITICALITY (e.g. major) and comparison rule;\nset shareable flag;
+  :Correct labels / synonyms if needed (neutral-label check);\nset CRITICALITY (e.g. major) and comparison rule;\nset shareable flag;
   :Add to the syringe_single_use definition;\nnew definition_hash, updated_at;
 elseif (Decision?) then (merge)
-  :Merge (deferred, D55):\nhub would re-add facts under the target key,\nsupersede old facts, set merged_into;
+  :Merge into an APPROVED attribute of the same type:\nevery value validated first (422 lists misfits, nothing moves);\nfacts re-added under the target key, old ones superseded;\nquestions take the target key; merged_into set, DEPRECATED;
 else (reject)
-  :Reject (deferred, D55):\nattribute would become DEPRECATED;\nfacts kept for audit;
+  :Reject with a note:\nattribute DEPRECATED; facts kept for audit;\nfamilies re-projected, the information disappears;
 endif
+:Operator action written to operator_actions (audit);
 if (Definition changed?) then (yes)
   |Hub|
   :attribute APPROVED; definition served

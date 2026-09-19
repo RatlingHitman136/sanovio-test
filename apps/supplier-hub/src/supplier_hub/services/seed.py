@@ -13,10 +13,9 @@ from llm_client import LLMClient
 from service_kit.security import PasswordHasher
 from supplier_hub.core.db import Base
 from supplier_hub.core.settings import HubSettings
-from supplier_hub.models import Assessment, Organization, User
-from supplier_hub.models.identity import UserRole
+from supplier_hub.models import Assessment, Organization
 from supplier_hub.models.organizations import OrganizationType
-from supplier_hub.services import catalog, normalization, templates
+from supplier_hub.services import accounts, catalog, normalization, templates
 
 CATALOGS = ("bbraun", "bd")
 OPERATOR = {
@@ -61,14 +60,13 @@ def seed(
     operator_org = _organization(
         session, OPERATOR["code"], OPERATOR["name"], OrganizationType.OPERATOR
     )
-    _user(
+    accounts.create_user(
         session,
         hasher,
         operator_org,
-        OPERATOR["email"],
-        OPERATOR["display_name"],
-        UserRole.OPERATOR,
-        password,
+        email=OPERATOR["email"],
+        display_name=OPERATOR["display_name"],
+        password=password,
     )
     for tenant in TENANTS:
         _organization(
@@ -95,14 +93,13 @@ def seed(
             country=supplier_data.get("country"),
         )
         account = supplier_data["user"]
-        _user(
+        accounts.create_user(
             session,
             hasher,
             supplier,
-            account["email"],
-            account["display_name"],
-            UserRole.SUPPLIER,
-            password,
+            email=account["email"],
+            display_name=account["display_name"],
+            password=password,
         )
         for family_data in data["families"]:
             template = known[family_data["category_code"]]
@@ -134,27 +131,6 @@ def _organization(
     session.add(org)
     session.flush()
     return org
-
-
-def _user(
-    session: Session,
-    hasher: PasswordHasher,
-    org: Organization,
-    email: str,
-    display_name: str,
-    role: UserRole,
-    password: str,
-) -> User:
-    user = User(
-        org_id=org.id,
-        email=email.lower(),
-        password_hash=hasher.hash(password),
-        role=role,
-        display_name=display_name,
-    )
-    session.add(user)
-    session.flush()
-    return user
 
 
 def _load(name: str) -> Any:

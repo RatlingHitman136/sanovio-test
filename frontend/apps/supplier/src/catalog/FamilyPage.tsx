@@ -57,20 +57,28 @@ export function FamilyPage() {
         }),
       ),
   });
-  const [variantId, setVariantId] = useState<string>("");
-  const [editing, setEditing] = useState<Target | null>(null);
 
   if (family.isPending) return <Spinner />;
   if (!family.data) return <ErrorMessage error={family.error} />;
-  const detail = family.data;
+  return (
+    <>
+      <PageHeader title={family.data.name} />
+      <Notice>
+        Values you set here outrank the catalog. Open assessments use them in their next round.
+      </Notice>
+      <FamilyValues detail={family.data} />
+    </>
+  );
+}
+
+/** The family's values and one variant's; `readOnly` for the operator, who never edits them. */
+export function FamilyValues({ detail, readOnly = false }: { detail: Family; readOnly?: boolean }) {
+  const [variantId, setVariantId] = useState<string>("");
+  const [editing, setEditing] = useState<Target | null>(null);
   const variant = detail.variants.find((v) => v.variant_id === variantId) ?? detail.variants[0];
 
   return (
     <>
-      <PageHeader title={detail.name} />
-      <Notice>
-        Values you set here outrank the catalog. Open assessments use them in their next round.
-      </Notice>
       <div className="mt-4 grid gap-4 xl:grid-cols-2">
         <Card>
           <CardTitle>For the whole family</CardTitle>
@@ -80,7 +88,7 @@ export function FamilyPage() {
             unavailable={detail.family_unavailable}
             own={(key) => detail.own_facts.find((f) => f.attribute_key === key && !f.variant_id)}
             scopeColumn={false}
-            action="Edit"
+            action={readOnly ? undefined : "Edit"}
             onEdit={(attribute) => {
               setEditing({
                 attribute,
@@ -123,7 +131,7 @@ export function FamilyPage() {
                 )
               }
               scopeColumn
-              action="Override"
+              action={readOnly ? undefined : "Override"}
               onEdit={(attribute) => {
                 setEditing({
                   attribute,
@@ -137,7 +145,7 @@ export function FamilyPage() {
       </div>
       {editing && (
         <EditDialog
-          familyKey={familyId}
+          familyKey={detail.id}
           target={editing}
           onClose={() => {
             setEditing(null);
@@ -162,7 +170,8 @@ function ValuesTable({
   unavailable: string[];
   own: (key: string) => OwnFact | undefined;
   scopeColumn: boolean;
-  action: string;
+  /** No action: the table is read only. */
+  action?: string | undefined;
   onEdit: (attribute: Attribute) => void;
 }) {
   const withdraw = useWithdraw(family.id);
@@ -175,7 +184,7 @@ function ValuesTable({
             <Th>Value</Th>
             <Th>Source</Th>
             {scopeColumn && <Th>Applies to</Th>}
-            <Th />
+            {action && <Th />}
           </tr>
         </thead>
         <tbody>
@@ -202,29 +211,31 @@ function ValuesTable({
                     {value?.scope === "VARIANT" ? "this variant" : value ? "family" : "–"}
                   </Td>
                 )}
-                <Td className="space-x-1 text-right whitespace-nowrap">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => {
-                      onEdit(attribute);
-                    }}
-                  >
-                    {action}
-                  </Button>
-                  {mine && (
+                {action && (
+                  <Td className="space-x-1 text-right whitespace-nowrap">
                     <Button
                       size="sm"
                       variant="ghost"
-                      disabled={withdraw.isPending}
                       onClick={() => {
-                        withdraw.mutate(mine.fact_id);
+                        onEdit(attribute);
                       }}
                     >
-                      {scopeColumn ? "Remove override" : "Withdraw"}
+                      {action}
                     </Button>
-                  )}
-                </Td>
+                    {mine && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={withdraw.isPending}
+                        onClick={() => {
+                          withdraw.mutate(mine.fact_id);
+                        }}
+                      >
+                        {scopeColumn ? "Remove override" : "Withdraw"}
+                      </Button>
+                    )}
+                  </Td>
+                )}
               </tr>
             );
           })}

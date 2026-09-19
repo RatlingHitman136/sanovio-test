@@ -106,6 +106,24 @@ def test_tolerance_must_match_the_rule(entry: dict[str, Any]) -> None:
         TemplateAttribute.model_validate(entry)
 
 
+@pytest.mark.parametrize(
+    ("key", "rule", "extra"),
+    [
+        ("connector", "tolerance", {"tolerance": 0.1}),  # an enum has no distance
+        ("needle_included", "same_or_more", {}),
+        ("special_scale", "required_if_hospital", {}),  # text is not a yes/no property
+        ("nominal_volume_ml", "includes", {}),
+    ],
+)
+def test_a_rule_must_fit_the_value_type(key: str, rule: str, extra: dict[str, Any]) -> None:
+    served = json.loads(SYRINGE.model_dump_json())
+    entry = next(a for a in served["attributes"] if a["key"] == key)
+    entry.update({"rule": rule, "tolerance": None} | extra)
+
+    with pytest.raises(ValidationError, match="cannot compare"):
+        TemplateDefinition.model_validate(served)
+
+
 def test_duplicate_attributes_are_rejected() -> None:
     served = json.loads(SYRINGE.model_dump_json())
     served["attributes"].append(served["attributes"][0])

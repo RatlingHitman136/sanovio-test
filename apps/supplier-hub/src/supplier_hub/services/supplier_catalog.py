@@ -33,8 +33,12 @@ class FamilyView:
 
 
 def family_view(session: Session, user: User, family_id: uuid.UUID) -> FamilyView:
-    family = _own_family(session, user, family_id)
-    template = _template(session, family)
+    return view_of(session, _own_family(session, user, family_id))
+
+
+def view_of(session: Session, family: ProductFamily) -> FamilyView:
+    """What any family holds, per family and per variant; the caller decides who may see it."""
+    template = family_template(session, family)
     family_record = resolve_supplier(
         projection.core_facts(catalog.family_facts(session, family.id)), template
     )
@@ -68,7 +72,7 @@ def set_value(
     else:
         assert family_id is not None
         family = _own_family(session, user, family_id)
-    template = _template(session, family)
+    template = family_template(session, family)
     checked = None if value is None else _checked(session, template, key, value)
     fact = catalog.add_fact(
         session,
@@ -88,7 +92,7 @@ def set_value(
 def withdraw(session: Session, user: User, fact_id: uuid.UUID, *, now: datetime) -> None:
     """Takes back one of the supplier's own statements; catalog data cannot be withdrawn."""
     fact = session.get(ItemFact, fact_id)
-    family = _family_of(session, fact) if fact is not None else None
+    family = catalog.family_of(session, fact) if fact is not None else None
     if fact is None or family is None or family.supplier_id != user.org_id or not fact.is_active:
         raise NotFound("fact not found")
     if fact.source not in OWN_SOURCES:
@@ -96,7 +100,7 @@ def withdraw(session: Session, user: User, fact_id: uuid.UUID, *, now: datetime)
     fact.withdrawn_at = now
     fact.withdrawn_by = user.id
     session.flush()
-    projection.rebuild_family(session, family, _template(session, family), now=now)
+    projection.rebuild_family(session, family, family_template(session, family), now=now)
 
 
 def own_facts(session: Session, family: ProductFamily) -> list[ItemFact]:
@@ -119,7 +123,7 @@ def _checked(
         raise Unprocessable(str(exc)) from exc
 
 
-def _template(session: Session, family: ProductFamily) -> TemplateDefinition:
+def family_template(session: Session, family: ProductFamily) -> TemplateDefinition:
     return templates.definition(session, family.category_code or "")
 
 
@@ -136,10 +140,3 @@ def _own_variant(session: Session, user: User, variant_id: uuid.UUID) -> Product
     if variant is None or variant.supplier_id != user.org_id:
         raise NotFound("variant not found")
     return variant
-
-
-def _family_of(session: Session, fact: ItemFact) -> ProductFamily | None:
-    if fact.family_id is not None:
-        return session.get(ProductFamily, fact.family_id)
-    variant = session.get(ProductVariant, fact.variant_id)
-    return variant.family if variant is not None else None

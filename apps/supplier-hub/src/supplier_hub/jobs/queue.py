@@ -83,6 +83,14 @@ def fail(job: Job, error: str, *, now: datetime) -> bool:
     return False
 
 
+def retry(job: Job, *, now: datetime) -> None:
+    """An operator sends a failed job round again, with a fresh set of attempts (§17.1)."""
+    job.status = JobStatus.QUEUED
+    job.attempts = 0
+    job.run_after = now
+    job.finished_at = None
+
+
 def requeue_stuck(session: Session, *, now: datetime) -> int:
     """At startup: jobs a dead worker left RUNNING go back into the queue."""
     stuck = session.execute(

@@ -9,23 +9,31 @@
 
 import uuid
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
+from pydantic import TypeAdapter, ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from equivalence_core.facts import SupplierSource
+from equivalence_core.templates import AttributeDefinition as CoreAttribute
 from equivalence_core.templates import RuleSettings
+from equivalence_core.validation import InvalidValue, validate_value
+from equivalence_core.values import TypedValue
 from llm_client import LLMClient
-from service_kit.errors import Conflict, NotFound
+from service_kit.errors import Conflict, NotFound, Unprocessable
 from supplier_hub.core.settings import HubSettings
 from supplier_hub.domain import state_machine
 from supplier_hub.jobs import queue
 from supplier_hub.llm import propose_attribute as pipeline
+from supplier_hub.llm.propose_attribute import forbidden_name_in
 from supplier_hub.models import (
     Assessment,
     AttributeDefinition,
     AttributeProposal,
+    ItemFact,
     Organization,
     ProductFamily,
     Question,
@@ -41,7 +49,16 @@ from supplier_hub.models.registry import (
     ProposalResult,
     ProposalStatus,
 )
-from supplier_hub.services import attribute_registry, llm_calls, projection, templates
+from supplier_hub.services import (
+    attribute_registry,
+    catalog,
+    llm_calls,
+    projection,
+    supplier_catalog,
+    templates,
+)
+
+_VALUE = TypeAdapter[TypedValue](TypedValue)
 
 
 def open_for(
@@ -172,28 +189,33 @@ def list_proposals(session: Session, status: str | None) -> Sequence[AttributePr
     return session.scalars(query).all()
 
 
+@dataclass(frozen=True)
+class Wording:
+    """Labels and synonyms the curator corrects on approval; None keeps the proposal's."""
+
+    labels: Mapping[str, str] | None = None
+    synonyms: Mapping[str, str] | None = None
+
+
 def approve(
     session: Session,
     proposal_id: uuid.UUID,
     settings: RuleSettings,
     *,
+    wording: Wording | None = None,
     operator: User,
     now: datetime,
 ) -> AttributeProposal:
-    """Curation is approve-only for now (D55): the attribute joins its category, and every
-    family of that category is re-projected, so the value moves out of the information."""
-    proposal = session.get(AttributeProposal, proposal_id)
-    if proposal is None:
-        raise NotFound("proposal not found")
-    if proposal.status != ProposalStatus.PROVISIONAL or proposal.attribute_id is None:
-        raise Conflict("NOT_PROVISIONAL", "only a provisional attribute can be approved")
-    attribute = session.get(AttributeDefinition, proposal.attribute_id)
-    assert attribute is not None
+    """The attribute joins its category (§7.2 step 7); the template edit re-projects every
+    family of the category, so the value moves out of the information."""
+    proposal, attribute = _provisional(session, proposal_id)
+    if wording is not None:
+        _reword(session, attribute, wording)
     attribute.status = AttributeStatus.APPROVED
     attribute.approved_by = operator.id
     attribute.approved_at = now
     attribute.updated_at = now
-    template = templates.add_attribute(
+    templates.add_attribute(
         session,
         proposal.category_code,
         attribute.key,
@@ -202,14 +224,168 @@ def approve(
         change_note=f"Added {attribute.key} from an attribute proposal",
         updated_by=operator.id,
     )
-    proposal.status = ProposalStatus.APPROVED
-    proposal.reviewed_by = operator.id
-    proposal.reviewed_at = now
-    proposal.updated_at = now
-    families = select(ProductFamily).where(ProductFamily.category_code == template.code)
-    for family in session.scalars(families):
-        projection.rebuild_family(session, family, template, now=now)
+    _close(session, attribute, ProposalStatus.APPROVED, operator=operator, now=now)
     return proposal
+
+
+def reject(
+    session: Session, proposal_id: uuid.UUID, *, note: str, operator: User, now: datetime
+) -> AttributeProposal:
+    """The attribute is deprecated: its facts stay for audit but are no longer shown."""
+    proposal, attribute = _provisional(session, proposal_id)
+    attribute.status = AttributeStatus.DEPRECATED
+    attribute.updated_at = now
+    _close(session, attribute, ProposalStatus.REJECTED, operator=operator, now=now, note=note)
+    _reproject(session, _families_with(session, attribute.key), now=now)
+    return proposal
+
+
+def merge(
+    session: Session,
+    proposal_id: uuid.UUID,
+    target_key: str,
+    *,
+    note: str,
+    operator: User,
+    now: datetime,
+) -> AttributeProposal:
+    """The provisional attribute turns out to be one the registry has: its facts and questions
+    move to that key (§7.2 step 6). All or nothing: one value the target cannot hold stops it."""
+    proposal, attribute = _provisional(session, proposal_id)
+    target = attribute_registry.by_key(session, target_key)
+    if target.kind != AttributeKind.ATTRIBUTE or target.status != AttributeStatus.APPROVED:
+        raise Unprocessable(f"{target_key} is not an approved attribute")
+    if (target.value_type, target.unit) != (attribute.value_type, attribute.unit):
+        raise Unprocessable(f"{target_key} holds {_shape(target)}, not {_shape(attribute)}")
+    families = _families_with(session, attribute.key)
+    moved = _moved_values(session, attribute, attribute_registry.as_core_attribute(target))
+    for fact, value in moved:
+        _move(session, fact, value, target.key, now=now)
+    questions = select(Question).where(Question.attribute_key == attribute.key)
+    for question in session.scalars(questions):
+        _give_key(session, question, target.key)
+    attribute.status = AttributeStatus.DEPRECATED
+    attribute.merged_into_id = target.id
+    attribute.updated_at = now
+    _close(session, attribute, ProposalStatus.MERGED, operator=operator, now=now, note=note)
+    _reproject(session, families, now=now)
+    return proposal
+
+
+def _provisional(
+    session: Session, proposal_id: uuid.UUID
+) -> tuple[AttributeProposal, AttributeDefinition]:
+    proposal = session.get(AttributeProposal, proposal_id)
+    if proposal is None:
+        raise NotFound("proposal not found")
+    if proposal.status != ProposalStatus.PROVISIONAL or proposal.attribute_id is None:
+        raise Conflict("NOT_PROVISIONAL", "only a provisional attribute can be curated")
+    attribute = session.get(AttributeDefinition, proposal.attribute_id)
+    assert attribute is not None
+    return proposal, attribute
+
+
+def _reword(session: Session, attribute: AttributeDefinition, wording: Wording) -> None:
+    if wording.labels is not None:
+        if name := forbidden_name_in(wording.labels.values(), _names(session)):
+            raise Unprocessable(f"labels must not name {name!r}")
+        attribute.labels = dict(wording.labels)
+    if wording.synonyms is not None:
+        attribute.synonyms = dict(wording.synonyms)
+    try:
+        attribute_registry.as_core_attribute(attribute)
+    except ValidationError as exc:
+        raise Unprocessable(str(exc.errors()[0]["msg"]).removeprefix("Value error, ")) from exc
+
+
+def _close(
+    session: Session,
+    attribute: AttributeDefinition,
+    status: ProposalStatus,
+    *,
+    operator: User,
+    now: datetime,
+    note: str | None = None,
+) -> None:
+    """Every proposal that led to this attribute (two hospitals may ask the same) is decided."""
+    siblings = select(AttributeProposal).where(
+        AttributeProposal.attribute_id == attribute.id,
+        AttributeProposal.status == ProposalStatus.PROVISIONAL,
+    )
+    for proposal in session.scalars(siblings):
+        proposal.status = status
+        proposal.reviewed_by = operator.id
+        proposal.reviewed_at = now
+        proposal.review_note = note
+        proposal.updated_at = now
+    session.flush()
+
+
+def _moved_values(
+    session: Session, attribute: AttributeDefinition, target: CoreAttribute
+) -> list[tuple[ItemFact, TypedValue | None]]:
+    facts = catalog.facts_with_key(session, attribute.key)
+    moved: list[tuple[ItemFact, TypedValue | None]] = []
+    problems: list[str] = []
+    for fact in facts:
+        if fact.value is None:
+            moved.append((fact, None))
+            continue
+        try:
+            moved.append((fact, validate_value(target, _VALUE.validate_python(fact.value))))
+        except InvalidValue as exc:
+            problems.append(f"{fact.raw_value or fact.value}: {exc}")
+    if problems:
+        raise Unprocessable(f"{target.key} cannot hold: " + "; ".join(problems))
+    return moved
+
+
+def _move(
+    session: Session, fact: ItemFact, value: TypedValue | None, key: str, *, now: datetime
+) -> None:
+    """Re-added under the target key with its provenance; a value already there stays."""
+    scope = {"family_id": fact.family_id, "variant_id": fact.variant_id}
+    existing = next(
+        (
+            other
+            for other in catalog.facts_of(session, **scope)
+            if other.attribute_key == key and other.source == fact.source
+        ),
+        None,
+    )
+    replacement = existing or catalog.add_fact(
+        session,
+        key=key,
+        value=value,
+        raw=fact.raw_value,
+        now=now,
+        source=SupplierSource(fact.source),
+        evidence_quote=fact.evidence_quote,
+        confidence=fact.confidence,
+        answer_id=fact.answer_id,
+        created_by=fact.created_by,
+        llm_call_id=fact.llm_call_id,
+        model_id=fact.model_id,
+        prompt_version=fact.prompt_version,
+        **scope,
+    )
+    fact.superseded_by_id = replacement.id
+    session.flush()
+
+
+def _families_with(session: Session, key: str) -> list[ProductFamily]:
+    families = (catalog.family_of(session, fact) for fact in catalog.facts_with_key(session, key))
+    return list({family.id: family for family in families if family is not None}.values())
+
+
+def _reproject(session: Session, families: Sequence[ProductFamily], *, now: datetime) -> None:
+    for family in families:
+        template = supplier_catalog.family_template(session, family)
+        projection.rebuild_family(session, family, template, now=now)
+
+
+def _shape(attribute: AttributeDefinition) -> str:
+    return f"{attribute.value_type} ({attribute.unit})" if attribute.unit else attribute.value_type
 
 
 def _provisional_row(

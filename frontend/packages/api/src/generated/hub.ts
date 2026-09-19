@@ -30,15 +30,260 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /**
-     * Approve Attribute Proposal
-     * @description Only an operator decides how much an attribute counts (§7.2 step 6).
-     */
+    /** Approve Attribute Proposal */
     post: operations["approve_attribute_proposal_api_v1_admin_attribute_proposals__proposal_id__approve_post"];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
+    trace?: never;
+  };
+  "/api/v1/admin/attribute-proposals/{proposal_id}/merge": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Merge Attribute Proposal */
+    post: operations["merge_attribute_proposal_api_v1_admin_attribute_proposals__proposal_id__merge_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/admin/attribute-proposals/{proposal_id}/reject": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Reject Attribute Proposal */
+    post: operations["reject_attribute_proposal_api_v1_admin_attribute_proposals__proposal_id__reject_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/admin/audit": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List Audit */
+    get: operations["list_audit_api_v1_admin_audit_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/admin/catalog/families": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List Families */
+    get: operations["list_families_api_v1_admin_catalog_families_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/admin/catalog/families/{family_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get Family */
+    get: operations["get_family_api_v1_admin_catalog_families__family_id__get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/admin/catalog/families/{family_id}/normalize": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Renormalize Family
+     * @description Reads the catalog text again; the reading only fills attributes still missing.
+     */
+    post: operations["renormalize_family_api_v1_admin_catalog_families__family_id__normalize_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/admin/jobs": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List Jobs */
+    get: operations["list_jobs_api_v1_admin_jobs_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/admin/jobs/{job_id}/retry": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Retry Job */
+    post: operations["retry_job_api_v1_admin_jobs__job_id__retry_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/admin/llm-usage": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Llm Usage */
+    get: operations["llm_usage_api_v1_admin_llm_usage_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/admin/llm-usage/failures": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Llm Failures */
+    get: operations["llm_failures_api_v1_admin_llm_usage_failures_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/admin/organizations": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Organizations
+     * @description Suppliers and the operator: every organization that can hold a hub login.
+     */
+    get: operations["list_organizations_api_v1_admin_organizations_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/admin/stats/assessments": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Assessment Counts */
+    get: operations["assessment_counts_api_v1_admin_stats_assessments_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/admin/suppliers": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Create Supplier */
+    post: operations["create_supplier_api_v1_admin_suppliers_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/admin/templates/{code}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /**
+     * Edit Template
+     * @description A new definition hash; every family of the category is re-projected, and nodes pick
+     *     the change up at their next sync.
+     */
+    patch: operations["edit_template_api_v1_admin_templates__code__patch"];
     trace?: never;
   };
   "/api/v1/admin/tenants": {
@@ -53,6 +298,60 @@ export interface paths {
     put?: never;
     /** Create Tenant */
     post: operations["create_tenant_api_v1_admin_tenants_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/admin/tenants/{tenant_id}/principals": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List Principals */
+    get: operations["list_principals_api_v1_admin_tenants__tenant_id__principals_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/admin/tenants/{tenant_id}/principals/{subject_id}/block": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Block Principal
+     * @description Stops one purchaser without touching the hospital's key; their sessions end at once.
+     */
+    post: operations["block_principal_api_v1_admin_tenants__tenant_id__principals__subject_id__block_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/admin/tenants/{tenant_id}/principals/{subject_id}/unblock": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Unblock Principal */
+    post: operations["unblock_principal_api_v1_admin_tenants__tenant_id__principals__subject_id__unblock_post"];
     delete?: never;
     options?: never;
     head?: never;
@@ -94,6 +393,81 @@ export interface paths {
      * @description Immediate: assertions with this key are refused and its hub tokens end.
      */
     post: operations["revoke_signing_key_api_v1_admin_tenants__tenant_id__signing_keys__kid__revoke_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/admin/users": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List Users */
+    get: operations["list_users_api_v1_admin_users_get"];
+    put?: never;
+    /** Create User */
+    post: operations["create_user_api_v1_admin_users_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/admin/users/{user_id}/deactivate": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Deactivate User
+     * @description The user's sessions end at once; the account and its history stay.
+     */
+    post: operations["deactivate_user_api_v1_admin_users__user_id__deactivate_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/admin/users/{user_id}/password": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Reset Password
+     * @description The new password is set by the operator and passed on out of band; sessions end.
+     */
+    post: operations["reset_password_api_v1_admin_users__user_id__password_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/admin/users/{user_id}/reactivate": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Reactivate User */
+    post: operations["reactivate_user_api_v1_admin_users__user_id__reactivate_post"];
     delete?: never;
     options?: never;
     head?: never;
@@ -753,6 +1127,19 @@ export interface components {
       /** Answers */
       answers: components["schemas"]["AnswerIn"][];
     };
+    /** AssessmentCountsView */
+    AssessmentCountsView: {
+      /** By Status */
+      by_status: {
+        [key: string]: number;
+      };
+      /** By Verdict */
+      by_verdict: {
+        [key: string]: number;
+      };
+      /** Tenant Code */
+      tenant_code: string;
+    };
     /** AssessmentCreate */
     AssessmentCreate: {
       requirement: components["schemas"]["RequirementPayload"];
@@ -907,6 +1294,8 @@ export interface components {
       review_note: string | null;
       /** Status */
       status: string;
+      /** Value Count */
+      value_count: number;
     };
     AttributeValue:
       | components["schemas"]["NumberValue"]
@@ -934,6 +1323,52 @@ export interface components {
       unit: string | null;
       /** Value Type */
       value_type: string;
+    };
+    /**
+     * AuditAction
+     * @enum {string}
+     */
+    AuditAction:
+      | "TENANT_CREATED"
+      | "SIGNING_KEY_REGISTERED"
+      | "SIGNING_KEY_REVOKED"
+      | "PRINCIPAL_BLOCKED"
+      | "PRINCIPAL_UNBLOCKED"
+      | "PROPOSAL_APPROVED"
+      | "PROPOSAL_MERGED"
+      | "PROPOSAL_REJECTED"
+      | "TEMPLATE_EDITED"
+      | "SUPPLIER_CREATED"
+      | "USER_CREATED"
+      | "USER_DEACTIVATED"
+      | "USER_REACTIVATED"
+      | "PASSWORD_RESET"
+      | "FAMILY_RENORMALIZED"
+      | "JOB_RETRIED";
+    /** AuditView */
+    AuditView: {
+      /** Action */
+      action: string;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Data */
+      data: {
+        [key: string]: unknown;
+      };
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Operator */
+      operator: string;
+      /** Target Id */
+      target_id: string;
+      /** Target Type */
+      target_type: string;
     };
     /** BoolValue */
     BoolValue: {
@@ -1122,6 +1557,45 @@ export interface components {
        */
       token_type: string;
     };
+    /** FailedCallView */
+    FailedCallView: {
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Error Kind */
+      error_kind: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Model */
+      model: string;
+      /** Purpose */
+      purpose: string;
+    };
+    /** FamilyRow */
+    FamilyRow: {
+      /** Category Code */
+      category_code: string | null;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Manufacturer */
+      manufacturer: string;
+      /** Name */
+      name: string;
+      /** Normalized */
+      normalized: boolean;
+      /** Supplier */
+      supplier: string;
+      /** Variants */
+      variants: number;
+    };
     /** FamilyView */
     FamilyView: {
       /** Brand Name */
@@ -1174,6 +1648,55 @@ export interface components {
       /** Value */
       value: string;
     };
+    /**
+     * JobKind
+     * @enum {string}
+     */
+    JobKind:
+      "NORMALIZE_ITEM" | "ASSESS" | "EXTRACT_ANSWERS" | "PROPOSE_ATTRIBUTE" | "REBUILD_PROJECTION";
+    /**
+     * JobStatus
+     * @enum {string}
+     */
+    JobStatus: "QUEUED" | "RUNNING" | "SUCCEEDED" | "FAILED";
+    /** JobView */
+    JobView: {
+      /** Attempts */
+      attempts: number;
+      /** Finished At */
+      finished_at: string | null;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Kind */
+      kind: string;
+      /** Last Error */
+      last_error: string | null;
+      /** Max Attempts */
+      max_attempts: number;
+      /** Payload */
+      payload: {
+        [key: string]: unknown;
+      };
+      /** Retryable */
+      retryable: boolean;
+      /**
+       * Run After
+       * Format: date-time
+       */
+      run_after: string;
+      /** Status */
+      status: string;
+    };
+    /** Labels */
+    Labels: {
+      /** De */
+      de: string;
+      /** En */
+      en: string;
+    };
     /** ListValue */
     ListValue: {
       /**
@@ -1218,6 +1741,20 @@ export interface components {
       /** Value */
       value: number;
     };
+    /** OrganizationView */
+    OrganizationView: {
+      /** Code */
+      code: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Name */
+      name: string;
+      /** Type */
+      type: string;
+    };
     /**
      * OwnFact
      * @description A value the supplier set itself (or its "not available"), which it may withdraw.
@@ -1239,6 +1776,14 @@ export interface components {
       /** Variant Id */
       variant_id: string | null;
     };
+    /** PasswordReset */
+    PasswordReset: {
+      /**
+       * Password
+       * Format: password
+       */
+      password: string;
+    };
     /** PrecheckEntry */
     PrecheckEntry: {
       /** Attribute Key */
@@ -1248,6 +1793,28 @@ export interface components {
       status: components["schemas"]["ComparisonStatus"];
       /** Supplier Value */
       supplier_value: unknown | null;
+    };
+    /**
+     * PrincipalView
+     * @description A purchaser as the hub knows them: a pseudonymous subject, never a name.
+     */
+    PrincipalView: {
+      /** Assessments */
+      assessments: number;
+      /**
+       * First Seen At
+       * Format: date-time
+       */
+      first_seen_at: string;
+      /** Is Blocked */
+      is_blocked: boolean;
+      /**
+       * Last Seen At
+       * Format: date-time
+       */
+      last_seen_at: string;
+      /** Subject Id */
+      subject_id: string;
     };
     /**
      * ProductHints
@@ -1260,6 +1827,38 @@ export interface components {
       gtin?: string | null;
       /** Manufacturer Article No */
       manufacturer_article_no?: string | null;
+    };
+    /**
+     * ProposalApproval
+     * @description The category settings, and optionally corrected wording (§7.2 step 6).
+     */
+    ProposalApproval: {
+      criticality: components["schemas"]["Criticality"];
+      labels?: components["schemas"]["Labels"] | null;
+      rule: components["schemas"]["ComparisonRule"];
+      /**
+       * Shareable
+       * @default true
+       */
+      shareable: boolean;
+      /** Synonyms */
+      synonyms?: {
+        [key: string]: string;
+      } | null;
+      /** Tolerance */
+      tolerance?: number | null;
+    };
+    /** ProposalMerge */
+    ProposalMerge: {
+      /** Attribute Key */
+      attribute_key: string;
+      /** Note */
+      note: string;
+    };
+    /** ProposalRejection */
+    ProposalRejection: {
+      /** Note */
+      note: string;
     };
     /**
      * ProposalStatus
@@ -1495,6 +2094,13 @@ export interface components {
       /** Revoked At */
       revoked_at: string | null;
     };
+    /** SupplierCreate */
+    SupplierCreate: {
+      /** Code */
+      code: string;
+      /** Name */
+      name: string;
+    };
     /**
      * SupplierFamilyDetail
      * @description Per attribute: the family's value, then each variant's effective value with its scope.
@@ -1586,8 +2192,37 @@ export interface components {
       /** Name */
       name: string;
     };
+    /**
+     * TemplateEditBody
+     * @description `set` changes settings of attributes in the category, `add` brings in approved ones.
+     */
+    TemplateEditBody: {
+      /**
+       * Add
+       * @default {}
+       */
+      add: {
+        [key: string]: components["schemas"]["RuleSettings"];
+      };
+      /** Change Note */
+      change_note: string;
+      /**
+       * Remove
+       * @default []
+       */
+      remove: string[];
+      /**
+       * Set
+       * @default {}
+       */
+      set: {
+        [key: string]: components["schemas"]["RuleSettings"];
+      };
+    };
     /** TemplateView */
     TemplateView: {
+      /** Change Note */
+      change_note: string | null;
       /** Code */
       code: string;
       /** Definition */
@@ -1675,11 +2310,79 @@ export interface components {
       | components["schemas"]["TextValue"]
       | components["schemas"]["ListValue"]
       | components["schemas"]["IdentifierValue"];
+    /** UsageView */
+    UsageView: {
+      /** Cache Read Tokens */
+      cache_read_tokens: number;
+      /** Calls */
+      calls: number;
+      /** Cost Usd */
+      cost_usd: string;
+      /**
+       * Day
+       * Format: date
+       */
+      day: string;
+      /** Errors */
+      errors: number;
+      /** Input Tokens */
+      input_tokens: number;
+      /** Mean Latency Ms */
+      mean_latency_ms: number;
+      /** Model */
+      model: string;
+      /** Output Tokens */
+      output_tokens: number;
+      /** P95 Latency Ms */
+      p95_latency_ms: number;
+      /** Purpose */
+      purpose: string;
+    };
+    /** UserCreate */
+    UserCreate: {
+      /** Display Name */
+      display_name: string;
+      /** Email */
+      email: string;
+      /**
+       * Org Id
+       * Format: uuid
+       */
+      org_id: string;
+      /**
+       * Password
+       * Format: password
+       */
+      password: string;
+    };
     /**
      * UserRole
      * @enum {string}
      */
     UserRole: "SUPPLIER" | "OPERATOR";
+    /** UserView */
+    UserView: {
+      /** Display Name */
+      display_name: string;
+      /** Email */
+      email: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Is Active */
+      is_active: boolean;
+      /**
+       * Org Id
+       * Format: uuid
+       */
+      org_id: string;
+      /** Organization */
+      organization: string;
+      /** Role */
+      role: string;
+    };
     /** ValidationError */
     ValidationError: {
       /** Context */
@@ -1843,7 +2546,7 @@ export interface operations {
     };
     requestBody: {
       content: {
-        "application/json": components["schemas"]["RuleSettings"];
+        "application/json": components["schemas"]["ProposalApproval"];
       };
     };
     responses: {
@@ -1854,6 +2557,927 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["AttributeProposalView"];
+        };
+      };
+      /** @description Missing, expired or revoked token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description The caller's role may not do this */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not found, or another tenant's */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description A state or version conflict; see `code` */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  merge_attribute_proposal_api_v1_admin_attribute_proposals__proposal_id__merge_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        proposal_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ProposalMerge"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AttributeProposalView"];
+        };
+      };
+      /** @description Missing, expired or revoked token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description The caller's role may not do this */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not found, or another tenant's */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description A state or version conflict; see `code` */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  reject_attribute_proposal_api_v1_admin_attribute_proposals__proposal_id__reject_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        proposal_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ProposalRejection"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AttributeProposalView"];
+        };
+      };
+      /** @description Missing, expired or revoked token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description The caller's role may not do this */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not found, or another tenant's */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description A state or version conflict; see `code` */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_audit_api_v1_admin_audit_get: {
+    parameters: {
+      query?: {
+        action?: components["schemas"]["AuditAction"] | null;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AuditView"][];
+        };
+      };
+      /** @description Missing, expired or revoked token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description The caller's role may not do this */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not found, or another tenant's */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description A state or version conflict; see `code` */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_families_api_v1_admin_catalog_families_get: {
+    parameters: {
+      query?: {
+        supplier?: string | null;
+        category?: string | null;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["FamilyRow"][];
+        };
+      };
+      /** @description Missing, expired or revoked token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description The caller's role may not do this */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not found, or another tenant's */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description A state or version conflict; see `code` */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_family_api_v1_admin_catalog_families__family_id__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        family_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SupplierFamilyDetail"];
+        };
+      };
+      /** @description Missing, expired or revoked token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description The caller's role may not do this */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not found, or another tenant's */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description A state or version conflict; see `code` */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  renormalize_family_api_v1_admin_catalog_families__family_id__normalize_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        family_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["JobView"];
+        };
+      };
+      /** @description Missing, expired or revoked token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description The caller's role may not do this */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not found, or another tenant's */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description A state or version conflict; see `code` */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_jobs_api_v1_admin_jobs_get: {
+    parameters: {
+      query?: {
+        status?: components["schemas"]["JobStatus"] | null;
+        kind?: components["schemas"]["JobKind"] | null;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["JobView"][];
+        };
+      };
+      /** @description Missing, expired or revoked token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description The caller's role may not do this */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not found, or another tenant's */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description A state or version conflict; see `code` */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  retry_job_api_v1_admin_jobs__job_id__retry_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        job_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["JobView"];
+        };
+      };
+      /** @description Missing, expired or revoked token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description The caller's role may not do this */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not found, or another tenant's */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description A state or version conflict; see `code` */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  llm_usage_api_v1_admin_llm_usage_get: {
+    parameters: {
+      query?: {
+        days?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UsageView"][];
+        };
+      };
+      /** @description Missing, expired or revoked token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description The caller's role may not do this */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not found, or another tenant's */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description A state or version conflict; see `code` */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  llm_failures_api_v1_admin_llm_usage_failures_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["FailedCallView"][];
+        };
+      };
+      /** @description Missing, expired or revoked token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description The caller's role may not do this */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not found, or another tenant's */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description A state or version conflict; see `code` */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  list_organizations_api_v1_admin_organizations_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["OrganizationView"][];
+        };
+      };
+      /** @description Missing, expired or revoked token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description The caller's role may not do this */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not found, or another tenant's */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description A state or version conflict; see `code` */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  assessment_counts_api_v1_admin_stats_assessments_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AssessmentCountsView"][];
+        };
+      };
+      /** @description Missing, expired or revoked token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description The caller's role may not do this */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not found, or another tenant's */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description A state or version conflict; see `code` */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+    };
+  };
+  create_supplier_api_v1_admin_suppliers_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SupplierCreate"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["OrganizationView"];
+        };
+      };
+      /** @description Missing, expired or revoked token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description The caller's role may not do this */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not found, or another tenant's */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description A state or version conflict; see `code` */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  edit_template_api_v1_admin_templates__code__patch: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        code: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["TemplateEditBody"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TemplateView"];
         };
       };
       /** @description Missing, expired or revoked token */
@@ -1980,6 +3604,205 @@ export interface operations {
         content: {
           "application/json": components["schemas"]["TenantView"];
         };
+      };
+      /** @description Missing, expired or revoked token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description The caller's role may not do this */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not found, or another tenant's */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description A state or version conflict; see `code` */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_principals_api_v1_admin_tenants__tenant_id__principals_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        tenant_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PrincipalView"][];
+        };
+      };
+      /** @description Missing, expired or revoked token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description The caller's role may not do this */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not found, or another tenant's */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description A state or version conflict; see `code` */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  block_principal_api_v1_admin_tenants__tenant_id__principals__subject_id__block_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        tenant_id: string;
+        subject_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Missing, expired or revoked token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description The caller's role may not do this */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not found, or another tenant's */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description A state or version conflict; see `code` */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  unblock_principal_api_v1_admin_tenants__tenant_id__principals__subject_id__unblock_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        tenant_id: string;
+        subject_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
       /** @description Missing, expired or revoked token */
       401: {
@@ -2185,6 +4008,345 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["SigningKeyView"];
+        };
+      };
+      /** @description Missing, expired or revoked token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description The caller's role may not do this */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not found, or another tenant's */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description A state or version conflict; see `code` */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_users_api_v1_admin_users_get: {
+    parameters: {
+      query?: {
+        org?: string | null;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UserView"][];
+        };
+      };
+      /** @description Missing, expired or revoked token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description The caller's role may not do this */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not found, or another tenant's */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description A state or version conflict; see `code` */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  create_user_api_v1_admin_users_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UserCreate"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UserView"];
+        };
+      };
+      /** @description Missing, expired or revoked token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description The caller's role may not do this */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not found, or another tenant's */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description A state or version conflict; see `code` */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  deactivate_user_api_v1_admin_users__user_id__deactivate_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        user_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UserView"];
+        };
+      };
+      /** @description Missing, expired or revoked token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description The caller's role may not do this */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not found, or another tenant's */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description A state or version conflict; see `code` */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  reset_password_api_v1_admin_users__user_id__password_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        user_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PasswordReset"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Missing, expired or revoked token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description The caller's role may not do this */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Not found, or another tenant's */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description A state or version conflict; see `code` */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorBody"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  reactivate_user_api_v1_admin_users__user_id__reactivate_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        user_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UserView"];
         };
       };
       /** @description Missing, expired or revoked token */

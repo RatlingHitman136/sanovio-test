@@ -6,7 +6,7 @@ Hospital staff never have an account here: they arrive through the token exchang
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import ColumnElement, select, update
 from sqlalchemy.orm import Session
 
 from service_kit.errors import Unauthorized
@@ -65,3 +65,10 @@ def logout(session: Session, token: str, *, now: datetime) -> None:
     row = session.scalar(select(ApiToken).where(ApiToken.token_hash == hash_token(token)))
     if row is not None and row.revoked_at is None:
         row.revoked_at = now
+
+
+def end_sessions(session: Session, owner: ColumnElement[bool], *, now: datetime) -> None:
+    """Revokes every live token matching `owner`: a user, a principal or a signing key."""
+    session.execute(
+        update(ApiToken).where(owner, ApiToken.revoked_at.is_(None)).values(revoked_at=now)
+    )

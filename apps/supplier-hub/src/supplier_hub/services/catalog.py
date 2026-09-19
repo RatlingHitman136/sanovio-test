@@ -9,7 +9,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import Select, select
 from sqlalchemy.orm import Session
 
 from equivalence_core.facts import SupplierSource
@@ -226,7 +226,7 @@ def add_fact(
     )
     replaced = [
         previous
-        for previous in _facts_of(session, family_id=family_id, variant_id=variant_id)
+        for previous in facts_of(session, family_id=family_id, variant_id=variant_id)
         if previous.attribute_key == key and previous.source == source
     ]
     session.add(fact)
@@ -240,31 +240,59 @@ def add_fact(
 def facts_for(session: Session, variant: ProductVariant) -> Sequence[ItemFact]:
     """The variant's own facts and its family's, all still current."""
     return [
-        *_facts_of(session, variant_id=variant.id),
-        *_facts_of(session, family_id=variant.family_id),
+        *facts_of(session, variant_id=variant.id),
+        *facts_of(session, family_id=variant.family_id),
     ]
 
 
 def family_facts(session: Session, family_id: uuid.UUID) -> list[ItemFact]:
     """The family's current facts, whatever their source."""
-    return _facts_of(session, family_id=family_id)
+    return facts_of(session, family_id=family_id)
 
 
-def _facts_of(
+def families(
+    session: Session, *, supplier_id: uuid.UUID | None = None, category: str | None = None
+) -> Sequence[ProductFamily]:
+    query = select(ProductFamily).order_by(ProductFamily.name)
+    if supplier_id is not None:
+        query = query.where(ProductFamily.supplier_id == supplier_id)
+    if category is not None:
+        query = query.where(ProductFamily.category_code == category)
+    return session.scalars(query).all()
+
+
+def facts_with_key(session: Session, key: str) -> list[ItemFact]:
+    """Every current fact for one attribute, in any family or variant."""
+    return list(session.scalars(_active().where(ItemFact.attribute_key == key)))
+
+
+def family_of(session: Session, fact: ItemFact) -> ProductFamily | None:
+    if fact.family_id is not None:
+        return session.get(ProductFamily, fact.family_id)
+    variant = session.get(ProductVariant, fact.variant_id)
+    return variant.family if variant is not None else None
+
+
+def facts_of(
     session: Session,
     *,
     family_id: uuid.UUID | None = None,
     variant_id: uuid.UUID | None = None,
 ) -> list[ItemFact]:
-    query = select(ItemFact).where(
-        ItemFact.superseded_by_id.is_(None), ItemFact.withdrawn_at.is_(None)
-    )
+    """The current facts of exactly one scope: a variant's own, or its family's."""
+    query = _active()
     query = (
         query.where(ItemFact.variant_id == variant_id)
         if variant_id is not None
         else query.where(ItemFact.family_id == family_id)
     )
     return list(session.scalars(query))
+
+
+def _active() -> Select[tuple[ItemFact]]:
+    return select(ItemFact).where(
+        ItemFact.superseded_by_id.is_(None), ItemFact.withdrawn_at.is_(None)
+    )
 
 
 def _number(text: str, unit: str, key: str, template: TemplateDefinition) -> NumberValue | None:

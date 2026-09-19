@@ -5,7 +5,7 @@ import { http, HttpResponse, type HttpHandler } from "msw";
 import { setupServer } from "msw/node";
 import { RouterProvider, createMemoryRouter } from "react-router";
 
-import { routes } from "../routes";
+import { routesFor } from "../routes";
 import { SessionContext } from "../sessionContext";
 
 export const HUB = "http://hub.test";
@@ -20,16 +20,24 @@ export function serve(...handlers: HttpHandler[]): void {
   server.use(...handlers);
 }
 
-export async function renderSupplier(path: string) {
+const PEOPLE = {
+  SUPPLIER: { kind: "supplier", display_name: "BD Catalog", organization: "BD" },
+  OPERATOR: { kind: "operator", display_name: "Hub Operator", organization: "Sanovio Operations" },
+} as const;
+
+export function renderSupplier(path: string) {
+  return renderAs("SUPPLIER", path);
+}
+
+export function renderOperator(path: string) {
+  return renderAs("OPERATOR", path);
+}
+
+async function renderAs(role: keyof typeof PEOPLE, path: string) {
   const session = new HubSession({ baseUrl: HUB });
-  await session.signIn("catalog@bd-demo.example", "pw");
-  const me = {
-    kind: "supplier",
-    display_name: "BD Catalog",
-    organization: "BD",
-    role: "SUPPLIER" as const,
-  };
-  const router = createMemoryRouter(routes, { initialEntries: [path] });
+  await session.signIn("someone@hub.example", "pw");
+  const me = { ...PEOPLE[role], role };
+  const router = createMemoryRouter(routesFor(role), { initialEntries: [path] });
   render(
     <QueryClientProvider
       client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}

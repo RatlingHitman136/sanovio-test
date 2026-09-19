@@ -2,9 +2,11 @@
 
 import uuid
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
+from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -14,9 +16,10 @@ from equivalence_core.templates import (
     TemplateDefinition,
     load_seed_templates,
 )
-from service_kit.errors import Conflict, NotFound
+from service_kit.errors import Conflict, NotFound, Unprocessable
 from supplier_hub.models import CategoryTemplate
-from supplier_hub.services import attribute_registry
+from supplier_hub.models.registry import AttributeKind, AttributeStatus
+from supplier_hub.services import attribute_registry, projection
 
 
 def seed_templates(session: Session, *, now: datetime) -> dict[str, TemplateDefinition]:
@@ -49,6 +52,51 @@ def definitions(session: Session) -> dict[str, TemplateDefinition]:
     return {row.code: _definition_of(session, row) for row in rows(session)}
 
 
+@dataclass(frozen=True)
+class TemplateEdit:
+    """One curation step on a category: settings changed, attributes added or removed."""
+
+    set: Mapping[str, RuleSettings] = field(default_factory=dict)
+    add: Mapping[str, RuleSettings] = field(default_factory=dict)
+    remove: Sequence[str] = ()
+
+
+def edit(
+    session: Session,
+    code: str,
+    change: TemplateEdit,
+    *,
+    now: datetime,
+    change_note: str,
+    updated_by: uuid.UUID,
+) -> TemplateDefinition:
+    """Only an operator changes how a category compares (§7.2). The definition gets a new hash
+    (D52: no version bump), every family of the category is re-projected, and nodes pick the
+    change up at their next sync."""
+    row = row_for(session, code)
+    entries = {entry["key"]: entry for entry in row.attributes}
+    _check_edit(session, code, entries, change)
+    for key in change.remove:
+        del entries[key]
+    for key, settings in {**change.set, **change.add}.items():
+        entries[key] = {"key": key, **settings.model_dump(mode="json")}
+    attributes = list(entries.values())
+    if attributes == row.attributes:
+        raise Unprocessable("the edit changes nothing")
+    try:
+        updated = _definition_from(session, row, attributes)
+    except ValidationError as exc:
+        raise Unprocessable(_first_error(exc)) from exc
+    row.attributes = attributes
+    row.definition_hash = updated.definition_hash
+    row.change_note = change_note
+    row.updated_by = updated_by
+    row.updated_at = now
+    session.flush()
+    projection.rebuild_category(session, updated, now=now)
+    return updated
+
+
 def add_attribute(
     session: Session,
     code: str,
@@ -59,26 +107,49 @@ def add_attribute(
     change_note: str,
     updated_by: uuid.UUID,
 ) -> TemplateDefinition:
-    """Curation: an approved attribute joins the category (D52: a new hash, no version bump)."""
-    row = row_for(session, code)
-    if any(entry["key"] == key for entry in row.attributes):
-        raise Conflict("ATTRIBUTE_IN_TEMPLATE", f"{key!r} is already part of {code}")
-    row.attributes = [*row.attributes, {"key": key, **settings.model_dump(mode="json")}]
-    updated = _definition_of(session, row)
-    row.definition_hash = updated.definition_hash
-    row.change_note = change_note
-    row.updated_by = updated_by
-    row.updated_at = now
-    session.flush()
-    return updated
+    """Curation: an approved attribute joins the category."""
+    return edit(
+        session,
+        code,
+        TemplateEdit(add={key: settings}),
+        now=now,
+        change_note=change_note,
+        updated_by=updated_by,
+    )
+
+
+def _check_edit(
+    session: Session, code: str, entries: Mapping[str, Any], change: TemplateEdit
+) -> None:
+    if missing := sorted({*change.set, *change.remove} - set(entries)):
+        raise Unprocessable(f"not part of {code}: {', '.join(missing)}")
+    if present := sorted(set(change.add) & set(entries)):
+        raise Conflict("ATTRIBUTE_IN_TEMPLATE", f"already part of {code}: {', '.join(present)}")
+    if both := sorted(set(change.remove) & {*change.set, *change.add}):
+        raise Unprocessable(f"changed and removed at once: {', '.join(both)}")
+    for key in change.add:
+        row = attribute_registry.by_key(session, key)
+        # Identifiers are evidence, never compared (D50); provisional ones are approved first.
+        if row.kind != AttributeKind.ATTRIBUTE or row.status != AttributeStatus.APPROVED:
+            raise Unprocessable(f"{key} is not an approved attribute")
 
 
 def _definition_of(session: Session, row: CategoryTemplate) -> TemplateDefinition:
-    entries = {entry["key"]: entry for entry in row.attributes}
+    return _definition_from(session, row, row.attributes)
+
+
+def _first_error(exc: ValidationError) -> str:
+    return str(exc.errors()[0]["msg"]).removeprefix("Value error, ")
+
+
+def _definition_from(
+    session: Session, row: CategoryTemplate, attributes: Sequence[Mapping[str, Any]]
+) -> TemplateDefinition:
+    entries = {entry["key"]: entry for entry in attributes}
     known = {
         found.key: found for found in attribute_registry.definitions(session, keys=list(entries))
     }
-    attributes = tuple(
+    resolved = tuple(
         ResolvedAttribute(
             **attribute_registry.as_core_attribute(known[key]).model_dump(),
             **_rule_settings(entry),
@@ -90,7 +161,7 @@ def _definition_of(session: Session, row: CategoryTemplate) -> TemplateDefinitio
         code=row.code,
         keywords=tuple(row.keywords),
         limited_template=row.limited_template,
-        attributes=attributes,
+        attributes=resolved,
     )
 
 

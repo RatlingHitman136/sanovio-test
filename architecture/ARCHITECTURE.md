@@ -28,7 +28,7 @@ The system is split in two so that hospital data can stay inside the hospital:
 
 ## 2. Scope and constraints
 
-- FastAPI (Python) services, used through two browser apps (§20): the purchaser app served by each node and the supplier app served by the hub. Swagger UI and the CLI demo client remain for operators and scripted runs.
+- FastAPI (Python) services, used through two browser apps (§20): the purchaser app served by each node and the hub app served by the hub (supplier pages, and the operator console for operators, §17.1). Swagger UI and the CLI demo client remain for scripted runs.
 - **uv** manages Python and every Python library.
 - **Tiered Claude models** keep LLM cost down (§13).
 - **Data ingestion is out of scope.** The sample files show what the data looks like; seeds are hand-written canonical JSON.
@@ -336,10 +336,12 @@ Articles in uncovered categories (gloves, masks…) use `generic_consumable` alo
    - every hospital's comparison view for that variant
 
    They are never hard filters, never judged, never asked automatically and never part of requirements.
-6. **Curation (operator only):**
-   - **Approve:** final key and labels, category, criticality, comparison rule, `shareable` flag, synonyms.
-   - **Merge** into an existing attribute: facts are re-added under the target key and the old ones superseded.
-   - **Reject:** the attribute becomes `DEPRECATED`; its facts are kept for audit but no longer shown.
+6. **Curation (operator only, stage 9):**
+   - **Approve:** the proposal's category, criticality, comparison rule (it must fit the value type), `shareable` flag; the labels and synonyms may be corrected, and the neutral-label check applies again. The key is kept: answers are already stored under it.
+   - **Merge** into an existing APPROVED attribute of the same type and unit: every value is validated against the target first (one misfit → 422 listing them, nothing moves); facts are re-added under the target key with their provenance and the old ones superseded (a value the target already holds at the same scope and source stays); questions take the target key; the attribute becomes `DEPRECATED` with `merged_into_id`. Merge never changes a template.
+   - **Reject** with a note: the attribute becomes `DEPRECATED`; its facts are kept for audit but no longer shown, because only PROVISIONAL keys appear as information once the families are re-projected.
+   - Every proposal that led to the same attribute (two hospitals may ask the same) is decided together.
+   - **Template editing** (`PATCH /admin/templates/{code}`): change an attribute's criticality, rule, tolerance or `shareable`, add an APPROVED attribute (never an identifier), remove one; a change note is required. Same effect as approval: a new `definition_hash`, the category re-projected, nodes sync.
 
    Suppliers and purchasers never set criticality.
 7. **Approve.** The curator adds the attribute to the category definition (D52: no version bump, no signing).
@@ -487,6 +489,7 @@ Trust material is not in the node database: the node's private key and the hub's
 | | `assessment_rounds` | one judgment per round with requirement, input snapshot, model and prompt version |
 | | `questions` / `answers` | questions to supplier or purchaser; supplier answers |
 | | `events` | timeline and audit per assessment (actor: user or principal) |
+| | `operator_actions` | every change an operator makes (stage 9, §17.1) |
 | Infrastructure | `jobs`, `llm_calls` | work queue; every LLM request with tokens and cost |
 
 **Ownership and access**
@@ -509,7 +512,7 @@ Trust material is not in the node database: the node's private key and the hub's
 
 **Residual risk (documented, accepted for the prototype):** a precise attribute set can hint at the current product (e.g. values copied from a reference link). Mitigations:
 - Requirements carry only coarse origins (`REFERENCE`, not the variant).
-- Hub operator access is audited, and suppliers never see requirements.
+- Every change an operator makes is audited (`operator_actions`, §17.1), and suppliers never see requirements.
 - Catalog reads, such as fetching a variant's attributes when the purchaser marks the current product, are not persisted beyond short-retention access logs.
 
 The random `article_ref` is a reference, not an anonymization measure: the attribute set can act as a quasi-identifier (EDPB/ENISA).
@@ -606,7 +609,7 @@ The random `article_ref` is a reference, not an anonymization measure: the attri
   - new requirement accepted and no supplier questions open → ASSESS
   - supplier answers complete → EXTRACT_ANSWERS (facts, then the family's projection rebuilt in the same job) → ASSESS
   - question created without `attribute_key` (purchaser free question or judge extra concern) → PROPOSE_ATTRIBUTE
-  - attribute approved → every family of its category re-projected in the approving request; merge and reject come later (D55)
+  - attribute approved or a template edited → every family of its category re-projected in the same request; merged or rejected → every family holding its facts re-projected
 - **Separate process:** `uv run --package supplier-hub supplier-hub worker` for Postgres deployments, with `WORKER_ENABLED=false` on the API processes. Tests never start the thread; they drain the queue inline.
 
 ## 13. LLM pipelines (tiered models) and who pays
@@ -662,7 +665,12 @@ The random `article_ref` is a reference, not an anonymization measure: the attri
   - `POST /admin/tenants {code, name, supplier_facing_alias, …}`, `GET /admin/tenants` (`code` is the readable tenant id a node signs as `iss`)
   - `POST /admin/tenants/{id}/signing-keys {public_jwk, not_before?}` → the fingerprint to confirm out of band, `GET /admin/tenants/{id}/signing-keys`, `POST /admin/tenants/{id}/signing-keys/{kid}/revoke`
   - `GET /admin/attribute-proposals?status=`, `POST /admin/attribute-proposals/{id}/approve {criticality, rule, tolerance?, shareable}` (a PROVISIONAL attribute joins its proposal's category as proposed; the definition hash changes, so nodes pick it up at their next sync)
-  - later (D55): `POST .../merge {attribute_key}`, `POST .../reject {note}`, editing key, labels or synonyms on approval, and `PATCH /admin/templates/{code}`
+  - stage 9 (§17.1): `POST .../approve` also takes `labels?` and `synonyms?`; `POST .../merge {attribute_key, note}`, `POST .../reject {note}`; `PATCH /admin/templates/{code} {set, add, remove, change_note}`
+  - `GET /admin/tenants/{id}/principals`, `POST /admin/tenants/{id}/principals/{subject_id}/block|unblock`
+  - `GET /admin/organizations`, `POST /admin/suppliers {code, name}`, `GET /admin/users?org=`, `POST /admin/users {org_id, email, display_name, password}`, `POST /admin/users/{id}/deactivate|reactivate`, `POST /admin/users/{id}/password {password}`
+  - `GET /admin/catalog/families?supplier=&category=`, `GET /admin/catalog/families/{id}`, `POST /admin/catalog/families/{id}/normalize`
+  - `GET /admin/jobs?status=&kind=`, `POST /admin/jobs/{id}/retry`, `GET /admin/llm-usage?days=`, `GET /admin/llm-usage/failures`, `GET /admin/stats/assessments`, `GET /admin/audit?action=`
+  - every `/admin` route sits behind one router-wide operator guard; a test walks all of them as supplier, purchaser and anonymous caller
 - **Any authenticated hub user (purchaser, supplier, operator):**
   - `GET /templates` (current definition per category with `updated_at`), `GET /templates/{code}`
   - `GET /attributes?category=&status=` (registry, including provisional attributes)
@@ -689,7 +697,7 @@ The random `article_ref` is a reference, not an anonymization measure: the attri
 - **Dev** (`APP_ENV=dev`): `POST /dev/assessments/{id}/simulate-supplier` (operators, or the request's own supplier). The hub is reset from the command line (`supplier-hub seed --reset`), not over HTTP
 
 **Access control:**
-- Hub: purchaser tokens are bound to one tenant; every assessment query filters by `hospital_tenant_id`, and the hospital of a requirement is always taken from the token, never from the body. Suppliers see only their organization's requests and never requirements. Operators administer tenants but have no purchaser endpoints.
+- Hub: purchaser tokens are bound to one tenant; every assessment query filters by `hospital_tenant_id`, and the hospital of a requirement is always taken from the token, never from the body. Suppliers see only their organization's requests and never requirements. Operators administer the hub (§17.1) but have no purchaser endpoints and see assessments as counts only.
 - Node: single hospital; roles `PURCHASER`, `NODE_ADMIN`.
 - Error bodies are `{detail, code?, …}`: a 409 names its `code` (`VERSION_CONFLICT`, `INVALID_TRANSITION`, `ASSESSMENT_OPEN`, `OPEN_PURCHASER_QUESTIONS`, `ATTRIBUTE_PROPOSAL_PENDING`, …) and may add details such as `assessment_id` or `question_ids`.
 - Errors: **401** bad/expired token or signature; **403** wrong role or tenant mismatch; **404** resource of another tenant; **409** version conflict, invalid transition, open purchaser questions, `ATTRIBUTE_PROPOSAL_PENDING` (hub), `NOT_NORMALIZED` for an article without a projection (node); **422** validation (including unknown requirement fields), incomplete batch, unresolved current-product conflicts; **429** rate limit (node).
@@ -836,6 +844,24 @@ Requirements and variant attributes are plain JSON over TLS with bearer tokens (
 
 **Supplier and operator access:** direct login at the hub (password + bearer token), later SSO. Operators never get purchaser scope.
 
+### 17.1 Operator role (stage 9)
+
+The operator (Sanovio) runs the hub. Operators sign in to the hub app at `:8000` and get the **operator console** (§20); suppliers signing in to the same app never see it. Every mutating action is written to `operator_actions` (H.23): who, what, target and a small data dict, never a password or key material.
+
+| Area | What an operator can do |
+|---|---|
+| Hospitals and trust | create and list hospital tenants; register a node's public key (the response carries the fingerprint to confirm by phone); list and revoke keys (revoking ends that key's purchaser sessions); list a hospital's purchasers as pseudonymous subjects with first/last seen and assessment count; block or unblock one purchaser (their sessions end at once, the hospital's key is untouched) |
+| Registry and curation | browse the registry; list proposals; approve (criticality, rule, tolerance, shareable, corrected labels/synonyms), merge or reject a provisional attribute (§7.2) |
+| Category templates | change criticality, rule, tolerance or shareable of an attribute; add an approved attribute; remove one — with a change note, a new hash and a re-projection |
+| Accounts | list organizations that hold hub logins; create a supplier; create users (the role follows the organization), deactivate / reactivate them (sessions end), set a new password (sessions end); an operator cannot deactivate their own account, so one always stays active |
+| Catalog oversight | read every supplier's families with values, sources and scopes (read only); queue a new reading of a family's catalog text (fills attributes still missing) |
+| Operations | jobs by status and kind with the kind of error; retry a FAILED `NORMALIZE_ITEM`, `REBUILD_PROJECTION` or `PROPOSE_ATTRIBUTE` job; LLM usage per day, pipeline and model (calls, errors, tokens, cost, mean and p95 latency) and recent failed calls; assessment counts per hospital × status and × final verdict |
+| Audit | the audit trail, newest first, filterable by action |
+| Dev / CLI | `simulate-supplier` (API only); `migrate`, `seed`, `create-operator`, `register-tenant`, `worker`, `eval` |
+
+**What an operator never does (D58):** use a purchaser endpoint (search, assessments, requirements); see an assessment's content — article ref, requirement, questions, comparison, verdict rationale — only counts; edit a supplier's values; read LLM prompts or responses (they hold requirement values), or the full error text of a call or job (it may quote them), only its kind; see private keys. The one piece of hospital-written text an operator reads is a free question's text in the proposal list, which is written for the supplier and carries no tenant or article.
+
+
 ## 18. Network and deployment modes
 
 - **Hard rule:** no connection between node and hub in either direction. The node has no hub URL and no HTTP client dependency; the hub has no node URLs. A test checks that `hospital_node` never imports `httpx`/`requests` (import-linter forbidden contract).
@@ -910,7 +936,7 @@ Browser (purchaser)                               Browser (supplier)
   - **Search results** show the current product highlighted and first, with its "mark" button disabled.
   - **Assessment detail:** status, round and manual reason; assignee picker; the actions the state machine allows (confirm, override with note, decide incl. UNDETERMINED, ask more questions, one more round, retry, cancel); the same-trade-item banner (the browser's own GS1 check on both sides' GTINs, with a one-click resolve); the comparison table (both sides, sources and scope, judgment, criticality, model-decided marks), sortable by criticality, judgment or attribute and filterable by judgment group (mismatch, deviation, unknown, match, info) and "decided by model", with counts; the verdict card (rules vs judge, disagreement, rationale); questions to the supplier (edit, withdraw, add a free question, send; a pending attribute proposal is explained) and questions for the purchaser (answered at the node, forwarded as a new requirement); round history and timeline.
 - **Supplier app (served by the hub):** inbox (hospital alias only); request form with a typed input per question from `expected_answer`, comment, "applies to the whole family", "cannot provide", drafts and submit (the hub's 422 lists unanswered questions); in development, **Let the simulator answer** for the supplier's own request; catalog: each family's page shows the family's values and one variant's effective values with source and scope; the supplier edits a family value, overrides it for one variant, marks it not available, or withdraws its own value.
-- **Later: an operator section** in the hub-served app (attribute proposals and approval with criticality, hospitals and node keys with fingerprints, perhaps LLM usage), with D55's reject and merge added to the backend first. Until then operators use Swagger (`:8000/docs`).
+- **Operator console (stage 9, same hub-served app, chosen by `me.role`):** overview (attributes to curate, failed jobs, LLM cost for 7 days, assessment counts per hospital); curation (tabs by status; approve, merge, reject dialogs; the merge target list offers only approved attributes of the same type); attributes (registry, status filter); templates (per category: criticality, rule, tolerance and shareable inline, add and remove, save with a change note; the new hash is shown); hospitals (keys with fingerprints, register with the phone reminder, revoke; purchasers with block/unblock; new hospital); accounts (organizations and users; new supplier, new user, deactivate/reactivate, reset password); catalog (every supplier's families, the supplier family page read only, re-read catalog data); jobs (filters, retry where allowed, otherwise "retried by the hospital from its assessment"); LLM usage (per pipeline and model, cost per day, failures); audit. What the console may show is §17.1.
 
 ## 21. Demo data and scenarios
 
@@ -980,10 +1006,11 @@ Each stage is implemented and tested on its own. The hospital node is complete a
 | 6 | Demo client, e2e, evals, docs | 1 | 2, 5 | `make demo SCENARIO=1..4` with fake and real keys; e2e suite green |
 | 7 | Browser apps: purchaser (node-served) and supplier (hub-served) | 4 | 6 | scenario 1 through both apps in a browser (`make ui-e2e`); built apps served by node and hub; `make lint` and `make test` include the UI |
 | 8 | Supplier catalog editing, search highlight, comparison sort/filter, text by meaning (D57) | 1 | 7 | "nein" vs "keine" matches with no model call, reworded text via one Haiku call; suppliers edit family and variant values; UI tests and `make ui-e2e` green |
+| 9 | Operator console (§17.1, D58): curation merge/reject, template editing, accounts, operations, catalog oversight, audit | 1½ | 8 | the operator merges or rejects a proposal, edits a template (new hash), manages a supplier user, blocks a purchaser, retries a catalog reading, reads LLM cost; every `/admin` route refused to suppliers and purchasers; `make ui-e2e` green |
 
 **Total ≈5½ days for the backend (stages 0–6)**, plus ≈4 days for the browser apps (stage 7). The one remaining backend cut that gets under five days is the attribute registry's runtime path (proposals → provisional → approve, and scenario 7), about ½ day.
 
-**Deferred** (documented, additive): template versioning and signed bundles · a job queue at the node · search paging and relaxation · curation merge/reject · `.http` collections · a second node process in e2e · an operator section in the hub-served app (§20).
+**Deferred** (documented, additive): template versioning and signed bundles · a job queue at the node · search paging and relaxation · `.http` collections · a second node process in e2e · editing a hospital's settings (alias, disclosure, active flag, per-tenant CORS) from the console. (Curation merge/reject and the operator console came in stage 9.)
 
 ## 23. Design decisions
 
@@ -1045,9 +1072,10 @@ Each decision lists the alternatives considered, why this one was chosen, and wh
 | D52 | **Prototype templates sync unsigned, one current definition per category; no version history, pinning or `upgrade_template`** | Signed `template+jwt` bundles with version pinning and current+previous acceptance (D45, previous design) | The registry requirement (D43: new attributes reach every hospital without a release) is met by syncing the *definition*; the version machinery was protecting against a risk a single-operator demo does not have — rules changing mid-loop — which the round's stored `input_snapshot` already records. Removes the hub signing key, the hub JWKS, `/.well-known/jwks.json`, node version history, two error codes and the `upgrade_template` branches. Saves ~1 day and leaves exactly one signed object type in the system. | Two hospitals run different template versions in production → reinstate D45's bundles and pinning (~1 day) |
 | D53 | **No job queue at the node: normalization and projection rebuild run synchronously on write** | Job table + worker thread mirroring the hub (D4, previous design) | Ten seeded articles, rules-based parsing in milliseconds. The queue added a table, a worker thread, retry logic and the `NOT_NORMALIZED` / `retry_after_s` round-trip that every demo script has to handle. The hub keeps its queue, where LLM calls make it necessary. | Node-side LLM normalization returns, or articles arrive in bulk imports → reinstate the queue (~½ day) |
 | D54 | **Search takes `supplier_id` and `limit` only; no `relax`, no cursor paging, no relaxation hints** | Full paging and relaxation surface | The seed catalog is ~50 variants across two suppliers. Paging and relaxation are real features for a real catalog and cost API surface, response fields and tests here for no demonstrable behaviour. `excluded_by` already explains an empty list. | Catalogs of realistic size → add cursor paging and `relax` (~¼ day) |
-| D55 | **The former cut list is the default scope:** curation is approve-only, no `.http` files, one node in e2e (two tenants at the hub). (Node `llm` normalization was on this list and has been **restored** by D42/D56; the judge's extra concerns were restored in stage 5, as its plan listed them.) | Full scope with a fallback cut list | A cut list that is only used when time runs out is a plan for running out of time. Making these deferred by default is what brings the estimate inside the stated 3–5 day timebox, and every item remains a documented, additive feature. | More time than the timebox → restore in the listed order |
+| D55 | **The former cut list is the default scope:** curation is approve-only (**restored in stage 9**: merge, reject and template editing, D58), no `.http` files, one node in e2e (two tenants at the hub). (Node `llm` normalization was on this list and has been **restored** by D42/D56; the judge's extra concerns were restored in stage 5, as its plan listed them.) | Full scope with a fallback cut list | A cut list that is only used when time runs out is a plan for running out of time. Making these deferred by default is what brings the estimate inside the stated 3–5 day timebox, and every item remains a documented, additive feature. | More time than the timebox → restore in the listed order |
 | D56 | **The node's LLM pass runs once at initialization, not per request and not on a queue** (user decision) | A job queue at the node; normalizing lazily on first search; re-normalizing on every boot | Ingestion is the only moment article text needs reading, and it is a batch of ten in the demo — so one cached-prefix call at seed covers everything, and `content_hash ≠ normalized_hash` makes a restart free. Serving a search or building a requirement then needs no key, no network and no waiting, which also keeps D53's "no queue at the node" intact. | Articles arrive continuously from an ERP feed → a small ingestion worker, still outside the request path (~½ day) |
 | D57 | **Free text compared by meaning: canonical form in the core, then one Haiku call per round before the judge** (user decision, stage 8) | Exact string equality (the dev data showed "nein" ≠ "keine" as a mismatch); send every text difference to the Opus judge; normalization only | A difference in wording must never be a proven mismatch. Normalization settles the common cases for free and deterministically; the rest is small, cheap reading (Haiku, ≈$0.002 per round) that keeps Opus for real semantic judgments; UNKNOWN or a failed call degrades to the judge, never to a false MISMATCH. | Text pairs grow large or the cheap model's readings disagree with reviewers → route them to the judge |
+| D58 | **An operator console in the hub-served app, with assessments as counts only** (user decision, stage 9): one SPA routed by role; every operator change audited in `operator_actions`; LLM usage without prompt or response bodies and errors reduced to their kind; job retry only for jobs outside an assessment | A separate operator app; operators reading assessments read-only with each view logged; no console (Swagger only) | The operator needs curation, trust, accounts and the hub's health, none of which requires reading a hospital's assessment; counts cover capacity and support. Keeping ASSESS and EXTRACT_ANSWERS retries with the hospital keeps the state machine the only way an assessment moves. One app avoids a second build, origin and CSP. | Support needs to see a specific assessment → a hospital-granted, time-limited, audited read (~½ day) |
 
 ## 24. Assumptions and open questions
 

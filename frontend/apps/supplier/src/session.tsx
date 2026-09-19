@@ -26,7 +26,7 @@ export function SessionGate({ hubUrl, children }: { hubUrl: string; children: Re
   }
 
   if (!signed) {
-    return <SignIn title="Supplier sign-in" hint="Your catalog team account." onSignIn={signIn} />;
+    return <SignIn title="Sign in" hint="Your supplier or operator account." onSignIn={signIn} />;
   }
   return <SessionContext value={signed}>{children}</SessionContext>;
 }

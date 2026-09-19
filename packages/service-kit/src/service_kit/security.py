@@ -7,6 +7,8 @@ from functools import cached_property
 from pwdlib import PasswordHash
 
 _TOKEN_BYTES = 32  # 256 bits
+# Kept short on purpose: a demo with typed-in passwords (both services' accounts).
+MIN_PASSWORD_LENGTH = 6
 
 
 class PasswordHasher:

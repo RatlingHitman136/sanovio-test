@@ -103,6 +103,8 @@ def require_role(*roles: UserRole) -> Callable[[User], User]:
     return check
 
 
-Operator = Annotated[User, Depends(require_role(UserRole.OPERATOR))]
+# One instance, so a router-wide guard and a route's `Operator` share the cached result.
+operator_only = require_role(UserRole.OPERATOR)
+Operator = Annotated[User, Depends(operator_only)]
 Supplier = Annotated[User, Depends(require_role(UserRole.SUPPLIER))]
 AnyHubUser = Annotated[User, Depends(require_role(UserRole.OPERATOR, UserRole.SUPPLIER))]

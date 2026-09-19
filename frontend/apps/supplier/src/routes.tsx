@@ -3,10 +3,11 @@ import type { RouteObject } from "react-router";
 import { CatalogPage } from "./catalog/CatalogPage";
 import { FamilyPage } from "./catalog/FamilyPage";
 import { Layout } from "./Layout";
+import { operatorRoutes } from "./operator/routes";
 import { InboxPage } from "./requests/InboxPage";
 import { RequestPage } from "./requests/RequestPage";
 
-export const routes: RouteObject[] = [
+export const supplierRoutes: RouteObject[] = [
   {
     element: <Layout />,
     children: [
@@ -17,3 +18,8 @@ export const routes: RouteObject[] = [
     ],
   },
 ];
+
+/** One app at the hub, two roles: each sees only its own pages (§20). */
+export function routesFor(role: string | null | undefined): RouteObject[] {
+  return role === "OPERATOR" ? operatorRoutes : supplierRoutes;
+}

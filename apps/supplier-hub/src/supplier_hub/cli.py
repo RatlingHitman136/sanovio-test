@@ -29,7 +29,7 @@ from supplier_hub.llm.judge import PROMPT_VERSION as JUDGE_PROMPT
 from supplier_hub.models import Organization, User
 from supplier_hub.models.identity import UserRole
 from supplier_hub.models.organizations import OrganizationType
-from supplier_hub.services import assessment, tenants_keys
+from supplier_hub.services import accounts, assessment, tenants_keys
 from supplier_hub.services.normalization import NormalizationUnavailable
 from supplier_hub.services.seed import SeedError
 from supplier_hub.services.seed import seed as seed_hub
@@ -210,14 +210,17 @@ def create_operator(
             )
             if org is None:
                 _fail("no operator organization; seed the hub first")
-            user = User(
-                org_id=org.id,
-                email=email.lower(),
-                password_hash=PasswordHasher().hash(password),
-                role=UserRole.OPERATOR,
-                display_name=display_name,
-            )
-            session.add(user)
+            try:
+                user = accounts.create_user(
+                    session,
+                    PasswordHasher(),
+                    org,
+                    email=email,
+                    display_name=display_name,
+                    password=password,
+                )
+            except ServiceError as exc:
+                _fail(str(exc))
             typer.echo(f"created {user.email} (OPERATOR)")
     finally:
         engine.dispose()

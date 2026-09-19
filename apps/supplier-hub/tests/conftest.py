@@ -84,3 +84,11 @@ def bd(client: TestClient, session: Session, seeded: SeedReport) -> dict[str, st
     user = session.scalar(select(User).where(User.email == "catalog@bd-demo.example"))
     assert user is not None
     return login(client, user)
+
+
+@pytest.fixture
+def operator(client: TestClient, session: Session, seeded: SeedReport) -> dict[str, str]:
+    """The seeded operator (ops@sanovio-demo.example)."""
+    user = session.scalar(select(User).where(User.email == "ops@sanovio-demo.example"))
+    assert user is not None
+    return login(client, user)

@@ -32,7 +32,7 @@ Working rules and project map for the Article Equivalence Loop prototype. The de
 
 ## Project structure
 
-Status: ✅ exists (stages 0–8 done).
+Status: ✅ exists (stages 0–9 done).
 
 ```
 sanovio/
@@ -90,14 +90,16 @@ sanovio/
 │           ├── alembic/ seed/    ✅ migrations, both catalogs, scripted fake readings,
 │           │                        synthetic hidden datasheets (dev simulator)
 │           ├── core/             ✅ settings, db, migrations
-│           ├── api/v1/           ✅ health, auth, admin (+ attribute proposals), templates, catalog,
-│           │                        search, assessments, supplier, dev
-│           ├── models/ schemas/  ✅ H.1–H.22
+│           ├── api/v1/           ✅ health, auth, templates, catalog, search, assessments,
+│           │                        supplier, dev; admin/ (operator only, §17.1): tenants,
+│           │                        curation, templates, accounts, catalog, operations, audit
+│           ├── models/ schemas/  ✅ H.1–H.23
 │           ├── services/         ✅ auth, tenants_keys, token_exchange, attribute_registry,
 │           │                        templates, catalog, normalization, projection,
 │           │                        requirement_intake, candidate_search, seed, assessment, assess,
 │           │                        questions, supplier_inbox, enrichment, resolution,
-│           │                        attribute_proposals, supplier_simulator, supplier_catalog
+│           │                        attribute_proposals, supplier_simulator, supplier_catalog,
+│           │                        accounts, operations, operator_audit
 │           ├── domain/           ✅ state_machine, stop_conditions
 │           ├── llm/              ✅ normalize_item, judge, extract_answer, propose_attribute,
 │           │                        simulate_supplier, compare_text + prompts; fakes (scripted)
@@ -117,9 +119,11 @@ sanovio/
 │   │                                badges, typed value view/input from `expected_answer`, dialog
 │   ├── apps/purchaser/           ✅ served by the node: assessments, articles, search, current
 │   │                                product, assessment detail with questions both ways
-│   ├── apps/supplier/            ✅ served by the hub: inbox, answer form, simulator (dev), catalog
-│   │                                with family pages (edit family values, override per variant)
-│   └── e2e/                      ✅ Playwright: scenario 1 across both apps (own ports + var/e2e)
+│   ├── apps/supplier/            ✅ served by the hub, routed by role: supplier pages (inbox, answer
+│   │                                form, simulator, catalog with family pages) and operator/
+│   │                                console (curation, attributes, templates, hospitals, accounts,
+│   │                                catalog, jobs, LLM usage, audit)
+│   └── e2e/                      ✅ Playwright: scenario 1 across both apps, operator console
 ├── .secrets/                     created by `make keys` (git-ignored)
 └── var/                          SQLite files (git-ignored)
 ```

@@ -9,9 +9,7 @@ from equivalence_core.ids import new_subject_id
 from hospital_node.models import User
 from hospital_node.models.users import Role
 from service_kit.errors import Conflict
-from service_kit.security import PasswordHasher
-
-MIN_PASSWORD_LENGTH = 6
+from service_kit.security import MIN_PASSWORD_LENGTH, PasswordHasher
 
 
 def create_user(

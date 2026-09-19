@@ -89,11 +89,8 @@ def _new_definition(
         raise ProposalRejected("a number attribute needs a unit")
     if out.value_type == "enum" and not out.options:
         raise ProposalRejected("an enum attribute needs options")
-    labels = f"{out.labels.de} {out.labels.en}".casefold()
-    # Neutral labels: a registry entry is shared by every hospital and every supplier (§7.2).
-    for name in forbidden_names:
-        if name and name.casefold() in labels:
-            raise ProposalRejected(f"labels must not name {name!r}")
+    if name := forbidden_name_in((out.labels.de, out.labels.en), forbidden_names):
+        raise ProposalRejected(f"labels must not name {name!r}")
     return {
         "key": out.key,
         "type": out.value_type,
@@ -101,3 +98,9 @@ def _new_definition(
         "options": out.options or [],
         "labels": out.labels.model_dump(),
     }
+
+
+def forbidden_name_in(labels: Iterable[str], forbidden_names: Iterable[str]) -> str | None:
+    """Neutral labels: a registry entry is shared by every hospital and every supplier (§7.2)."""
+    text = " ".join(labels).casefold()
+    return next((name for name in forbidden_names if name and name.casefold() in text), None)

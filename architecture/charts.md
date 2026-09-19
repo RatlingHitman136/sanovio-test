@@ -9,6 +9,17 @@ Companion to the prototype plan ([design-plan.md](design-plan.md)) and `architec
 - **Done:** `charts/` renders 21 diagrams covering the v3 split, the attribute registry and rounds 5–10 (PlantUML 1.2026.8 via `charts/render.sh`, Smetana layout, no Graphviz). Verified for round 7: render exits 0 with 21 SVG + 21 PNG, all 13 changed PNGs were checked, and `grep -riE "article_identifiers|item_identifiers|identifier_scheme|ArticleIdentifier|ItemIdentifier" charts/src charts/README.md` finds nothing.
 - **Next design change** reuses the same tooling, style file, render script and rules.
 
+### Stage 9 update (done)
+The operator console (§17.1, D58): curation merge and reject become real, and operator actions are audited.
+
+| # | File | Change |
+|---|---|---|
+| 01 | `use_cases` | The operator's use cases: curate (approve, merge, reject), edit category template, manage hub accounts, block a purchaser, watch operations, read any catalog, read the audit trail |
+| 07b | `hub_database_er` | `operator_actions` (H.23) with its FK to `users` |
+| 19 | `act_attribute_lifecycle` | Merge and reject drawn as implemented (validation first, facts re-added, DEPRECATED, re-projection); label correction on approval; the audit step |
+
+Verified: `make charts` renders 21 SVG + 21 PNG; 19 was checked visually.
+
 ### Round 10 update (done)
 Node LLM normalization restored at ingestion (D42 revised, D56) and the last of the D52 template-version references removed.
 

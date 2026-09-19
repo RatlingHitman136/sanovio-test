@@ -9,6 +9,8 @@ class TemplateView(BaseModel):
     # The core `TemplateDefinition` as JSON; a node validates and installs it unchanged.
     definition: dict[str, Any]
     definition_hash: str
+    # What the last curation changed, for the operator console.
+    change_note: str | None
     updated_at: datetime
 
 

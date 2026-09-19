@@ -20,7 +20,7 @@ from supplier_hub.schemas.catalog import (
     VariantValues,
     VariantView,
 )
-from supplier_hub.services import supplier_catalog
+from supplier_hub.services import catalog, supplier_catalog
 
 router = APIRouter(tags=["catalog"])
 
@@ -84,8 +84,7 @@ def variant_attributes(
 @router.get("/supplier/catalog")
 def own_catalog(session: DbSession, user: CurrentUser) -> list[FamilyView]:
     """A supplier sees its own catalog and nothing else."""
-    query = select(ProductFamily).where(ProductFamily.supplier_id == user.org_id)
-    return [_family(family) for family in session.scalars(query.order_by(ProductFamily.name))]
+    return [_family(family) for family in catalog.families(session, supplier_id=user.org_id)]
 
 
 @router.get("/supplier/catalog/families/{family_id}")
@@ -93,7 +92,11 @@ def supplier_family(
     family_id: uuid.UUID, session: DbSession, user: Supplier
 ) -> SupplierFamilyDetail:
     """The supplier's family: its own values, and each variant's with its scope (§9)."""
-    view = supplier_catalog.family_view(session, user, family_id)
+    return family_detail(session, supplier_catalog.family_view(session, user, family_id))
+
+
+def family_detail(session: DbSession, view: supplier_catalog.FamilyView) -> SupplierFamilyDetail:
+    """Also what an operator reads, without the edit buttons (§17.1)."""
     return SupplierFamilyDetail(
         id=view.family.id,
         name=view.family.name,

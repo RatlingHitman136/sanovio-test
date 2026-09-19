@@ -44,6 +44,17 @@ class ComparisonRule(StrEnum):
     DERIVED = "derived"
 
 
+# Rules that only make sense for some value types; the rest (exact, info_only, derived) fit all.
+_RULE_TYPES: dict[ComparisonRule, frozenset[ValueType]] = {
+    ComparisonRule.TOLERANCE: frozenset({ValueType.NUMBER}),
+    ComparisonRule.SAME_OR_FINER: frozenset({ValueType.NUMBER}),
+    ComparisonRule.SAME_OR_MORE: frozenset({ValueType.NUMBER}),
+    ComparisonRule.INCLUDES: frozenset({ValueType.LIST}),
+    ComparisonRule.REQUIRED_IF_HOSPITAL: frozenset({ValueType.BOOL}),
+    ComparisonRule.SEMANTIC: frozenset({ValueType.TEXT, ValueType.LIST}),
+}
+
+
 class _Frozen(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -104,6 +115,15 @@ class TemplateAttribute(RuleSettings):
 
 class ResolvedAttribute(AttributeDefinition, RuleSettings):
     """Definition and category settings together, as the node stores and the hub serves them."""
+
+    @model_validator(mode="after")
+    def _rule_fits_type(self) -> Self:
+        fits = _RULE_TYPES.get(self.rule)
+        if fits is not None and self.type not in fits:
+            raise TemplateError(
+                f"{self.key}: the {self.rule} rule cannot compare {self.type} values"
+            )
+        return self
 
 
 class TemplateDefinition(_Frozen):

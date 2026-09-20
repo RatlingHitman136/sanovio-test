@@ -98,6 +98,20 @@ def test_a_supplier_sees_only_its_own_catalog(
 
     assert {family["manufacturer"] for family in body} == {"BD"}
     assert len(body) == 4
+    # A size table: only what tells the variants apart, with the pack and what is still missing.
+    plastipak = next(
+        family
+        for family in body
+        if any(row["article_no"] == "300912" for row in family["variants"])
+    )
+    # Volume and graduation differ per article; the connector, which they share, does not.
+    columns = [column["key"] for column in plastipak["columns"]]
+    assert columns == ["nominal_volume_ml", "graduation_step_ml"]
+    row = next(row for row in plastipak["variants"] if row["article_no"] == "300912")
+    assert row["values"]["nominal_volume_ml"]["value"]["value"] == 10
+    assert set(row["values"]) == set(columns)
+    assert row["is_active"] and row["units_per_order_unit"]
+    assert set(row["gaps"]) <= {"critical", "major"}
 
 
 def test_the_catalog_needs_a_purchaser_token(client: TestClient, seeded: SeedReport) -> None:

@@ -1,9 +1,12 @@
 import uuid
+from collections.abc import Mapping
+from typing import Any
 
 from fastapi import APIRouter
 from sqlalchemy import select
 
 from equivalence_core.facts import ResolvedRecord, SupplierSource
+from equivalence_core.templates import ResolvedAttribute
 from service_kit.errors import NotFound
 from supplier_hub.api.deps import Context, CurrentPrincipal, CurrentUser, DbSession, Supplier
 from supplier_hub.models import ItemSearchProjection, Organization, ProductFamily, ProductVariant
@@ -16,14 +19,16 @@ from supplier_hub.schemas.catalog import (
     FamilyEdit,
     FamilyView,
     OwnFact,
+    SizeRow,
     SupplierFamilyDetail,
+    SupplierFamilyRow,
     SupplierView,
     VariantAttributesView,
     VariantCreate,
     VariantValues,
     VariantView,
 )
-from supplier_hub.services import catalog, supplier_catalog, supplier_products
+from supplier_hub.services import supplier_catalog, supplier_products
 from supplier_hub.services.supplier_products import FamilyText, VariantRow
 
 router = APIRouter(tags=["catalog"])
@@ -60,7 +65,13 @@ def list_variants(
 
 @router.get("/catalog/families/{family_id}")
 def get_family(family_id: uuid.UUID, session: DbSession, _: CurrentPrincipal) -> FamilyView:
-    return _family(_load_family(session, family_id))
+    family = _load_family(session, family_id)
+    rows = session.scalars(
+        select(ItemSearchProjection).where(
+            ItemSearchProjection.variant_id.in_([variant.id for variant in family.variants])
+        )
+    )
+    return _family(family, {row.variant_id: row.attributes for row in rows})
 
 
 @router.get("/catalog/variants/{variant_id}/attributes")
@@ -86,9 +97,37 @@ def variant_attributes(
 
 
 @router.get("/supplier/catalog")
-def own_catalog(session: DbSession, user: CurrentUser) -> list[FamilyView]:
-    """A supplier sees its own catalog and nothing else."""
-    return [_family(family) for family in catalog.families(session, supplier_id=user.org_id)]
+def own_catalog(session: DbSession, user: CurrentUser) -> list[SupplierFamilyRow]:
+    """A supplier's own catalog as its size tables: per row only what tells the variants
+    apart, its pack, and how many answers are still missing."""
+    return [
+        SupplierFamilyRow(
+            id=summary.family.id,
+            name=summary.family.name,
+            manufacturer=summary.family.manufacturer,
+            category_code=summary.family.category_code,
+            reading=summary.family.normalized_hash != summary.family.content_hash,
+            columns=[_attribute(attribute) for attribute in summary.columns],
+            variants=[
+                SizeRow(
+                    variant_id=row.variant.id,
+                    article_no=row.variant.article_no,
+                    label=row.variant.label,
+                    is_active=row.variant.is_active,
+                    order_unit=row.variant.order_unit,
+                    units_per_order_unit=row.variant.units_per_order_unit,
+                    values={
+                        key: value
+                        for key, value in _values(row.record).items()
+                        if key in {attribute.key for attribute in summary.columns}
+                    },
+                    gaps=row.gaps,
+                )
+                for row in summary.variants
+            ],
+        )
+        for summary in supplier_catalog.summaries(session, user.org_id)
+    ]
 
 
 @router.get("/supplier/catalog/families/{family_id}")
@@ -111,17 +150,7 @@ def family_detail(session: DbSession, view: supplier_catalog.FamilyView) -> Supp
         properties_text=view.family.properties_text,
         category_code=view.family.category_code,
         reading=view.family.normalized_hash != view.family.content_hash,
-        attributes=[
-            CatalogAttribute(
-                key=attribute.key,
-                label=attribute.labels.en,
-                type=attribute.type,
-                unit=attribute.unit,
-                options=list(attribute.options),
-                criticality=attribute.criticality,
-            )
-            for attribute in view.template.attributes
-        ],
+        attributes=[_attribute(attribute) for attribute in view.template.attributes],
         family_values=_values(view.family_record),
         family_unavailable=list(view.family_record.unavailable_attributes),
         variants=[
@@ -250,6 +279,17 @@ def _set_active(
     return family_detail(session, supplier_catalog.view_of(session, variant.family))
 
 
+def _attribute(attribute: ResolvedAttribute) -> CatalogAttribute:
+    return CatalogAttribute(
+        key=attribute.key,
+        label=attribute.labels.en,
+        type=attribute.type,
+        unit=attribute.unit,
+        options=list(attribute.options),
+        criticality=attribute.criticality,
+    )
+
+
 def _values(record: ResolvedRecord) -> dict[str, CatalogValue]:
     return {
         key: CatalogValue(
@@ -269,7 +309,7 @@ def _load_family(session: DbSession, family_id: uuid.UUID) -> ProductFamily:
     return family
 
 
-def _family(family: ProductFamily) -> FamilyView:
+def _family(family: ProductFamily, projected: Mapping[uuid.UUID, dict[str, Any]]) -> FamilyView:
     return FamilyView(
         id=family.id,
         name=family.name,
@@ -288,7 +328,7 @@ def _family(family: ProductFamily) -> FamilyView:
                 display_name=variant.label,
                 category_code=family.category_code,
                 supplier=family.supplier.name,
-                attributes={},
+                attributes=projected.get(variant.id, {}),
             )
             for variant in family.variants
         ],

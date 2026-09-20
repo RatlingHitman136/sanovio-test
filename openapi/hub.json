@@ -2685,6 +2685,76 @@
         "title": "SigningKeyView",
         "type": "object"
       },
+      "SizeRow": {
+        "description": "One article in the family's size table, as the supplier's catalog list shows it.",
+        "properties": {
+          "article_no": {
+            "title": "Article No",
+            "type": "string"
+          },
+          "gaps": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Gaps",
+            "type": "object"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "order_unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order Unit"
+          },
+          "units_per_order_unit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Units Per Order Unit"
+          },
+          "values": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/CatalogValue"
+            },
+            "title": "Values",
+            "type": "object"
+          },
+          "variant_id": {
+            "format": "uuid",
+            "title": "Variant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "variant_id",
+          "article_no",
+          "label",
+          "is_active",
+          "order_unit",
+          "units_per_order_unit",
+          "values",
+          "gaps"
+        ],
+        "title": "SizeRow",
+        "type": "object"
+      },
       "SupplierCreate": {
         "properties": {
           "code": {
@@ -2834,6 +2904,63 @@
           "own_facts"
         ],
         "title": "SupplierFamilyDetail",
+        "type": "object"
+      },
+      "SupplierFamilyRow": {
+        "properties": {
+          "category_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Code"
+          },
+          "columns": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogAttribute"
+            },
+            "title": "Columns",
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "manufacturer": {
+            "title": "Manufacturer",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "reading": {
+            "title": "Reading",
+            "type": "boolean"
+          },
+          "variants": {
+            "items": {
+              "$ref": "#/components/schemas/SizeRow"
+            },
+            "title": "Variants",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "manufacturer",
+          "category_code",
+          "reading",
+          "columns",
+          "variants"
+        ],
+        "title": "SupplierFamilyRow",
         "type": "object"
       },
       "SupplierQuestionView": {
@@ -8623,7 +8750,7 @@
     },
     "/api/v1/supplier/catalog": {
       "get": {
-        "description": "A supplier sees its own catalog and nothing else.",
+        "description": "A supplier's own catalog as its size tables: per row only what tells the variants\napart, its pack, and how many answers are still missing.",
         "operationId": "own_catalog_api_v1_supplier_catalog_get",
         "responses": {
           "200": {
@@ -8631,7 +8758,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/FamilyView"
+                    "$ref": "#/components/schemas/SupplierFamilyRow"
                   },
                   "title": "Response Own Catalog Api V1 Supplier Catalog Get",
                   "type": "array"

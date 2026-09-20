@@ -105,6 +105,31 @@ class SupplierFamilyDetail(BaseModel):
     own_facts: list[OwnFact]
 
 
+class SizeRow(BaseModel):
+    """One article in the family's size table, as the supplier's catalog list shows it."""
+
+    variant_id: uuid.UUID
+    article_no: str
+    label: str
+    is_active: bool
+    order_unit: str | None
+    units_per_order_unit: int | None
+    # Only the attributes that tell the variants apart (the family page has the rest).
+    values: dict[str, CatalogValue]
+    # Criticality → how many attributes nobody has answered yet.
+    gaps: dict[str, int]
+
+
+class SupplierFamilyRow(BaseModel):
+    id: uuid.UUID
+    name: str
+    manufacturer: str
+    category_code: str | None
+    reading: bool
+    columns: list[CatalogAttribute]
+    variants: list[SizeRow]
+
+
 class CatalogEdit(BaseModel):
     """Exactly one of family and variant; a typed value, or unavailable=true."""
 

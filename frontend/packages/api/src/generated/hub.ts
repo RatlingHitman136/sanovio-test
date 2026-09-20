@@ -898,7 +898,8 @@ export interface paths {
     };
     /**
      * Own Catalog
-     * @description A supplier sees its own catalog and nothing else.
+     * @description A supplier's own catalog as its size tables: per row only what tells the variants
+     *     apart, its pack, and how many answers are still missing.
      */
     get: operations["own_catalog_api_v1_supplier_catalog_get"];
     put?: never;
@@ -2213,6 +2214,35 @@ export interface components {
       /** Revoked At */
       revoked_at: string | null;
     };
+    /**
+     * SizeRow
+     * @description One article in the family's size table, as the supplier's catalog list shows it.
+     */
+    SizeRow: {
+      /** Article No */
+      article_no: string;
+      /** Gaps */
+      gaps: {
+        [key: string]: number;
+      };
+      /** Is Active */
+      is_active: boolean;
+      /** Label */
+      label: string;
+      /** Order Unit */
+      order_unit: string | null;
+      /** Units Per Order Unit */
+      units_per_order_unit: number | null;
+      /** Values */
+      values: {
+        [key: string]: components["schemas"]["CatalogValue"];
+      };
+      /**
+       * Variant Id
+       * Format: uuid
+       */
+      variant_id: string;
+    };
     /** SupplierCreate */
     SupplierCreate: {
       /** Code */
@@ -2258,6 +2288,26 @@ export interface components {
       reading: boolean;
       /** Variants */
       variants: components["schemas"]["VariantValues"][];
+    };
+    /** SupplierFamilyRow */
+    SupplierFamilyRow: {
+      /** Category Code */
+      category_code: string | null;
+      /** Columns */
+      columns: components["schemas"]["CatalogAttribute"][];
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Manufacturer */
+      manufacturer: string;
+      /** Name */
+      name: string;
+      /** Reading */
+      reading: boolean;
+      /** Variants */
+      variants: components["schemas"]["SizeRow"][];
     };
     /** SupplierQuestionView */
     SupplierQuestionView: {
@@ -6200,7 +6250,7 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          "application/json": components["schemas"]["FamilyView"][];
+          "application/json": components["schemas"]["SupplierFamilyRow"][];
         };
       };
       /** @description Missing, expired or revoked token */

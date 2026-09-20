@@ -12,12 +12,15 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from equivalence_core.facts import ResolvedRecord, SupplierSource, resolve_supplier
-from equivalence_core.templates import TemplateDefinition
+from equivalence_core.templates import Criticality, ResolvedAttribute, TemplateDefinition
 from equivalence_core.validation import InvalidValue, validate_value
 from equivalence_core.values import TypedValue
 from service_kit.errors import NotFound, Unprocessable
 from supplier_hub.models import ItemFact, ProductFamily, ProductVariant, User
 from supplier_hub.services import attribute_registry, catalog, projection, templates
+
+# Shown as the row's pack, not as one of its distinguishing values.
+_PACK_KEYS = frozenset({"units_per_order_unit"})
 
 # What a supplier said itself, and so may take back; catalog readings stay.
 OWN_SOURCES = frozenset({SupplierSource.SUPPLIER_ANSWER, SupplierSource.UNAVAILABLE})
@@ -48,6 +51,66 @@ def view_of(session: Session, family: ProductFamily) -> FamilyView:
         for variant in sorted(family.variants, key=lambda v: (not v.is_active, v.article_no))
     ]
     return FamilyView(family, template, family_record, variants)
+
+
+@dataclass(frozen=True)
+class VariantSummary:
+    variant: ProductVariant
+    record: ResolvedRecord
+    # How many attributes of each criticality nobody has answered yet.
+    gaps: dict[str, int]
+
+
+@dataclass(frozen=True)
+class FamilySummary:
+    """A family as its size table: what the variants share is left to the family page."""
+
+    family: ProductFamily
+    template: TemplateDefinition
+    # The attributes whose value differs between the variants, in template order.
+    columns: list[ResolvedAttribute]
+    variants: list[VariantSummary]
+
+
+def summaries(session: Session, supplier_id: uuid.UUID) -> list[FamilySummary]:
+    return [
+        summary_of(session, family) for family in catalog.families(session, supplier_id=supplier_id)
+    ]
+
+
+def summary_of(session: Session, family: ProductFamily) -> FamilySummary:
+    view = view_of(session, family)
+    variants = [
+        VariantSummary(variant, record, _gaps(record, view.template))
+        for variant, record in view.variants
+    ]
+    varying = _varying(variants)
+    columns = [attribute for attribute in view.template.attributes if attribute.key in varying]
+    return FamilySummary(family, view.template, columns, variants)
+
+
+def _gaps(record: ResolvedRecord, template: TemplateDefinition) -> dict[str, int]:
+    """Only what still counts: a value nobody gave for a critical or major attribute."""
+    counted: dict[str, int] = {}
+    for key in record.unknown_attributes:
+        criticality = template.attribute(key).criticality
+        if criticality != Criticality.MINOR:
+            counted[criticality] = counted.get(criticality, 0) + 1
+    return counted
+
+
+def _varying(variants: list[VariantSummary]) -> set[str]:
+    """What tells the variants apart; what they share belongs to the family, not to a row.
+    The pack size is left out: the row shows it as printed, next to the order unit."""
+    seen: dict[str, set[str]] = {}
+    for summary in variants:
+        for key, resolved in summary.record.attributes.items():
+            seen.setdefault(key, set()).add(resolved.value.model_dump_json())
+    return {
+        key
+        for key, values in seen.items()
+        if key not in _PACK_KEYS and (len(values) > 1 or len(variants) == 1)
+    }
 
 
 def set_value(

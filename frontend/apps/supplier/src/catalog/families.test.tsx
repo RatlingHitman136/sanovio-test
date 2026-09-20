@@ -15,6 +15,72 @@ const templates = [
   },
 ];
 
+const sizeTable = [
+  {
+    id: "fam-1",
+    name: "BD Plastipak™ Luer-Lok™",
+    manufacturer: "BD",
+    category_code: "syringe_single_use",
+    reading: false,
+    columns: [
+      {
+        key: "nominal_volume_ml",
+        label: "Nominal volume",
+        type: "number",
+        unit: "ml",
+        options: [],
+        criticality: "critical",
+      },
+    ],
+    variants: [
+      {
+        variant_id: "var-10",
+        article_no: "300912",
+        label: "BD Plastipak™ Luer-Lok™ 10 ml",
+        is_active: true,
+        order_unit: "Box",
+        units_per_order_unit: 100,
+        values: {
+          nominal_volume_ml: {
+            value: { type: "number", value: 10, unit: "ml" },
+            source: "CATALOG",
+            scope: "VARIANT",
+            fact_id: "c1",
+          },
+        },
+        gaps: { major: 2 },
+      },
+      {
+        variant_id: "var-20",
+        article_no: "300999",
+        label: "BD Luer-Lok™ 20 ml",
+        is_active: false,
+        order_unit: "Box",
+        units_per_order_unit: 48,
+        values: {},
+        gaps: {},
+      },
+    ],
+  },
+];
+
+test("the catalog lists each family as its size table", async () => {
+  serve(
+    http.get(`${HUB}/api/v1/supplier/catalog`, () => HttpResponse.json(sizeTable)),
+    http.get(`${HUB}/api/v1/templates`, () => HttpResponse.json(templates)),
+  );
+  await renderSupplier("/catalog");
+
+  const table = await screen.findByRole("table");
+  expect(within(table).getByRole("columnheader", { name: "Nominal volume (ml)" })).toBeVisible();
+  const ten = within(table).getByRole("row", { name: /300912/ });
+  expect(ten).toHaveTextContent("10 ml");
+  expect(ten).toHaveTextContent("100 / Box");
+  expect(ten).toHaveTextContent("2 major");
+  expect(within(table).getByRole("row", { name: /300999/ })).toHaveTextContent("retired");
+  expect(screen.getByText("2 to fill in")).toBeVisible();
+});
+
 function familyHandlers(posts: { url: string; body: unknown }[], detail = family) {
   const record = async ({ request }: { request: Request }) => {
     posts.push({
